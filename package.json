@@ -1,0 +1,32 @@
+{
+  "name": "linmas",
+  "version": "0.1.0",
+  "description": "Defensive security skill collection for Claude Code and compatible AI coding agents.",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "skills/",
+    "scripts/",
+    "docs/",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "validate": "node scripts/validate-skills.mjs",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skills",
+    "security",
+    "appsec",
+    "secops",
+    "incident-response",
+    "threat-detection",
+    "compliance"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
