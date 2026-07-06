@@ -37,6 +37,7 @@ const forbiddenPatterns = [
   /^\.DS_Store$/
 ];
 
+// Mirror the intended npm publish surface from package.json.
 const publishedSurface = [
   'README.md',
   'package.json',

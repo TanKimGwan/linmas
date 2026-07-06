@@ -2,7 +2,20 @@
 
 Linmas is an open-source defensive security skill collection for Claude Code and compatible AI coding agents.
 
-First-class skills live under `skills/<skill-name>/SKILL.md`. Treat the `skills/` directory and `npm run validate` output as the source of truth for the current installable skill set.
+Installable skills are the first-class entries under `skills/<skill-name>/SKILL.md`. Treat the `skills/` directory and `npm run validate` output as the source of truth for the current installable skill set.
+
+The npm package currently publishes:
+- `skills/`
+- `scripts/`
+- `docs/`
+- `README.md`
+- `package.json`
+
+`AGENTS.md` and `CLAUDE.md` are repository-local guidance files and are not part of the published package surface.
+
+ponytail: if `docs/` later becomes local-only, update both `package.json` and the validator's published-surface checks in the same change.
+
+ponytail: docs may stay in the working tree locally while still being outside the intended commit scope for a launch-oriented workflow.
 
 ## What Linmas Is For
 
