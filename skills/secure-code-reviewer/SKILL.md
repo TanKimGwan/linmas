@@ -218,153 +218,24 @@ app.post('/api/import', (req, res) => {
 });
 ```
 
-#### Dependency Vulnerability Management
-```python
-#!/usr/bin/env python3
-"""
-Dependency security scanner integration for CI/CD pipelines.
-Wraps multiple SCA tools and enforces organizational policy.
-"""
-
-import json
-import subprocess
-import sys
-from dataclasses import dataclass
-from enum import Enum
-from pathlib import Path
-
-
-class Severity(Enum):
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-
-
-@dataclass
-class VulnFinding:
-    package: str
-    version: str
-    severity: Severity
-    cve: str
-    fixed_version: str
-    description: str
-    exploitable: bool = False
-
-
-class DependencyScanner:
-    """Unified dependency scanning with policy enforcement."""
-
-    # SLA: max days to remediate by severity
-    REMEDIATION_SLA = {
-        Severity.CRITICAL: 7,
-        Severity.HIGH: 30,
-        Severity.MEDIUM: 90,
-        Severity.LOW: 180,
-    }
-
-    # Known false positives or accepted risks (with justification)
-    SUPPRESSED = {
-        "CVE-2023-XXXXX": "Not exploitable in our configuration — validated by AppSec team 2024-01-15",
-    }
-
-    def scan_npm(self, project_path: Path) -> list[VulnFinding]:
-        """Scan Node.js dependencies using npm audit."""
-        result = subprocess.run(
-            ["npm", "audit", "--json", "--production"],
-            cwd=project_path, capture_output=True, text=True
-        )
-        findings = []
-        if result.stdout:
-            audit = json.loads(result.stdout)
-            for vuln_id, vuln in audit.get("vulnerabilities", {}).items():
-                findings.append(VulnFinding(
-                    package=vuln_id,
-                    version=vuln.get("range", "unknown"),
-                    severity=Severity(vuln.get("severity", "low")),
-                    cve=vuln.get("via", [{}])[0].get("url", "N/A") if vuln.get("via") else "N/A",
-                    fixed_version=vuln.get("fixAvailable", {}).get("version", "N/A")
-                        if isinstance(vuln.get("fixAvailable"), dict) else "N/A",
-                    description=vuln.get("via", [{}])[0].get("title", "")
-                        if isinstance(vuln.get("via", [None])[0], dict) else str(vuln.get("via", "")),
-                ))
-        return findings
-
-    def scan_python(self, project_path: Path) -> list[VulnFinding]:
-        """Scan Python dependencies using pip-audit."""
-        result = subprocess.run(
-            ["pip-audit", "--format=json", "--desc"],
-            cwd=project_path, capture_output=True, text=True
-        )
-        findings = []
-        if result.stdout:
-            for vuln in json.loads(result.stdout):
-                findings.append(VulnFinding(
-                    package=vuln["name"],
-                    version=vuln["version"],
-                    severity=Severity.HIGH,  # pip-audit doesn't always provide severity
-                    cve=vuln.get("id", "N/A"),
-                    fixed_version=vuln.get("fix_versions", ["N/A"])[0],
-                    description=vuln.get("description", ""),
-                ))
-        return findings
-
-    def enforce_policy(self, findings: list[VulnFinding]) -> tuple[bool, list[str]]:
-        """
-        Apply organizational policy to scan results.
-        Returns (pass/fail, list of policy violations).
-        """
-        violations = []
-        for f in findings:
-            # Skip suppressed CVEs
-            if f.cve in self.SUPPRESSED:
-                continue
-
-            # Critical and High with known fix = must block
-            if f.severity in (Severity.CRITICAL, Severity.HIGH) and f.fixed_version != "N/A":
-                violations.append(
-                    f"BLOCKED: {f.package}@{f.version} has {f.severity.value} "
-                    f"vulnerability {f.cve} — fix available: {f.fixed_version}"
-                )
-
-            # Critical without fix = warn but allow (with tracking)
-            elif f.severity == Severity.CRITICAL and f.fixed_version == "N/A":
-                violations.append(
-                    f"WARNING: {f.package}@{f.version} has CRITICAL vulnerability "
-                    f"{f.cve} with no fix available — track for remediation"
-                )
-
-        passed = not any("BLOCKED" in v for v in violations)
-        return passed, violations
-
-
-def main():
-    scanner = DependencyScanner()
-    project = Path(".")
-
-    # Detect project type and scan
-    findings = []
-    if (project / "package.json").exists():
-        findings.extend(scanner.scan_npm(project))
-    if (project / "requirements.txt").exists() or (project / "pyproject.toml").exists():
-        findings.extend(scanner.scan_python(project))
-
-    # Enforce policy
-    passed, violations = scanner.enforce_policy(findings)
-
-    for v in violations:
-        print(v)
-
-    print(f"\nTotal findings: {len(findings)}")
-    print(f"Policy violations: {len(violations)}")
-    print(f"Result: {'PASS' if passed else 'FAIL'}")
-
-    sys.exit(0 if passed else 1)
-
-
-if __name__ == "__main__":
-    main()
+#### Dependency Review Workflow
+```txt
+1. Inventory production dependencies by ecosystem and lockfile.
+2. Collect scanner output from the approved SCA tools for the repository.
+3. Group findings by severity, exploitability, and fix availability.
+4. Distinguish true blockers from accepted or non-exploitable cases with written justification.
+5. Turn critical and high-confidence findings into tracked remediation work with clear owners and deadlines.
+6. Re-run the review after fixes to confirm closure.
 ```
+
+Recommended review outputs:
+- dependency inventory summary
+- prioritized vulnerability list
+- approved exception notes with justification
+- remediation SLA or ownership table
+- retest results after fixes land
+
+Use the workflow to review dependency risk without turning the skill into a ready-to-run scanning wrapper.
 
 #### Threat Model Template (STRIDE)
 ```markdown
