@@ -28,10 +28,15 @@ const forbiddenPatterns = [
 
 // Mirror the intended npm publish surface from package.json.
 const publishedSurface = [
+  'bin',
+  'src',
+  'skills',
+  'scripts',
   'README.md',
   'package.json',
-  'scripts',
-  'skills'
+  'LICENSE',
+  'NOTICE',
+  'TRADEMARK.md'
 ];
 
 const secretPattern = /(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]+|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|password=|token=|api[_-]?key=|apikey=)/;

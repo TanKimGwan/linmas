@@ -25,3 +25,11 @@ test('parseArgv parses flags', () => {
   assert.equal(result.installAll, true);
   assert.equal(result.dryRun, true);
 });
+
+test('parseArgv parses flags and positional skill names independently', () => {
+  const result = parseArgv(['node', 'bin/linmas.mjs', 'install', '--dry-run', 'security-operations-lead']);
+  assert.equal(result.command, 'install');
+  assert.equal(result.skillName, 'security-operations-lead');
+  assert.equal(result.installAll, false);
+  assert.equal(result.dryRun, true);
+});
