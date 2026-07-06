@@ -38,6 +38,19 @@ Default response shape:
 3. Alternate skill if scope changes
 4. Missing inputs to ask for next
 
+## Routing heuristics
+
+- Route directly when the user clearly names one domain and one objective.
+- Offer one alternate skill when the scope could plausibly shift.
+- Keep multi-domain requests narrow by identifying the first specialist that should lead.
+- Ask for environment, target, or framework details when those affect skill choice.
+
+## Next questions to ask
+
+- What system, environment, or codebase is in scope?
+- Is the need mainly review, design, incident handling, detection, or validation?
+- Does the request stay within one domain or cross into another specialist area?
+
 ## Routing guide
 
 Choose `secure-code-reviewer` for secure SDLC, threat modeling, secure review, scanner tuning, and developer enablement.
