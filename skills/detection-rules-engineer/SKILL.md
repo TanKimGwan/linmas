@@ -155,93 +155,64 @@ fields:
   - Computer
 ```
 
-#### Compiled to Splunk SPL
-```spl
-index=windows sourcetype=WinEventLog:Sysmon EventCode=1
-  (ParentImage="*\\cmd.exe" OR ParentImage="*\\wscript.exe"
-   OR ParentImage="*\\cscript.exe" OR ParentImage="*\\mshta.exe"
-   OR ParentImage="*\\wmiprvse.exe")
-  (Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
-  (CommandLine="*-enc *" OR CommandLine="*-EncodedCommand*"
-   OR CommandLine="*-ec *" OR CommandLine="*FromBase64String*")
-| eval risk_score=case(
-    ParentImage LIKE "%wmiprvse.exe", 90,
-    ParentImage LIKE "%mshta.exe", 85,
-    1=1, 70
-  )
-| where NOT match(CommandLine, "(?i)(SCCM|ConfigMgr|Intune)")
-| table _time Computer User ParentImage Image CommandLine risk_score
-| sort - risk_score
+#### Detection Translation Guidance
+```txt
+When moving a rule from Sigma into a target SIEM:
+1. preserve the behavior logic first, not the exact syntax
+2. document the log-source assumptions for the target platform
+3. keep suppression and allowlist logic explicit
+4. record which fields were renamed, normalized, or approximated during translation
+5. test the translated rule against approved sample data before promotion
 ```
 
-#### Compiled to Microsoft Sentinel KQL
-```kql
-DeviceProcessEvents
-| where Timestamp > ago(1h)
-| where InitiatingProcessFileName in~ (
-    "cmd.exe", "wscript.exe", "cscript.exe", "mshta.exe", "wmiprvse.exe"
-  )
-| where FileName in~ ("powershell.exe", "pwsh.exe")
-| where ProcessCommandLine has_any (
-    "-enc ", "-EncodedCommand", "-ec ", "FromBase64String"
-  )
-// Exclude known legitimate automation
-| where ProcessCommandLine !contains "SCCM"
-    and ProcessCommandLine !contains "ConfigMgr"
-| extend RiskScore = case(
-    InitiatingProcessFileName =~ "wmiprvse.exe", 90,
-    InitiatingProcessFileName =~ "mshta.exe", 85,
-    70
-  )
-| project Timestamp, DeviceName, AccountName,
-    InitiatingProcessFileName, FileName, ProcessCommandLine, RiskScore
-| sort by RiskScore desc
-```
+Suggested translation notes:
+- source Sigma logic
+- target SIEM/query language
+- field-mapping assumptions
+- suppression conditions
+- validation result and owner
+
+ponytail: keep vendor-specific query examples in local testing notes or product docs when needed; the skill itself should teach translation discipline, not become a query bundle.
+
+## Reference deliverables
 
 #### MITRE ATT&CK Coverage Assessment Template
 ```markdown
 # MITRE ATT&CK Detection Coverage Report
 
 **Assessment Date**: YYYY-MM-DD
-**Platform**: Windows Endpoints
-**Total Techniques Assessed**: 201
-**Detection Coverage**: 67/201 (33%)
+**Platform**: [Windows / Linux / Cloud / Mixed]
+**Total Techniques Assessed**: [N]
+**Detection Coverage**: [X/N]
 
 ## Coverage by Tactic
+| Tactic | Techniques | Covered | Gap | Coverage % |
+|--------|-----------:|--------:|----:|-----------:|
+| Initial Access | | | | |
+| Execution | | | | |
+| Persistence | | | | |
+| Privilege Escalation | | | | |
+| Defense Evasion | | | | |
+| Credential Access | | | | |
+| Discovery | | | | |
+| Lateral Movement | | | | |
+| Collection | | | | |
+| Exfiltration | | | | |
+| Command and Control | | | | |
+| Impact | | | | |
 
-| Tactic              | Techniques | Covered | Gap  | Coverage % |
-|---------------------|-----------|---------|------|------------|
-| Initial Access      | 9         | 4       | 5    | 44%        |
-| Execution           | 14        | 9       | 5    | 64%        |
-| Persistence         | 19        | 8       | 11   | 42%        |
-| Privilege Escalation| 13        | 5       | 8    | 38%        |
-| Defense Evasion     | 42        | 12      | 30   | 29%        |
-| Credential Access   | 17        | 7       | 10   | 41%        |
-| Discovery           | 32        | 11      | 21   | 34%        |
-| Lateral Movement    | 9         | 4       | 5    | 44%        |
-| Collection          | 17        | 3       | 14   | 18%        |
-| Exfiltration        | 9         | 2       | 7    | 22%        |
-| Command and Control | 16        | 5       | 11   | 31%        |
-| Impact              | 14        | 3       | 11   | 21%        |
+## Critical Gaps
+- Which techniques matter most for this environment?
+- Which ones have no reliable detection today?
+- Which data sources are missing, incomplete, or too noisy?
 
-## Critical Gaps (Top Priority)
-Techniques actively used by threat actors in our industry with ZERO detection:
-
-| Technique ID | Technique Name        | Used By          | Priority  |
-|--------------|-----------------------|------------------|-----------|
-| T1003.001    | LSASS Memory Dump     | APT29, FIN7      | CRITICAL  |
-| T1055.012    | Process Hollowing     | Lazarus, APT41   | CRITICAL  |
-| T1071.001    | Web Protocols C2      | Most APT groups  | CRITICAL  |
-| T1562.001    | Disable Security Tools| Ransomware gangs | HIGH      |
-| T1486        | Data Encrypted/Impact | All ransomware   | HIGH      |
-
-## Detection Roadmap (Next Quarter)
-| Sprint | Techniques to Cover          | Rules to Write | Data Sources Needed   |
-|--------|------------------------------|----------------|-----------------------|
-| S1     | T1003.001, T1055.012         | 4              | Sysmon (Event 10, 8)  |
-| S2     | T1071.001, T1071.004         | 3              | DNS logs, proxy logs  |
-| S3     | T1562.001, T1486             | 5              | EDR telemetry         |
-| S4     | T1053.005, T1547.001         | 4              | Windows Security logs |
+## Detection Roadmap
+| Sprint | Techniques to Cover | Rules to Write | Data Sources Needed |
+|--------|---------------------|----------------|---------------------|
+| S1 | | | |
+| S2 | | | |
+| S3 | | | |
+| S4 | | | |
 ```
 
 #### Detection Promotion Workflow
@@ -366,9 +337,9 @@ lifecycle:
 ### Communication contract
 
 - **Be precise about coverage**: "We have 33% ATT&CK coverage on Windows endpoints. Zero detections for credential dumping or process injection — our two highest-risk gaps based on threat intel for our sector."
-- **Be honest about detection limits**: "This rule catches Mimikatz and ProcDump, but it won't detect direct syscall LSASS access. We need kernel telemetry for that, which requires an EDR agent upgrade."
+- **Be honest about detection limits**: "This rule catches a known family of credential-access behavior, but it will miss adjacent variants without deeper kernel or endpoint telemetry. Document the blind spot instead of overselling the rule."
 - **Quantify alert quality**: "Rule XYZ fires 47 times per day with a 12% true positive rate. That's 41 false positives daily — we either tune it or disable it, because right now analysts skip it."
-- **Frame everything in risk**: "Closing the T1003.001 detection gap is more important than writing 10 new Discovery rules. Credential dumping is in 80% of ransomware kill chains."
+- **Frame everything in risk**: "Closing a credential-access detection gap may matter more than adding several low-value discovery rules. Explain why the gap is higher priority in this environment."
 - **Bridge security and engineering**: "I need Sysmon Event ID 10 collected from all domain controllers. Without it, our LSASS access detection is completely blind on the most critical targets."
 
 ### Continuous improvement
