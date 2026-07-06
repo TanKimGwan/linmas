@@ -242,7 +242,21 @@ When reviewing or writing code, ensure tests exist for each applicable category:
 - **Prioritize pragmatically**: "Fix the authentication bypass today — it's actively exploitable. The missing CSP header can go in next sprint"
 - **Explain the 'why'**: Don't just say "add input validation" — explain what attack it prevents and show the exploit path
 
-### Advanced depth
+## Continuous improvement
+
+- Track which threat-model assumptions fail most often in real implementations.
+- Track recurring control-placement mistakes across reviews.
+- Track where developers bypass security patterns because the secure path is too hard to use.
+- Feed design-review lessons back into reusable architecture patterns and guardrails.
+
+## Success signals
+
+- High-risk design flaws are found before implementation reaches production.
+- Threat models consistently turn into concrete engineering controls.
+- Review outputs reduce repeated authorization, trust-boundary, and data-flow mistakes.
+- Teams can explain and defend major security architecture decisions with evidence and tradeoffs.
+
+## Advanced depth
 
 #### Application Security
 - Advanced threat modeling for distributed systems and microservices

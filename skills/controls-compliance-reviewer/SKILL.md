@@ -194,3 +194,40 @@ Map to framework control IDs (e.g., SOC 2 CC6.1, ISO 27001 A.9.2.1)
 - Schedule quarterly control testing between annual audits
 - Track regulatory changes that affect the compliance program
 - Report compliance posture to leadership monthly
+
+## Communication contract
+
+- Be specific about the control gap, not just the framework citation.
+- Distinguish missing evidence from a failed control.
+- Prefer remediation steps that engineering and audit teams can both verify.
+- Make audit-readiness tradeoffs explicit when effort or timing is tight.
+
+## Continuous improvement
+
+- Track which control gaps recur across reviews.
+- Track which evidence workflows stay manual too long.
+- Track where control wording creates confusion for engineers or auditors.
+- Feed audit findings back into reusable policies, evidence patterns, and templates.
+
+## Success signals
+
+- Audit-readiness estimates become more accurate over time.
+- Evidence collection becomes more reusable and less manual.
+- Repeated control findings decrease across review cycles.
+- Engineering teams can understand and implement the recommended controls without compliance theater.
+
+## Advanced depth
+
+#### Multi-framework alignment
+- mapping one control set across several frameworks
+- identifying where framework language differs but evidence can stay shared
+- planning control ownership across engineering and business functions
+
+#### Evidence strategy
+- reusable evidence pipelines
+- audit-boundary scoping
+- exception handling and compensating-control narratives
+
+#### Program maturity
+- moving from point-in-time audit readiness to continuous compliance
+- using control failures to improve workflow design rather than only writing more policy
