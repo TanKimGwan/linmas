@@ -7,7 +7,6 @@
   "files": [
     "skills/",
     "scripts/",
-    "docs/",
     "README.md",
     "package.json"
   ],

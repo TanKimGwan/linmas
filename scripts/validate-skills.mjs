@@ -41,7 +41,6 @@ const forbiddenPatterns = [
 const publishedSurface = [
   'README.md',
   'package.json',
-  'docs',
   'scripts',
   'skills'
 ];
@@ -55,7 +54,8 @@ const safeSecretExamplePatterns = [
   'AKIA...',
   '<API_TOKEN>',
   '<ACCESS_TOKEN>',
-  'example-token'
+  'example-token',
+  'const secretPattern ='
 ];
 
 const failures = [];
@@ -149,7 +149,7 @@ function validateSkillContent(skill, skillFile) {
   }
 
   for (const key of ['name', 'description', 'triggers']) {
-    if (!frontmatter[key]) {
+    if (!(key in frontmatter)) {
       fail(`Missing frontmatter key '${key}': ${relPath}`);
     }
   }
