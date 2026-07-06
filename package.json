@@ -4,7 +4,12 @@
   "description": "Defensive security skill collection for Claude Code and compatible AI coding agents.",
   "type": "module",
   "license": "Apache-2.0",
+  "bin": {
+    "linmas": "bin/linmas.mjs"
+  },
   "files": [
+    "bin/",
+    "src/",
     "skills/",
     "scripts/",
     "README.md",
@@ -14,6 +19,7 @@
     "TRADEMARK.md"
   ],
   "scripts": {
+    "test": "node --test",
     "validate": "node scripts/validate-skills.mjs",
     "pack:dry-run": "npm pack --dry-run"
   },
