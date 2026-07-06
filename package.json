@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "description": "Defensive security skill collection for Claude Code and compatible AI coding agents.",
   "type": "module",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "files": [
     "skills/",
     "scripts/",
     "README.md",
-    "package.json"
+    "package.json",
+    "LICENSE",
+    "NOTICE",
+    "TRADEMARK.md"
   ],
   "scripts": {
     "validate": "node scripts/validate-skills.mjs",

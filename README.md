@@ -2,37 +2,19 @@
 
 Linmas is an open-source defensive security skill collection for Claude Code and compatible AI coding agents.
 
-Installable skills are the first-class entries under `skills/<skill-name>/SKILL.md`. Treat the `skills/` directory and `npm run validate` output as the source of truth for the current installable skill set.
+It is designed to provide reusable, specialist security guidance that stays practical, reviewable, and safe for legitimate defensive work.
 
-The npm package currently publishes:
+## What Linmas Includes
+
+Installable skills are the first-class entries under `skills/<skill-name>/SKILL.md`.
+The current public package includes:
 - `skills/`
 - `scripts/`
 - `README.md`
 - `package.json`
-
-
-## What Linmas Is For
-
-Linmas is intended for defensive, authorized, and legitimate security work, including:
-
-- application security review
-- secure architecture review
-- cloud security review
-- incident response support
-- detection engineering
-- compliance review
-- threat intelligence analysis
-- authorized penetration testing planning and reporting
-
-Do not use these skills for unauthorized access, exploitation, evasion, persistence, credential theft, or harm.
-
-## Repository Goals
-
-- maintain reusable security-specialist skills
-- keep skill structure consistent and reviewable
-- enforce safety boundaries for dual-use domains
-- validate the package surface before release
-- support a future npm installer CLI
+- `LICENSE`
+- `NOTICE`
+- `TRADEMARK.md`
 
 ## Skill Catalog
 
@@ -48,7 +30,21 @@ Do not use these skills for unauthorized access, exploitation, evasion, persiste
 - `detection-rules-engineer` — SIEM rules, alert tuning, telemetry mapping, and detection engineering
 - `threat-research-analyst` — IOC analysis, adversary tracking, and defensive intelligence reporting
 
-## Validate
+## Intended Use
+
+Linmas is intended for defensive, authorized, and legitimate security work, including:
+- application security review
+- secure architecture review
+- cloud security review
+- incident response support
+- detection engineering
+- compliance review
+- threat intelligence analysis
+- authorized penetration testing planning and reporting
+
+Do not use Linmas for unauthorized access, credential theft, destructive attacks, stealth, persistence, evasion, or harm.
+
+## Validation
 
 ```bash
 npm run validate
@@ -58,9 +54,22 @@ npm run pack:dry-run
 ## Installation
 
 An npm-based installer is planned but not implemented yet.
-
 Do not assume `npx linmas install` exists until the installer CLI is added.
 
-## License
+## Licensing and Attribution
 
-This project is licensed under `MIT`. See `LICENSE` for the full text.
+Linmas is licensed under Apache License 2.0.
+See:
+- `LICENSE` for the full license text
+- `NOTICE` for attribution guidance
+- `TRADEMARK.md` for name and branding restrictions
+
+Apache-2.0 allows commercial and noncommercial use, redistribution, and modification, but Linmas branding is not part of the software license. If you redistribute or adapt Linmas, keep attribution intact and use distinct branding for derivative projects.
+
+## Project Goals
+
+- maintain reusable security-specialist skills
+- keep skill structure consistent and reviewable
+- enforce safety boundaries for dual-use domains
+- validate the package surface before release
+- support a future npm installer CLI
