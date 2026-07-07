@@ -10,6 +10,7 @@ import { formatDoctorReport } from '../src/core/doctor.mjs';
 import { formatOnboarding } from '../src/core/onboard.mjs';
 import { selectSkills, selectTargets, planInstall, formatInstallPreview, applyInstallPlan, promptForInstallChoices } from '../src/core/install-skills.mjs';
 import { createTimestamp } from '../src/core/fs-utils.mjs';
+import { planUninstall, formatUninstallPreview, applyUninstallPlan } from '../src/core/uninstall-skills.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -90,6 +91,31 @@ export async function run(argv, io = process) {
       const manifestPathByHost = new Map(detections.map((item) => [item.host, item.manifestPath]));
       applyInstallPlan(plan, manifestMap, manifestPathByHost);
       io.stdout.write('Install completed.\n');
+      return 0;
+    } catch (e) {
+      io.stderr.write(`Error: ${e.message}\n`);
+      return 1;
+    }
+  }
+
+  if (args.command === 'uninstall') {
+    try {
+      const detections = detectHosts();
+      const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
+      const plan = planUninstall({
+        manifests,
+        detections,
+        skillName: args.skillName,
+        uninstallAll: args.installAll
+      });
+
+      io.stdout.write(formatUninstallPreview(plan));
+      if (args.dryRun) return 0;
+
+      const manifestMap = new Map(manifests.map((manifest) => [manifest.host, manifest]));
+      const manifestPathByHost = new Map(detections.map((item) => [item.host, item.manifestPath]));
+      applyUninstallPlan(plan, manifestMap, manifestPathByHost);
+      io.stdout.write('Uninstall completed.\n');
       return 0;
     } catch (e) {
       io.stderr.write(`Error: ${e.message}\n`);

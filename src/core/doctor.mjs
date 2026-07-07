@@ -12,6 +12,9 @@ export function formatDoctorReport(detections, manifests, existingPaths = new Se
     for (const skill of manifest.skills) {
       const state = existingPaths.has(skill.path) || fs.existsSync(skill.path) ? 'present on disk' : 'missing on disk';
       lines.push(`  - ${skill.name}: ${state}`);
+      if (state === 'missing on disk') {
+        lines.push('    mismatch: tracked by manifest but missing on disk');
+      }
     }
   }
 
