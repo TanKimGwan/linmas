@@ -8,6 +8,7 @@ import { detectHosts } from '../src/core/detect-hosts.mjs';
 import { readManifest } from '../src/core/manifest.mjs';
 import { formatDoctorReport } from '../src/core/doctor.mjs';
 import { formatOnboarding } from '../src/core/onboard.mjs';
+import { selectSkills, selectTargets, planInstall, formatInstallPreview } from '../src/core/install-skills.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -48,6 +49,60 @@ export async function run(argv, io = process) {
 
     io.stdout.write(formatOnboarding(detections, skills, manifests));
     return 0;
+  }
+
+  if (args.command === 'install') {
+    if (!args.dryRun) {
+      io.stderr.write('Error: actual installs not implemented yet. Use --dry-run for preview.\n');
+      return 1;
+    }
+    try {
+      const detections = detectHosts();
+      const skills = listSkills(rootDir);
+      const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
+
+      const selectedSkills = selectSkills(skills, args);
+
+      // Determine targets choice:
+      // If no host is detected/writable, selectTargets will throw.
+      // Default choice logic:
+      // If more than 1 detected, use 'both', otherwise find the detected one.
+      const detected = detections.filter(d => d.status === 'detected' || d.status === 'probably_detected');
+      let targetChoice = 'both';
+      if (detected.length === 1) {
+        targetChoice = detected[0].host;
+      } else if (detected.length === 0) {
+        io.stderr.write('Error: No writable target hosts detected. Install aborted.\n');
+        return 1;
+      }
+
+      const selectedTargets = selectTargets(detections, targetChoice);
+
+      const existingPaths = new Set();
+      for (const target of selectedTargets) {
+        for (const skill of selectedSkills) {
+          const dest = path.join(target.installRoot, skill.name);
+          if (fs.existsSync(dest)) {
+            existingPaths.add(dest);
+          }
+        }
+      }
+
+      const plan = planInstall({
+        skills: selectedSkills,
+        targets: selectedTargets,
+        manifests,
+        existingPaths,
+        timestamp: 'dry-run',
+        dryRun: args.dryRun
+      });
+
+      io.stdout.write(formatInstallPreview(plan));
+      return 0;
+    } catch (e) {
+      io.stderr.write(`Error: ${e.message}\n`);
+      return 1;
+    }
   }
 
   io.stderr.write(`Unknown command: ${args.command}\n`);

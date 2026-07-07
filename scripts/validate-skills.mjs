@@ -1,11 +1,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { EXPECTED_SKILLS } from '../src/core/list-skills.mjs';
 
 const root = process.cwd();
 const skillsRoot = path.join(root, 'skills');
 
-const expectedSkills = EXPECTED_SKILLS;
+const expectedSkills = [
+  'security-operations-lead',
+  'smart-contract-reviewer',
+  'exploit-validation-specialist',
+  'threat-research-analyst',
+  'detection-rules-engineer',
+  'incident-triage-lead',
+  'controls-compliance-reviewer',
+  'cloud-hardening-architect',
+  'secure-systems-architect',
+  'secure-code-reviewer',
+  'security-domain-router'
+];
 
 const requiredHeadings = [
   '## Best fit',
@@ -30,10 +41,10 @@ const forbiddenPatterns = [
 const publishedSurface = [
   'bin',
   'src',
-  'skills',
-  'scripts',
   'README.md',
   'package.json',
+  'scripts',
+  'skills',
   'LICENSE',
   'NOTICE',
   'TRADEMARK.md'
