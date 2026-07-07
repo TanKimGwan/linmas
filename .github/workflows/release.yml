@@ -1,0 +1,49 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - run: git fetch origin main
+      - run: node scripts/verify-release-tag.mjs --tag "${GITHUB_REF_NAME}" --version-file package.json --main-ref origin/main
+      - run: npm test
+      - run: npm run validate
+      - run: npm run pack:dry-run
+      - run: npm pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifact
+          path: '*.tgz'
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: '*.tgz'
+
+  provenance:
+    needs: publish
+    permissions:
+      actions: read
+      attestations: write
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/generator-generic-ossf-slsa3-publish.yml
+    with:
+      artifact-name: release-artifact
+      subject-path: 'linmas-*.tgz'
