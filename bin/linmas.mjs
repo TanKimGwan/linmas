@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgv } from '../src/cli/parse-args.mjs';
 import { listSkills } from '../src/core/list-skills.mjs';
+import { detectHosts } from '../src/core/detect-hosts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -17,6 +18,17 @@ export async function run(argv, io = process) {
     io.stdout.write('Available Linmas skills:\n');
     for (const skill of skills) {
       io.stdout.write(`- ${skill.name} — ${skill.description}\n`);
+    }
+    return 0;
+  }
+
+  if (args.command === 'detect') {
+    const detections = detectHosts();
+    for (const detection of detections) {
+      io.stdout.write(`${detection.host}: ${detection.status}\n`);
+      io.stdout.write(`  reason: ${detection.reason}\n`);
+      io.stdout.write(`  target: ${detection.installRoot}\n`);
+      io.stdout.write(`  writable: ${detection.writable}\n`);
     }
     return 0;
   }
