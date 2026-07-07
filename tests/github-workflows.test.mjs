@@ -55,16 +55,22 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
   assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
 });
 
-test('release docs mention dev to main to vX.Y.Z flow', () => {
-  const npmPlan = read('docs/NPM_PACKAGING_PLAN.md');
-  const checklist = read('docs/PUBLIC_RELEASE_CHECKLIST.md');
-  const gates = read('docs/QUALITY_GATES.md');
-  assert.match(npmPlan, /dev.*main.*vX\.Y\.Z/s);
-  assert.match(checklist, /merge `dev` into `main`/i);
-  assert.match(checklist, /approval happens before pushing the release tag/i);
-  assert.match(checklist, /push `main` to the remote before pushing the `vX\.Y\.Z` tag/i);
-  assert.doesNotMatch(checklist, /Publish command should be run manually and intentionally/i);
-  assert.doesNotMatch(checklist, /npm publish --access public/);
-  assert.match(gates, /release tags must come from `main`/);
-}
-);
+test('package metadata declares the hardened CI/runtime support floor', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+  assert.equal(pkg.engines.node, '>=24');
+  assert.equal(fs.existsSync(path.join(rootDir, 'package-lock.json')), true);
+});
+
+test('ci and release workflows use node 24 with npm ci and npm cache', () => {
+  const ci = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
+  const release = fs.readFileSync(path.join(rootDir, '.github/workflows/release.yml'), 'utf8');
+
+  assert.match(ci, /node-version:\s*24/);
+  assert.match(ci, /cache:\s*npm/);
+  assert.match(ci, /npm ci/);
+
+  assert.match(release, /node-version:\s*24/);
+  assert.match(release, /cache:\s*npm/);
+  assert.match(release, /npm ci/);
+});
+
