@@ -1,0 +1,55 @@
+import fs from 'node:fs';
+import { assertInsideRoot } from './fs-utils.mjs';
+import { writeManifest } from './manifest.mjs';
+
+export function planUninstall({ manifests, detections, skillName, uninstallAll }) {
+  const installRoots = new Map(
+    detections
+      .filter((d) => d.status === 'detected' || d.status === 'probably_detected')
+      .map((d) => [d.host, d.installRoot])
+  );
+
+  return manifests.flatMap((manifest) => {
+    const installRoot = installRoots.get(manifest.host);
+    if (!installRoot) return [];
+
+    return manifest.skills
+      .filter((skill) => uninstallAll || skill.name === skillName)
+      .map((skill) => ({
+        host: manifest.host,
+        skillName: skill.name,
+        skillPath: skill.path,
+        installRoot
+      }));
+  });
+}
+
+export function formatUninstallPreview(plan) {
+  const lines = ['Linmas uninstall preview:'];
+  for (const item of plan) {
+    lines.push(`- ${item.host}: remove ${item.skillName} from ${item.skillPath}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+export function applyUninstallPlan(plan, manifests, manifestPathByHost) {
+  const removed = [];
+
+  for (const item of plan) {
+    assertInsideRoot(item.installRoot, item.skillPath);
+    fs.rmSync(item.skillPath, { recursive: true, force: true });
+    removed.push(item.skillPath);
+
+    const manifest = manifests.get(item.host);
+    if (manifest) {
+      const updated = {
+        ...manifest,
+        skills: manifest.skills.filter((skill) => skill.name !== item.skillName)
+      };
+      manifests.set(item.host, updated);
+      writeManifest(manifestPathByHost.get(item.host), updated);
+    }
+  }
+
+  return { removed };
+}

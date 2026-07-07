@@ -118,3 +118,51 @@ test('run install command perform dry-run preview or actual install', async () =
   }
 });
 
+test('run uninstall command performs dry-run preview or actual uninstall', async () => {
+  const originalHomedir = os.homedir;
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-uninstall-'));
+  os.homedir = () => tempHome;
+
+  try {
+    const claudeDir = path.join(tempHome, '.claude');
+    const installRoot = path.join(claudeDir, 'skills');
+    const skillPath = path.join(installRoot, 'security-operations-lead');
+    const manifestPath = path.join(claudeDir, 'linmas-manifest.json');
+
+    fs.mkdirSync(skillPath, { recursive: true });
+    fs.writeFileSync(path.join(skillPath, 'SKILL.md'), '# skill\n');
+
+    const manifest = {
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'claude',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'security-operations-lead', path: skillPath, backupPath: null }]
+    };
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+
+    // 1. Dry run preview test
+    const dryRunIo = createMockIO();
+    const dryRunCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead', '--dry-run'], dryRunIo);
+
+    assert.equal(dryRunCode, 0);
+    assert.match(dryRunIo.getStdout(), /Linmas uninstall preview:/);
+    assert.match(dryRunIo.getStdout(), /security-operations-lead/);
+    assert.equal(fs.existsSync(skillPath), true); // dry run: should not delete!
+
+    // 2. Actual uninstall test
+    const uninstallIo = createMockIO();
+    const uninstallCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo);
+
+    assert.equal(uninstallCode, 0);
+    assert.match(uninstallIo.getStdout(), /Linmas uninstall preview:/);
+    assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
+    assert.equal(fs.existsSync(skillPath), false); // should be deleted!
+  } finally {
+    os.homedir = originalHomedir;
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+});
+
+

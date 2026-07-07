@@ -44,4 +44,5 @@ test('formatDoctorReport includes manifest mismatch details', () => {
 
   assert.match(report, /secure-code-reviewer/);
   assert.match(report, /missing on disk/i);
+  assert.match(report, /mismatch: tracked by manifest but missing on disk/i);
 });
