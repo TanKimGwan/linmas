@@ -53,8 +53,20 @@ npm run pack:dry-run
 
 ## Installation
 
-An npm-based installer is planned but not implemented yet.
-Do not assume `npx linmas install` exists until the installer CLI is added.
+Install from the package and inspect available skills:
+
+```bash
+npx linmas list
+npx linmas detect
+npx linmas install secure-code-reviewer --dry-run
+```
+
+Key commands:
+- `npx linmas install <skill>` — install one skill to a detected host
+- `npx linmas install --all` — install all first-class Linmas skills
+- `npx linmas onboard` — show what the skills are for and where they are installed
+- `npx linmas doctor` — inspect host detection and managed-install health
+- `npx linmas uninstall <skill>` — remove one Linmas-managed skill
 
 ## Licensing and Attribution
 
