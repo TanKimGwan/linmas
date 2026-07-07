@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { parseArgv } from '../src/cli/parse-args.mjs';
 import { listSkills } from '../src/core/list-skills.mjs';
 import { detectHosts } from '../src/core/detect-hosts.mjs';
+import { readManifest } from '../src/core/manifest.mjs';
+import { formatDoctorReport } from '../src/core/doctor.mjs';
+import { formatOnboarding } from '../src/core/onboard.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -30,6 +33,20 @@ export async function run(argv, io = process) {
       io.stdout.write(`  target: ${detection.installRoot}\n`);
       io.stdout.write(`  writable: ${detection.writable}\n`);
     }
+    return 0;
+  }
+
+  if (args.command === 'doctor' || args.command === 'onboard') {
+    const detections = detectHosts();
+    const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
+    const skills = listSkills(rootDir);
+
+    if (args.command === 'doctor') {
+      io.stdout.write(formatDoctorReport(detections, manifests));
+      return 0;
+    }
+
+    io.stdout.write(formatOnboarding(detections, skills, manifests));
     return 0;
   }
 
