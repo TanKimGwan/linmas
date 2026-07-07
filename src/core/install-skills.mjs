@@ -1,4 +1,7 @@
+import fs from 'node:fs';
 import path from 'node:path';
+import { assertInsideRoot, backupDirectory, copySkillDirectory } from './fs-utils.mjs';
+import { upsertManagedSkill, writeManifest } from './manifest.mjs';
 
 export function selectSkills(skills, { skillName, installAll }) {
   if (installAll) return skills;
@@ -67,3 +70,51 @@ export function formatInstallPreview(plan) {
   }
   return `${lines.join('\n')}\n`;
 }
+
+export function applyInstallPlan(plan, manifests, manifestPathByHost) {
+  const written = [];
+  const backups = [];
+
+  const getManifestPath = (host) => {
+    if (typeof manifestPathByHost === 'string') {
+      return manifestPathByHost;
+    }
+    if (manifestPathByHost instanceof Map) {
+      return manifestPathByHost.get(host);
+    }
+    if (manifestPathByHost && typeof manifestPathByHost === 'object') {
+      return manifestPathByHost[host];
+    }
+    throw new Error(`Invalid manifestPathByHost: ${manifestPathByHost}`);
+  };
+
+  for (const item of plan) {
+    const manifestPath = getManifestPath(item.host);
+    const hostRoot = path.dirname(manifestPath);
+
+    assertInsideRoot(hostRoot, item.destinationDir);
+    if (item.backupDir) {
+      assertInsideRoot(hostRoot, item.backupDir);
+    }
+
+    if (item.backupDir && fs.existsSync(item.destinationDir)) {
+      backupDirectory(item.destinationDir, item.backupDir);
+      backups.push(item.backupDir);
+    }
+
+    copySkillDirectory(item.skill.sourceDir, item.destinationDir);
+    written.push(item.destinationDir);
+
+    const manifest = manifests.get(item.host);
+    const updated = upsertManagedSkill(manifest, {
+      name: item.skill.name,
+      skillPath: item.destinationDir,
+      backupPath: item.backupDir
+    });
+    manifests.set(item.host, updated);
+    writeManifest(manifestPath, updated);
+  }
+
+  return { written, backups };
+}
+

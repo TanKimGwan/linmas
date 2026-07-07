@@ -83,3 +83,38 @@ test('symlinked top-level entrypoint reports unknown commands', () => {
     /Unknown command: bad-command/
   );
 });
+
+test('run install command perform dry-run preview or actual install', async () => {
+  const originalHomedir = os.homedir;
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-install-'));
+  os.homedir = () => tempHome;
+
+  try {
+    // Setup target directories to be detected
+    const claudeDir = path.join(tempHome, '.claude');
+    const installRoot = path.join(claudeDir, 'skills');
+    fs.mkdirSync(installRoot, { recursive: true });
+
+    // 1. Dry run preview test
+    const dryRunIo = createMockIO();
+    const dryRunCode = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead', '--dry-run'], dryRunIo);
+
+    assert.equal(dryRunCode, 0);
+    assert.match(dryRunIo.getStdout(), /Linmas install preview:/);
+    assert.match(dryRunIo.getStdout(), /security-operations-lead/);
+    assert.equal(fs.existsSync(path.join(installRoot, 'security-operations-lead')), false); // dry run: should not write!
+
+    // 2. Actual install test
+    const installIo = createMockIO();
+    const installCode = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], installIo);
+
+    assert.equal(installCode, 0);
+    assert.match(installIo.getStdout(), /Linmas install preview:/);
+    assert.match(installIo.getStdout(), /Install completed\./);
+    assert.equal(fs.existsSync(path.join(installRoot, 'security-operations-lead', 'SKILL.md')), true); // should exist now!
+  } finally {
+    os.homedir = originalHomedir;
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+});
+

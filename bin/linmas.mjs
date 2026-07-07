@@ -8,7 +8,8 @@ import { detectHosts } from '../src/core/detect-hosts.mjs';
 import { readManifest } from '../src/core/manifest.mjs';
 import { formatDoctorReport } from '../src/core/doctor.mjs';
 import { formatOnboarding } from '../src/core/onboard.mjs';
-import { selectSkills, selectTargets, planInstall, formatInstallPreview } from '../src/core/install-skills.mjs';
+import { selectSkills, selectTargets, planInstall, formatInstallPreview, applyInstallPlan, promptForInstallChoices } from '../src/core/install-skills.mjs';
+import { createTimestamp } from '../src/core/fs-utils.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -52,10 +53,6 @@ export async function run(argv, io = process) {
   }
 
   if (args.command === 'install') {
-    if (!args.dryRun) {
-      io.stderr.write('Error: actual installs not implemented yet. Use --dry-run for preview.\n');
-      return 1;
-    }
     try {
       const detections = detectHosts();
       const skills = listSkills(rootDir);
@@ -63,19 +60,7 @@ export async function run(argv, io = process) {
 
       const selectedSkills = selectSkills(skills, args);
 
-      // Determine targets choice:
-      // If no host is detected/writable, selectTargets will throw.
-      // Default choice logic:
-      // If more than 1 detected, use 'both', otherwise find the detected one.
-      const detected = detections.filter(d => d.status === 'detected' || d.status === 'probably_detected');
-      let targetChoice = 'both';
-      if (detected.length === 1) {
-        targetChoice = detected[0].host;
-      } else if (detected.length === 0) {
-        io.stderr.write('Error: No writable target hosts detected. Install aborted.\n');
-        return 1;
-      }
-
+      const { targetChoice } = await promptForInstallChoices(io, detections, selectedSkills);
       const selectedTargets = selectTargets(detections, targetChoice);
 
       const existingPaths = new Set();
@@ -88,16 +73,23 @@ export async function run(argv, io = process) {
         }
       }
 
+      const timestamp = createTimestamp();
       const plan = planInstall({
         skills: selectedSkills,
         targets: selectedTargets,
         manifests,
         existingPaths,
-        timestamp: 'dry-run',
+        timestamp,
         dryRun: args.dryRun
       });
 
       io.stdout.write(formatInstallPreview(plan));
+      if (args.dryRun) return 0;
+
+      const manifestMap = new Map(manifests.map((manifest) => [manifest.host, manifest]));
+      const manifestPathByHost = new Map(detections.map((item) => [item.host, item.manifestPath]));
+      applyInstallPlan(plan, manifestMap, manifestPathByHost);
+      io.stdout.write('Install completed.\n');
       return 0;
     } catch (e) {
       io.stderr.write(`Error: ${e.message}\n`);
