@@ -29,15 +29,16 @@ test('selectSkills filters correct skills', () => {
   assert.throws(() => selectSkills(skills, { skillName: 'invalid', installAll: false }), /unknown skill: invalid/);
 });
 
-test('selectTargets returns detected/probably_detected hosts', () => {
+test('selectTargets returns only detected hosts', () => {
   const detections = [
     { host: 'claude', status: 'detected' },
     { host: 'codex', status: 'probably_detected' }
   ];
-  assert.deepEqual(selectTargets(detections, 'both'), detections);
+  assert.deepEqual(selectTargets(detections, 'both'), [{ host: 'claude', status: 'detected' }]);
   assert.deepEqual(selectTargets(detections, 'claude'), [{ host: 'claude', status: 'detected' }]);
   assert.throws(() => selectTargets([], 'both'), /No writable target hosts detected. Install aborted./);
   assert.throws(() => selectTargets([{ host: 'claude', status: 'not_detected' }], 'both'), /No writable target hosts detected. Install aborted./);
+  assert.throws(() => selectTargets(detections, 'codex'), /Target host codex not detected or not writable./);
   assert.throws(() => selectTargets(detections, 'invalid_host'), /Target host invalid_host not detected or not writable./);
 });
 

@@ -20,3 +20,11 @@ test('validate-skills secret scan surface includes all published files entries',
     );
   }
 });
+
+test('validate-skills reuses the shared expected skill inventory contract', async () => {
+  const validatorSource = await readFile(path.join(rootDir, 'scripts', 'validate-skills.mjs'), 'utf8');
+
+  assert.match(validatorSource, /import \{ EXPECTED_SKILLS \} from '\.\.\/src\/core\/list-skills\.mjs';/);
+  assert.match(validatorSource, /const expectedSkills = EXPECTED_SKILLS;/);
+  assert.doesNotMatch(validatorSource, /const expectedSkills = \[/);
+});

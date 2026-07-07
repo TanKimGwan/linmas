@@ -10,7 +10,7 @@ export function selectSkills(skills, { skillName, installAll }) {
 }
 
 export function selectTargets(detections, choice) {
-  const detected = detections.filter((item) => item.status === 'detected' || item.status === 'probably_detected');
+  const detected = detections.filter((item) => item.status === 'detected');
   if (detected.length === 0) {
     throw new Error('No writable target hosts detected. Install aborted.');
   }
