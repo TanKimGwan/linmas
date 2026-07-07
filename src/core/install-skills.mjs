@@ -105,6 +105,7 @@ export function applyInstallPlan(plan, manifests, manifestPathByHost) {
     copySkillDirectory(item.skill.sourceDir, item.destinationDir);
     written.push(item.destinationDir);
 
+    // Update in-memory manifest (written to disk once per host below)
     const manifest = manifests.get(item.host);
     const updated = upsertManagedSkill(manifest, {
       name: item.skill.name,
@@ -112,7 +113,16 @@ export function applyInstallPlan(plan, manifests, manifestPathByHost) {
       backupPath: item.backupDir
     });
     manifests.set(item.host, updated);
-    writeManifest(manifestPath, updated);
+  }
+
+  // Write manifests once per host after all files are copied
+  const hostWrites = new Set();
+  for (const item of plan) {
+    if (!hostWrites.has(item.host)) {
+      hostWrites.add(item.host);
+      const manifestPath = getManifestPath(item.host);
+      writeManifest(manifestPath, manifests.get(item.host));
+    }
   }
 
   return { written, backups };

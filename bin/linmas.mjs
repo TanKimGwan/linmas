@@ -42,13 +42,13 @@ export async function run(argv, io = process) {
   if (args.command === 'doctor' || args.command === 'onboard') {
     const detections = detectHosts();
     const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
-    const skills = listSkills(rootDir);
 
     if (args.command === 'doctor') {
       io.stdout.write(formatDoctorReport(detections, manifests));
       return 0;
     }
 
+    const skills = listSkills(rootDir);
     io.stdout.write(formatOnboarding(detections, skills, manifests));
     return 0;
   }
