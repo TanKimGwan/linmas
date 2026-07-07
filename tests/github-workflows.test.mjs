@@ -74,3 +74,15 @@ test('ci and release workflows use node 24 with npm ci and npm cache', () => {
   assert.match(release, /npm ci/);
 });
 
+test('release 0.1.1 artifacts exist and version is bumped', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.join(rootDir, 'package-lock.json'), 'utf8'));
+  const notes = fs.readFileSync(path.join(rootDir, 'docs/releases/0.1.1.md'), 'utf8');
+
+  assert.equal(pkg.version, '0.1.1');
+  assert.equal(lock.version, '0.1.1');
+  assert.match(notes, /Linmas 0.1.1/);
+  assert.match(notes, /release CI\/CD workflows/i);
+});
+
+
