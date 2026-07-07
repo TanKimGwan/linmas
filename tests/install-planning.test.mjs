@@ -1,7 +1,7 @@
 // tests/install-planning.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { selectSkills, selectTargets, planInstall } from '../src/core/install-skills.mjs';
+import { selectSkills, selectTargets, planInstall, promptForInstallChoices } from '../src/core/install-skills.mjs';
 
 test('planInstall marks an unmanaged destination for backup before replace', () => {
   const plan = planInstall({
@@ -40,5 +40,14 @@ test('selectTargets returns only detected hosts', () => {
   assert.throws(() => selectTargets([{ host: 'claude', status: 'not_detected' }], 'both'), /No writable target hosts detected. Install aborted./);
   assert.throws(() => selectTargets(detections, 'codex'), /Target host codex not detected or not writable./);
   assert.throws(() => selectTargets(detections, 'invalid_host'), /Target host invalid_host not detected or not writable./);
+});
+
+test('promptForInstallChoices exposes a non-interactive default choice helper', async () => {
+  const result = await promptForInstallChoices({}, [
+    { host: 'claude', status: 'detected' },
+    { host: 'codex', status: 'detected' }
+  ], [{ name: 'secure-code-reviewer' }]);
+
+  assert.deepEqual(result, { targetChoice: 'both', confirm: false });
 });
 

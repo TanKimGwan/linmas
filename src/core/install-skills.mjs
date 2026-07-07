@@ -42,6 +42,21 @@ export function planInstall({ skills, targets, manifests, existingPaths = new Se
   }));
 }
 
+export async function promptForInstallChoices(io, detections, skills) {
+  void io;
+  void skills;
+
+  const detected = detections.filter((item) => item.status === 'detected');
+  if (detected.length === 0) {
+    throw new Error('No writable target hosts detected. Install aborted.');
+  }
+
+  return {
+    targetChoice: detected.length > 1 ? 'both' : detected[0].host,
+    confirm: false
+  };
+}
+
 export function formatInstallPreview(plan) {
   const lines = ['Linmas install preview:'];
   for (const item of plan) {
