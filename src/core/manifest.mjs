@@ -25,5 +25,5 @@ export function readManifest(manifestPath, host, version = '0.1.0') {
 
 export function writeManifest(manifestPath, manifest) {
   fs.mkdirSync(new URL('.', `file://${manifestPath}`), { recursive: true });
-  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\\n`);
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }

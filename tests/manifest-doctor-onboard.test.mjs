@@ -14,6 +14,27 @@ test('readManifest returns an empty manifest when none exists', () => {
   assert.deepEqual(manifest.skills, []);
 });
 
+test('writeManifest round-trips manifest data through readManifest', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-manifest-'));
+  try {
+    const manifestPath = path.join(tempDir, 'linmas-manifest.json');
+    const manifest = {
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'claude',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'secure-code-reviewer', path: path.join(tempDir, 'secure-code-reviewer'), backupPath: null }]
+    };
+
+    writeManifest(manifestPath, manifest);
+
+    assert.deepEqual(readManifest(manifestPath, 'claude'), manifest);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('formatDoctorReport includes manifest mismatch details', () => {
   const report = formatDoctorReport(
     [{ host: 'claude', status: 'detected', reason: 'ok', installRoot: '/tmp/.claude/skills', manifestPath: '/tmp/.claude/linmas-manifest.json', rootPath: '/tmp/.claude', writable: true }],
