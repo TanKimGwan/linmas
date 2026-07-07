@@ -36,6 +36,49 @@ export function formatUninstallPreview(plan) {
   return `${lines.join('\n')}\n`;
 }
 
+export async function promptForUninstallTarget(io, plan) {
+  const hosts = [...new Set(plan.map((item) => item.host))];
+  let selectedHosts = [...hosts];
+
+  if (io && typeof io.readLine === 'function' && hosts.length > 1) {
+    while (true) {
+      io.stdout.write('Choose uninstall target: claude, codex, or both\n');
+      const ans = (await io.readLine()).trim().toLowerCase();
+      if (ans === 'claude') {
+        selectedHosts = ['claude'];
+        break;
+      }
+      if (ans === 'codex') {
+        selectedHosts = ['codex'];
+        break;
+      }
+      if (ans === 'both') {
+        selectedHosts = [...hosts];
+        break;
+      }
+      io.stdout.write('Invalid uninstall target.\n');
+    }
+  }
+
+  return selectedHosts;
+}
+
+export async function promptForUninstallConfirmation(io) {
+  let confirm = false;
+  if (io && typeof io.readLine === 'function') {
+    io.stdout.write('Confirm uninstallation? [yes/no]\n');
+    const ans = (await io.readLine()).trim().toLowerCase();
+    if (ans === 'yes' || ans === 'y') confirm = true;
+  }
+  return confirm;
+}
+
+export async function promptForUninstallChoices(io, plan, options = {}) {
+  const selectedHosts = await promptForUninstallTarget(io, plan);
+  const confirm = await promptForUninstallConfirmation(io);
+  return { selectedHosts, confirm };
+}
+
 export function applyUninstallPlan(plan, manifests, manifestPathByHost) {
   const removed = [];
 
@@ -57,3 +100,5 @@ export function applyUninstallPlan(plan, manifests, manifestPathByHost) {
 
   return { removed };
 }
+
+

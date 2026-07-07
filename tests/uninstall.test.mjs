@@ -158,3 +158,72 @@ test('applyUninstallPlan throws if skill path is the install root itself', () =>
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+function createPromptIO(inputs) {
+  let stdoutData = '';
+  let stderrData = '';
+  const queue = [...inputs];
+  return {
+    stdout: {
+      write(chunk) {
+        stdoutData += chunk;
+        return true;
+      }
+    },
+    stderr: {
+      write(chunk) {
+        stderrData += chunk;
+        return true;
+      }
+    },
+    getStdout() {
+      return stdoutData;
+    },
+    getStderr() {
+      return stderrData;
+    },
+    async readLine() {
+      return queue.shift() || '';
+    }
+  };
+}
+
+test('promptForUninstallChoices handles interactive host selection and confirmation', async () => {
+  const io = createPromptIO(['claude', 'yes']);
+  const plan = [
+    { host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/claude/skills/secure-code-reviewer' },
+    { host: 'codex', skillName: 'secure-code-reviewer', skillPath: '/tmp/codex/skills/secure-code-reviewer' }
+  ];
+  const { promptForUninstallChoices } = await import('../src/core/uninstall-skills.mjs');
+  const result = await promptForUninstallChoices(io, plan);
+  assert.deepEqual(result, { selectedHosts: ['claude'], confirm: true });
+});
+
+test('promptForUninstallTarget and promptForUninstallConfirmation work independently', async () => {
+  const { promptForUninstallTarget, promptForUninstallConfirmation } = await import('../src/core/uninstall-skills.mjs');
+  const plan = [
+    { host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/claude/skills/secure-code-reviewer' },
+    { host: 'codex', skillName: 'secure-code-reviewer', skillPath: '/tmp/codex/skills/secure-code-reviewer' }
+  ];
+
+  const io1 = createPromptIO(['codex']);
+  const target = await promptForUninstallTarget(io1, plan);
+  assert.deepEqual(target, ['codex']);
+
+  const io2 = createPromptIO(['yes']);
+  const confirm = await promptForUninstallConfirmation(io2);
+  assert.equal(confirm, true);
+});
+
+test('promptForUninstallTarget reprompts on invalid input instead of defaulting to both', async () => {
+  const { promptForUninstallTarget } = await import('../src/core/uninstall-skills.mjs');
+  const io = createPromptIO(['wrong', 'claude']);
+  const plan = [
+    { host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/claude/skills/secure-code-reviewer' },
+    { host: 'codex', skillName: 'secure-code-reviewer', skillPath: '/tmp/codex/skills/secure-code-reviewer' }
+  ];
+
+  const selectedHosts = await promptForUninstallTarget(io, plan);
+  assert.deepEqual(selectedHosts, ['claude']);
+  assert.match(io.getStdout(), /Invalid uninstall target\./);
+});

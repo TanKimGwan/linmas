@@ -1,7 +1,7 @@
 export function formatOnboarding(detections, skills, manifests) {
   const lines = [
     'Linmas onboarding:',
-    'Linmas provides defensive security skills for local AI coding hosts.',
+    'What Linmas is: defensive security skills for local AI coding hosts.',
     '',
     'Available skills:'
   ];
@@ -15,11 +15,20 @@ export function formatOnboarding(detections, skills, manifests) {
     lines.push(`- ${detection.host}: ${detection.status} (${detection.installRoot})`);
   }
 
-  lines.push('', 'Managed installs:');
+  lines.push('', 'Installed skills:');
   for (const manifest of manifests) {
-    lines.push(`- ${manifest.host}: ${manifest.skills.map((skill) => skill.name).join(', ') || 'none'}`);
+    if (manifest.skills.length > 0) {
+      for (const skill of manifest.skills) {
+        const matchingSkill = skills.find((s) => s.name === skill.name);
+        const purpose = matchingSkill ? matchingSkill.description : 'defensive security skill';
+        lines.push(`- ${skill.name} on ${manifest.host} — purpose: ${purpose}`);
+        lines.push(`  destination paths: ${skill.path}`);
+      }
+    } else {
+      lines.push(`- none on ${manifest.host}`);
+    }
   }
 
-  lines.push('', 'Next steps:', '- open your host and confirm the installed local skills are available', '- run `npx linmas doctor` if something looks wrong', '- run `npx linmas uninstall <skill>` to remove a managed install');
+  lines.push('', 'Next steps:', '- open your host and confirm the installed local skills are available', '- run `npx linmas doctor` if something looks wrong', '- run `npx linmas uninstall <skill>` to remove a managed install', '- find more docs: README.md');
   return `${lines.join('\n')}\n`;
 }

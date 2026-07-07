@@ -45,20 +45,79 @@ export function planInstall({ skills, targets, manifests, existingPaths = new Se
   }));
 }
 
-export async function promptForInstallChoices(io, detections, skills) {
-  void io;
-  void skills;
-
+export async function promptForInstallTarget(io, detections) {
   const detected = detections.filter((item) => item.status === 'detected');
   if (detected.length === 0) {
     throw new Error('No writable target hosts detected. Install aborted.');
   }
 
+  let targetChoice = detected.length > 1 ? 'both' : detected[0].host;
+
+  if (io && typeof io.readLine === 'function' && detected.length > 1) {
+    io.stdout.write('Choose target host: [1] Claude [2] Codex [3] Both\n');
+    const ans = (await io.readLine()).trim();
+    if (ans === '1') targetChoice = 'claude';
+    else if (ans === '2') targetChoice = 'codex';
+    else targetChoice = 'both';
+  }
+
+  return targetChoice;
+}
+
+export async function promptForInstallConfirmation(io, options = {}) {
+  let confirm = false;
+  let allowReplaceUnmanaged = false;
+  let allowReplaceManaged = false;
+
+  if (io && typeof io.readLine === 'function') {
+    if (options.hasManagedConflicts) {
+      io.stdout.write('Replace managed skills? [replace/cancel]\n');
+      const ans = (await io.readLine()).trim();
+      if (ans === 'replace') {
+        allowReplaceManaged = true;
+      } else {
+        return {
+          confirm,
+          allowReplaceUnmanaged,
+          allowReplaceManaged
+        };
+      }
+    }
+    if (options.hasUnmanagedConflicts) {
+      io.stdout.write('Replace unmanaged files? [replace/cancel]\n');
+      const ans = (await io.readLine()).trim();
+      if (ans === 'replace') {
+        allowReplaceUnmanaged = true;
+      } else {
+        return {
+          confirm,
+          allowReplaceUnmanaged,
+          allowReplaceManaged
+        };
+      }
+    }
+
+    io.stdout.write('Confirm installation? [yes/no]\n');
+    const ans = (await io.readLine()).trim();
+    if (ans === 'yes' || ans === 'y') confirm = true;
+  }
+
   return {
-    targetChoice: detected.length > 1 ? 'both' : detected[0].host,
-    confirm: false
+    confirm,
+    allowReplaceUnmanaged,
+    allowReplaceManaged
   };
 }
+
+export async function promptForInstallChoices(io, detections, skills, options = {}) {
+  const targetChoice = await promptForInstallTarget(io, detections);
+  const confirmation = await promptForInstallConfirmation(io, options);
+  return {
+    targetChoice,
+    ...confirmation
+  };
+}
+
 
 export function formatInstallPreview(plan) {
   const lines = ['Linmas install preview:'];
@@ -67,6 +126,27 @@ export function formatInstallPreview(plan) {
     lines.push(`  existing: ${item.existingState}`);
     lines.push(`  backup: ${item.backupDir ?? 'none'}`);
     lines.push(`  willWrite: ${item.willWrite}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+export function formatInstallSummary(plan) {
+  const lines = ['Install completed.'];
+  const written = plan.filter((item) => item.willWrite);
+  if (written.length > 0) {
+    lines.push('Installed skills:');
+    for (const item of written) {
+      lines.push(`- ${item.skill.name} on host ${item.host} (${item.skill.description})`);
+      lines.push(`  destination: ${item.destinationDir}`);
+      lines.push(`  Installed: ${item.skill.name}`);
+    }
+    lines.push(
+      '',
+      'Next steps:',
+      '- verify the installation on each target host',
+      '- run `npx linmas doctor` to diagnose installation integrity',
+      '- run `npx linmas uninstall <skill>` to remove any installed skill'
+    );
   }
   return `${lines.join('\n')}\n`;
 }
