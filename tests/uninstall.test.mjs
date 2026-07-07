@@ -30,6 +30,15 @@ test('planUninstall plans all when uninstallAll is true', () => {
   ]);
 });
 
+test('planUninstall requires a skill name or --all', () => {
+  assert.throws(() => planUninstall({
+    manifests: [],
+    detections: [],
+    skillName: null,
+    uninstallAll: false
+  }), /uninstall requires a skill name or --all/);
+});
+
 test('formatUninstallPreview matches expectations', () => {
   const plan = [
     { host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/.claude/skills/secure-code-reviewer' }
@@ -110,6 +119,41 @@ test('applyUninstallPlan throws if outside root', () => {
     assert.throws(() => {
       applyUninstallPlan(plan, manifests, manifestPathByHost);
     }, /refusing to write outside root/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('applyUninstallPlan throws if skill path is the install root itself', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-'));
+  try {
+    const installRoot = path.join(tmp, '.claude', 'skills');
+    const manifestPath = path.join(tmp, '.claude', 'linmas-manifest.json');
+    fs.mkdirSync(installRoot, { recursive: true });
+
+    const manifest = {
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'claude',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'secure-code-reviewer', path: installRoot, backupPath: null }]
+    };
+
+    const plan = [{
+      host: 'claude',
+      skillName: 'secure-code-reviewer',
+      skillPath: installRoot,
+      installRoot
+    }];
+
+    const manifests = new Map([['claude', manifest]]);
+    const manifestPathByHost = new Map([['claude', manifestPath]]);
+
+    assert.throws(() => {
+      applyUninstallPlan(plan, manifests, manifestPathByHost);
+    }, /refusing to operate on root path/);
+    assert.equal(fs.existsSync(installRoot), true);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

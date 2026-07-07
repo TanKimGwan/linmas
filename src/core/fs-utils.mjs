@@ -5,6 +5,9 @@ export function assertInsideRoot(rootPath, targetPath) {
   const resolvedRoot = path.resolve(rootPath);
   const resolvedTarget = path.resolve(targetPath);
   const relative = path.relative(resolvedRoot, resolvedTarget);
+  if (relative === '') {
+    throw new Error(`refusing to operate on root path: ${targetPath}`);
+  }
   if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error(`refusing to write outside root: ${targetPath}`);
   }

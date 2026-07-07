@@ -3,6 +3,10 @@ import { assertInsideRoot } from './fs-utils.mjs';
 import { writeManifest } from './manifest.mjs';
 
 export function planUninstall({ manifests, detections, skillName, uninstallAll }) {
+  if (!uninstallAll && !skillName) {
+    throw new Error('uninstall requires a skill name or --all');
+  }
+
   const installRoots = new Map(
     detections
       .filter((d) => d.status === 'detected' || d.status === 'probably_detected')
