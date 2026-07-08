@@ -23,5 +23,4 @@ jobs:
       - uses: actions/attest@v4
         with:
           subject-path: ${{ inputs.subject-path }}
-          predicate-type: https://slsa.dev/provenance/v1
           show-summary: true
