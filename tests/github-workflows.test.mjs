@@ -122,6 +122,15 @@ test('workflows use modern action major versions', () => {
   assert.doesNotMatch(provenance, /actions\/download-artifact@v4/);
 });
 
+test('release workflow reads release notes file and passes body to gh release', () => {
+  const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  assert.match(text, /name:\s*Read release notes/);
+  assert.match(text, /id:\s*release_notes/);
+  assert.match(text, /FILE="docs\/releases\/\$\{VERSION\}\.md"/);
+  assert.match(text, /echo "BODY<<EOF" >> \$GITHUB_OUTPUT/);
+  assert.match(text, /body:\s*\$\{\{\s*steps\.release_notes\.outputs\.BODY\s*\}\}/);
+});
+
 
 
 
