@@ -88,15 +88,17 @@ test('release 0.1.2 artifacts exist', () => {
   assert.match(notes, /release automation is active/i);
 });
 
-test('release 0.1.3 artifacts exist and version is bumped', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
-  const lock = JSON.parse(fs.readFileSync(path.resolve('package-lock.json'), 'utf8'));
+test('release 0.1.3 artifacts exist', () => {
   const notes = fs.readFileSync(path.resolve('docs/releases/0.1.3.md'), 'utf8');
-
-  assert.equal(pkg.version, '0.1.3');
-  assert.equal(lock.version, '0.1.3');
   assert.match(notes, /Linmas 0.1.3/);
   assert.match(notes, /provenance validation/i);
+});
+
+test('package and lockfile version match the current release', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  const lock = JSON.parse(fs.readFileSync(path.resolve('package-lock.json'), 'utf8'));
+  assert.equal(pkg.version, lock.version);
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
 });
 
 test('release workflow skips provenance automatically on private repositories', () => {
