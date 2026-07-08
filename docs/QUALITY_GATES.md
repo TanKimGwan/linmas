@@ -118,7 +118,15 @@ Also confirm:
 - [ ] `main` is protected: force pushes are blocked, and `verify` status check must pass before merging.
 - [ ] `dev` is protected: force pushes are blocked, and `verify` status check must pass before merging.
 
-## 9. Failure Handling
+## 9. Gate: Branch Policy
+
+- [ ] Work targets `dev` first; `main` is release-ready only.
+- [ ] Feature branches are based on `dev` and merged back to `dev`.
+- [ ] `main` only receives changes through promotion from `dev`.
+- [ ] Release tags `vX.Y.Z` are created only from commits on `main`.
+- [ ] Direct work on `main` is an exception and must be reconciled back to `dev`.
+
+## 10. Failure Handling
 
 If any quality gate fails:
 
