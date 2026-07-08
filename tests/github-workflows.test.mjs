@@ -99,4 +99,17 @@ test('release 0.1.3 artifacts exist and version is bumped', () => {
   assert.match(notes, /provenance validation/i);
 });
 
+test('release workflow skips provenance automatically on private repositories', () => {
+  const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  assert.match(text, /provenance:\s*[\s\S]*if:\s*\$\{\{\s*!github\.event\.repository\.private\s*\}\}/);
+  assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
+});
+
+test('provenance failure analysis documents the private repo limitation and skip decision', () => {
+  const text = fs.readFileSync(path.resolve('docs/superpowers/specs/2026-07-07-release-provenance-failure-analysis.md'), 'utf8');
+  assert.match(text, /private user-owned repos/i);
+  assert.match(text, /skip provenance/i);
+});
+
+
 
