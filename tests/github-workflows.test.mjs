@@ -131,6 +131,17 @@ test('release workflow reads release notes file and passes body to gh release', 
   assert.match(text, /body:\s*\$\{\{\s*steps\.release_notes\.outputs\.BODY\s*\}\}/);
 });
 
+test('release notes file matching package version exists', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
+  const version = pkg.version;
+  const notesPath = path.resolve(`docs/releases/${version}.md`);
+  assert.equal(fs.existsSync(notesPath), true, `Release notes file ${notesPath} must exist for the current package version ${version}`);
+
+  const content = fs.readFileSync(notesPath, 'utf8');
+  assert.match(content, new RegExp(`^# Linmas ${version.replace(/\./g, '\\.')}`));
+});
+
+
 
 
 
