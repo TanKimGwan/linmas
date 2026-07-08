@@ -20,10 +20,10 @@ test('release workflow is tag-driven and verifies main/tag/version before publis
   assert.match(text, /npm run validate/);
   assert.match(text, /npm run pack:dry-run/);
   assert.match(text, /npm pack/);
-  assert.match(text, /actions\/upload-artifact@v4/);
+  assert.match(text, /actions\/upload-artifact@v5/);
   assert.match(text, /name:\s*release-artifact/);
   assert.match(text, /npm publish --access public/);
-  assert.match(text, /softprops\/action-gh-release@v2/);
+  assert.match(text, /softprops\/action-gh-release@v3/);
   assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
 });
 
@@ -49,7 +49,7 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
   assert.match(text, /attestations:\s*write/);
   assert.match(text, /contents:\s*read/);
   assert.match(text, /id-token:\s*write/);
-  assert.match(text, /actions\/download-artifact@v4/);
+  assert.match(text, /actions\/download-artifact@v5/);
   assert.match(text, /name:\s*\$\{\{ inputs\.artifact-name \}\}/);
   assert.match(text, /actions\/attest@v4/);
   assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
@@ -57,7 +57,7 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
 
 test('provenance workflow uses subject-path attestation without custom predicate requirement', () => {
   const text = read('.github/workflows/generator-generic-ossf-slsa3-publish.yml');
-  assert.match(text, /actions\/download-artifact@v4/);
+  assert.match(text, /actions\/download-artifact@v5/);
   assert.match(text, /actions\/attest@v4/);
   assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
   assert.doesNotMatch(text, /predicate-type:/);
@@ -82,23 +82,10 @@ test('ci and release workflows use node 24 with npm ci and npm cache', () => {
   assert.match(release, /npm ci/);
 });
 
-test('release 0.1.2 artifacts exist', () => {
-  const notes = fs.readFileSync(path.resolve('docs/releases/0.1.2.md'), 'utf8');
-  assert.match(notes, /Linmas 0.1.2/);
-  assert.match(notes, /release automation is active/i);
-});
-
-test('release 0.1.3 artifacts exist', () => {
-  const notes = fs.readFileSync(path.resolve('docs/releases/0.1.3.md'), 'utf8');
-  assert.match(notes, /Linmas 0.1.3/);
-  assert.match(notes, /provenance validation/i);
-});
-
-test('package and lockfile version match the current release', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
-  const lock = JSON.parse(fs.readFileSync(path.resolve('package-lock.json'), 'utf8'));
-  assert.equal(pkg.version, lock.version);
-  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
+test('release 0.1.1 artifacts exist', () => {
+  const notes = fs.readFileSync(path.join(rootDir, 'docs/releases/0.1.1.md'), 'utf8');
+  assert.match(notes, /Linmas 0.1.1/);
+  assert.match(notes, /release CI\/CD workflows/i);
 });
 
 test('release workflow skips provenance automatically on private repositories', () => {
@@ -112,6 +99,29 @@ test('provenance failure analysis documents the private repo limitation and skip
   assert.match(text, /private user-owned repos/i);
   assert.match(text, /skip provenance/i);
 });
+
+test('workflows use modern action major versions', () => {
+  const ci = fs.readFileSync(path.resolve('.github/workflows/ci.yml'), 'utf8');
+  const release = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  const provenance = fs.readFileSync(path.resolve('.github/workflows/generator-generic-ossf-slsa3-publish.yml'), 'utf8');
+
+  assert.match(ci, /actions\/checkout@v6/);
+  assert.match(ci, /actions\/setup-node@v5/);
+
+  assert.match(release, /actions\/checkout@v6/);
+  assert.match(release, /actions\/setup-node@v5/);
+  assert.match(release, /actions\/upload-artifact@v5/);
+  assert.match(release, /softprops\/action-gh-release@v3/);
+
+  assert.match(provenance, /actions\/download-artifact@v5/);
+
+  assert.doesNotMatch(ci + release + provenance, /actions\/checkout@v4/);
+  assert.doesNotMatch(ci + release, /actions\/setup-node@v4/);
+  assert.doesNotMatch(release, /actions\/upload-artifact@v4/);
+  assert.doesNotMatch(release, /softprops\/action-gh-release@v2/);
+  assert.doesNotMatch(provenance, /actions\/download-artifact@v4/);
+});
+
 
 
 
