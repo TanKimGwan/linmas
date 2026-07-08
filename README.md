@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/linmas-logo-placeholder.svg" alt="Linmas logo placeholder" width="150" />
+  <img src="docs/assets/linmas.jpg" alt="Linmas logo" width="150" />
 
   <h1>Linmas</h1>
 
