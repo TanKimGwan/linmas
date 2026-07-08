@@ -20,6 +20,20 @@ jobs:
       - run: npm ci
       - run: git fetch origin main
       - run: node scripts/verify-release-tag.mjs --tag "${GITHUB_REF_NAME}" --version-file package.json --main-ref origin/main
+      - name: Read release notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          FILE="docs/releases/${VERSION}.md"
+          if [ ! -f "$FILE" ]; then
+            echo "::error::Release notes file $FILE is missing"
+            exit 1
+          fi
+          echo "BODY<<EOF" >> $GITHUB_OUTPUT
+          cat "$FILE" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - run: npm test
       - run: npm run validate
       - run: npm run pack:dry-run
@@ -34,6 +48,7 @@ jobs:
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.BODY }}
           files: '*.tgz'
 
   provenance:
