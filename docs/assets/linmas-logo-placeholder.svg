@@ -1,0 +1,8 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Linmas logo placeholder</title>
+  <desc id="desc">Placeholder logo mark for Linmas defensive security skills.</desc>
+  <rect width="320" height="320" rx="72" fill="#0F172A"/>
+  <path d="M160 56L240 88V148C240 198 207 243 160 264C113 243 80 198 80 148V88L160 56Z" fill="#1E3A8A" stroke="#93C5FD" stroke-width="8"/>
+  <path d="M128 96V216H206" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M108 242H212" stroke="#F59E0B" stroke-width="8" stroke-linecap="round"/>
+</svg>
