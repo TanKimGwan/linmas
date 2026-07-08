@@ -37,6 +37,7 @@ jobs:
           files: '*.tgz'
 
   provenance:
+    if: ${{ !github.event.repository.private }}
     needs: publish
     permissions:
       actions: read
