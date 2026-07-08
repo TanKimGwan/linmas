@@ -55,6 +55,14 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
   assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
 });
 
+test('provenance workflow uses subject-path attestation without custom predicate requirement', () => {
+  const text = read('.github/workflows/generator-generic-ossf-slsa3-publish.yml');
+  assert.match(text, /actions\/download-artifact@v4/);
+  assert.match(text, /actions\/attest@v4/);
+  assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
+  assert.doesNotMatch(text, /predicate-type:/);
+});
+
 test('package metadata declares the hardened CI/runtime support floor', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
   assert.equal(pkg.engines.node, '>=24');
