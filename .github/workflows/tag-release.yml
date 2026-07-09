@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   tag-release:
@@ -55,38 +56,43 @@ jobs:
             exit 1
           fi
 
-      - name: Ensure tag does not already exist
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.version.outputs.tag }}"
-
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag already exists locally: $TAG" >&2
-            exit 0
-          fi
-
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "Tag already exists remotely: $TAG" >&2
-            exit 0
-          fi
-
-      - name: Ensure npm version is not already published
+      - name: Decide release handoff
+        id: gate
         shell: bash
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          TAG_EXISTS=false
+          PUBLISHED=false
+
+          if git rev-parse "$TAG" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            TAG_EXISTS=true
+          fi
 
           if npm view "linmas@${VERSION}" version >/dev/null 2>&1; then
-            echo "linmas@${VERSION} is already published. Skipping tag creation."
-            exit 0
+            PUBLISHED=true
           fi
 
+          if [[ "$TAG_EXISTS" == true && "$PUBLISHED" == false ]]; then
+            echo "Ambiguous release state: tag exists but npm version is unpublished: $TAG" >&2
+            exit 1
+          fi
+
+          SHOULD_RELEASE=false
+          if [[ "$TAG_EXISTS" == false && "$PUBLISHED" == false ]]; then
+            SHOULD_RELEASE=true
+          fi
+
+          echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
+          echo "published=$PUBLISHED" >> "$GITHUB_OUTPUT"
+          echo "should_release=$SHOULD_RELEASE" >> "$GITHUB_OUTPUT"
+
       - name: Create and push release tag
+        if: ${{ steps.gate.outputs.should_release == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
           TAG="${{ steps.version.outputs.tag }}"
 
           git config user.name "github-actions[bot]"
@@ -94,3 +100,13 @@ jobs:
 
           git tag -a "$TAG" -m "$TAG"
           git push origin "$TAG"
+
+      - name: Dispatch release workflow
+        if: ${{ steps.gate.outputs.should_release == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.tag }}"
+          gh workflow run release.yml --ref main -f tag="$TAG"

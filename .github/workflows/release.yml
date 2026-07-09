@@ -3,6 +3,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, for example v0.1.6'
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -10,22 +16,34 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
+      - name: Validate release tag input
+        run: |
+          case "${RELEASE_TAG}" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "::error::Invalid release tag: ${RELEASE_TAG}"
+              exit 1
+              ;;
+          esac
       - run: npm ci
       - run: git fetch origin main
-      - run: node scripts/verify-release-tag.mjs --tag "${GITHUB_REF_NAME}" --version-file package.json --main-ref origin/main
+      - run: node scripts/verify-release-tag.mjs --tag "${RELEASE_TAG}" --version-file package.json --main-ref origin/main
       - name: Read release notes
         id: release_notes
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          VERSION=${RELEASE_TAG#v}
           FILE="releases/${VERSION}.md"
           if [ ! -f "$FILE" ]; then
             echo "::error::Release notes file $FILE is missing"
@@ -50,7 +68,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           body: ${{ steps.release_notes.outputs.BODY }}
           files: '*.tgz'
 
