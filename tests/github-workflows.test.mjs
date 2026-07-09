@@ -10,12 +10,19 @@ function read(relPath) {
   return fs.readFileSync(path.join(rootDir, relPath), 'utf8');
 }
 
-test('release workflow is tag-driven and verifies main/tag/version before publish', () => {
+test('release workflow supports tag push and explicit dispatch and verifies main/tag/version before publish', () => {
   const text = read('.github/workflows/release.yml');
   assert.match(text, /tags:\s*\n\s*- 'v\*\.\*\.\*'/);
+  assert.match(text, /workflow_dispatch:/);
+  assert.match(text, /inputs:\s*[\s\S]*tag:/);
+  assert.match(text, /required:\s*true/);
+  assert.match(text, /RELEASE_TAG:/);
+  assert.match(text, /github\.event_name == 'workflow_dispatch' && inputs\.tag \|\| github\.ref_name/);
+  assert.match(text, /ref:\s*\$\{\{ env\.RELEASE_TAG \}\}/);
   assert.match(text, /git fetch origin main/);
   assert.doesNotMatch(text, /git fetch origin main --depth=1/);
-  assert.match(text, /node scripts\/verify-release-tag\.mjs/);
+  assert.match(text, /node scripts\/verify-release-tag\.mjs --tag "\$\{RELEASE_TAG\}"/);
+  assert.match(text, /VERSION=\$\{RELEASE_TAG#v\}/);
   assert.match(text, /npm test/);
   assert.match(text, /npm run validate/);
   assert.match(text, /npm run pack:dry-run/);
@@ -23,7 +30,9 @@ test('release workflow is tag-driven and verifies main/tag/version before publis
   assert.match(text, /actions\/upload-artifact@v5/);
   assert.match(text, /name:\s*release-artifact/);
   assert.match(text, /npm publish --access public/);
+  assert.match(text, /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.NPM_TOKEN \}\}/);
   assert.match(text, /softprops\/action-gh-release@v3/);
+  assert.match(text, /tag_name:\s*\$\{\{ env\.RELEASE_TAG \}\}/);
   assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
 });
 
@@ -135,6 +144,23 @@ test('release workflow reads release notes file and passes body to gh release', 
   assert.match(text, /DELIM=/);
   assert.doesNotMatch(text, /echo "BODY<<EOF" >> \$GITHUB_OUTPUT/);
   assert.match(text, /body:\s*\$\{\{\s*steps\.release_notes\.outputs\.BODY\s*\}\}/);
+});
+
+test('tag-release workflow creates a tag then dispatches release from main', () => {
+  const text = read('.github/workflows/tag-release.yml');
+  assert.match(text, /branches:\s*\n\s*- main/);
+  assert.match(text, /permissions:\s*[\s\S]*contents:\s*write/);
+  assert.match(text, /permissions:\s*[\s\S]*actions:\s*write/);
+  assert.match(text, /echo "tag=v\$VERSION" >> "\$GITHUB_OUTPUT"/);
+  assert.match(text, /git tag -a "\$TAG" -m "\$TAG"/);
+  assert.match(text, /git push origin "\$TAG"/);
+  assert.match(text, /gh workflow run release\.yml --ref main -f tag="\$TAG"/);
+});
+
+test('dependabot targets dev for github-actions and npm updates', () => {
+  const text = read('.github/dependabot.yml');
+  assert.match(text, /package-ecosystem:\s*"github-actions"[\s\S]*target-branch:\s*"dev"/);
+  assert.match(text, /package-ecosystem:\s*"npm"[\s\S]*target-branch:\s*"dev"/);
 });
 
 
