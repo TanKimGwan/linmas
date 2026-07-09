@@ -31,6 +31,8 @@
 
 Linmas is an open-source defensive security skill collection for Claude Code and compatible AI coding agents.
 
+Linmas is an open-source security assistant inspired by Indonesia’s community protection concept, Perlindungan Masyarakat. It is not affiliated with any government institution.
+
 It provides reusable security-specialist instructions under `skills/<skill-name>/SKILL.md`, so AI coding agents can help with practical security review, secure architecture, cloud hardening, incident triage, detection engineering, compliance review, and authorized validation work.
 
 Linmas is designed to be:
