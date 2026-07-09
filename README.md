@@ -226,6 +226,8 @@ Planned directions:
 
 Contributions are welcome when they improve defensive security quality, clarity, safety, or usability.
 
+See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for the full contributing guide.
+
 Before contributing:
 
 1. Keep skill behavior defensive and authorization-bounded.

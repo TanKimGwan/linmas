@@ -1,45 +1,29 @@
 # Linmas Public Release Checklist
 
-## 1. Repository Readiness
+## 1. Repository and Branch Readiness
 
-- [ ] Repository has clean branch strategy.
-- [ ] Development branch contains current work.
-- [ ] Main release branch is protected or reviewed manually.
+- [x] Default branch strategy is defined: `main` is public-facing, `dev` is the integration branch.
+- [x] Normal work targets `dev` first.
+- [x] Merge `dev` into `main` for release promotion.
+- [x] `main` only receives promotion from `dev`.
+- [x] Branch protection is configured for both `main` and `dev`.
+- [ ] Working tree is clean.
 - [ ] No unrelated local files are present.
 - [ ] No generated temporary artifacts are tracked.
 
-## 2. Documentation Readiness
+## 2. Public Documentation Baseline
 
 - [x] `README.md` accurately describes current capabilities.
-- [x] README does not claim npm install works before CLI exists.
-- [ ] `AGENTS.md` exists.
-- [ ] `CLAUDE.md` exists.
-- [ ] `docs/PRD.md` exists.
-- [ ] `docs/TASKLIST.md` exists.
-- [ ] `docs/NPM_PACKAGING_PLAN.md` exists.
-- [ ] `docs/SECURITY_AND_AUTHORIZED_USE.md` exists.
-- [ ] `docs/SKILL_STANDARD.md` exists.
-- [ ] `docs/QUALITY_GATES.md` exists.
+- [x] `README.md` links to `docs/CONTRIBUTING.md`.
+- [x] `docs/CONTRIBUTING.md` exists.
+- [x] `docs/QUALITY_GATES.md` exists.
+- [x] `.github/SECURITY.md` exists.
+- [x] `CODE_OF_CONDUCT.md` exists.
+- [x] License and attribution files exist: `LICENSE`, `NOTICE`, `TRADEMARK.md`.
 
-## 3. License Readiness
+## 3. Skill Safety Review
 
-- [ ] License selected.
-- [ ] `package.json` license updated.
-- [ ] `LICENSE` file added.
-- [ ] `NOTICE` file added.
-- [ ] `TRADEMARK.md` file added.
-- [ ] README license section updated.
-- [ ] Third-party derived-content review completed if needed.
-
-Current expectation:
-
-```txt
-package.json license, LICENSE, NOTICE, and TRADEMARK.md match the intended release state
-```
-
-## 4. Skill Safety Review
-
-For every skill:
+For every published skill:
 
 - [ ] Defensive/authorized-use framing exists.
 - [ ] No credential theft guidance.
@@ -50,118 +34,72 @@ For every skill:
 - [ ] No unauthorized exploitation workflow.
 - [ ] Includes safe reporting/remediation framing.
 
-Special review:
-
-- [ ] `skills/secure-code-reviewer/SKILL.md:105` reviewed.
-
-## 5. Secret Hygiene
+## 4. Secret Hygiene
 
 Run:
 
 ```bash
-grep -RInE "(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|github_pat_|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|password=|token=|api[_-]?key=|apikey=)" \
-  README.md package.json scripts docs skills .gitignore AGENTS.md CLAUDE.md || true
+gitleaks detect --source . --redact --verbose
+gitleaks detect --source . --redact --log-opts="--all"
 ```
 
 Checklist:
 
+- [ ] gitleaks working tree scan passed.
+- [ ] gitleaks history scan passed.
 - [ ] No real secrets detected.
-- [ ] Placeholders are clearly fake.
-- [ ] Example tokens are not realistic-looking.
 - [ ] No `.env` files tracked.
 - [ ] No private keys tracked.
 
-## 6. Validator Readiness
+## 5. Validation and Package Surface
 
 Run:
 
 ```bash
-npm run validate
-```
-
-Checklist:
-
-- [ ] Expected skills exist.
-- [ ] Each skill has `SKILL.md`.
-- [ ] Skill frontmatter and minimum shared headings validate.
-- [ ] Explicit authorized-use language is present in every skill.
-- [ ] No symlinks under `skills/`.
-- [ ] No forbidden files under `skills/`.
-- [ ] Only normalized first-class skill directories are treated as installable.
-
-## 7. Package Surface Readiness
-
-Run:
-
-```bash
-npm run pack:dry-run
-```
-
-Checklist:
-
-- [ ] Package includes only intended files.
-- [ ] Package excludes local config.
-- [ ] Package excludes backups.
-- [ ] Package excludes logs.
-- [ ] Package excludes temporary files.
-- [ ] Package excludes `.env` files.
-
-## 8. Installer Readiness
-
-Required before real npm release:
-
-- [x] CLI entrypoint exists.
-- [x] `linmas list` works.
-- [x] `linmas detect` works.
-- [x] `linmas onboard` works.
-- [x] `linmas doctor` works.
-- [x] `linmas install --dry-run` works.
-- [x] Selected skill install works.
-- [x] All skill install works.
-- [x] Existing target backup behavior works.
-- [x] Silent overwrite is prevented.
-- [x] `linmas uninstall` works.
-- [x] Installer does not modify global Claude config.
-
-## 9. Git Release Readiness
-
-### 9.1 Branch and Tag Workflow
-
-1. All release preparation happens on `dev`.
-2. Merge `dev` into `main`.
-3. Confirm `package.json.version` is correct.
-4. Push `main` to the remote before pushing the `vX.Y.Z` tag.
-5. Create tag `vX.Y.Z` on the `main` release commit.
-6. Push the tag and wait for the release workflow to finish.
-
-Before tagging:
-
-```bash
-git status --short --untracked-files=all
-git log --oneline -5
+npm test
 npm run validate
 npm run pack:dry-run
+npm pack
+tar -tf linmas-*.tgz | sort
 ```
 
 Checklist:
 
-- [ ] Working tree clean.
-- [ ] Last commit reviewed.
-- [ ] No uncommitted changes.
-- [ ] Tag version matches `package.json`.
-- [ ] Approval recorded before pushing the release tag.
+- [ ] npm test passed.
+- [ ] npm run validate passed.
+- [ ] npm run pack:dry-run passed.
+- [ ] Package tarball inspected.
+- [ ] Package includes only intended public files.
+- [ ] Package excludes local config, backups, logs, temp files, and `.env` files.
 
-## 10. NPM Publish Readiness
+## 6. Internal/Public Boundary
 
-The tag-driven release workflow performs `npm publish` after the release checks pass.
+- [ ] No internal docs exposed.
+- [x] Shared ignore rules cover internal planning docs.
+- [ ] Internal-only analysis/spec content is removed or sanitized before public launch.
 
-Before pushing the release tag, confirm all are true:
+## 7. Release and Visibility Gate
 
-- [ ] License state is confirmed.
-- [ ] Public safety review complete.
-- [x] Installer implemented and tested.
-- [ ] Package dry-run approved.
-- [ ] Release notes prepared.
-- [ ] Explicit approval received.
+Before opening the repository visibility or shipping a public release:
 
-After the tag is pushed, monitor the release workflow and confirm publish completed successfully.
+- [ ] SECURITY.md exists.
+- [ ] CODE_OF_CONDUCT.md exists.
+- [ ] Branch protection verified.
+- [ ] Explicit maintainer approval before public visibility change.
+- [ ] Explicit maintainer approval before pushing a release tag.
+
+## 8. Public Launch Gate
+
+Public launch is ready only when all of the following are true:
+
+- [ ] npm test passed.
+- [ ] npm run validate passed.
+- [ ] npm run pack:dry-run passed.
+- [ ] gitleaks working tree scan passed.
+- [ ] gitleaks history scan passed.
+- [ ] no internal docs exposed.
+- [ ] SECURITY.md exists.
+- [ ] CODE_OF_CONDUCT.md exists.
+- [ ] branch protection verified.
+- [ ] package tarball inspected.
+- [ ] explicit maintainer approval before public visibility change.

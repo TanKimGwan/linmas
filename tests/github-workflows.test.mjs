@@ -90,14 +90,16 @@ test('release 0.1.1 artifacts exist', () => {
 
 test('release workflow skips provenance automatically on private repositories', () => {
   const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  assert.match(text, /permissions:\s*\n\s*contents:\s*read/);
+  assert.match(text, /publish:\s*[\s\S]*permissions:\s*[\s\S]*contents:\s*write/);
   assert.match(text, /provenance:\s*[\s\S]*if:\s*\$\{\{\s*!github\.event\.repository\.private\s*\}\}/);
   assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
 });
 
-test('provenance failure analysis documents the private repo limitation and skip decision', () => {
-  const text = fs.readFileSync(path.resolve('docs/superpowers/specs/2026-07-07-release-provenance-failure-analysis.md'), 'utf8');
-  assert.match(text, /private user-owned repos/i);
-  assert.match(text, /skip provenance/i);
+test('internal planning docs stay out of the shared repo surface', () => {
+  const ignore = read('.gitignore');
+  assert.match(ignore, /docs\/superpowers\//);
+  assert.equal(fs.existsSync(path.resolve('docs/superpowers/specs/2026-07-07-release-provenance-failure-analysis.md')), false);
 });
 
 test('workflows use modern action major versions', () => {
@@ -122,14 +124,19 @@ test('workflows use modern action major versions', () => {
   assert.doesNotMatch(provenance, /actions\/download-artifact@v4/);
 });
 
+// ponytail: action SHAs are a follow-up hardening step once maintainers choose exact pins.
+
+
 test('release workflow reads release notes file and passes body to gh release', () => {
   const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
   assert.match(text, /name:\s*Read release notes/);
   assert.match(text, /id:\s*release_notes/);
   assert.match(text, /FILE="docs\/releases\/\$\{VERSION\}\.md"/);
-  assert.match(text, /echo "BODY<<EOF" >> \$GITHUB_OUTPUT/);
+  assert.match(text, /DELIM=/);
+  assert.doesNotMatch(text, /echo "BODY<<EOF" >> \$GITHUB_OUTPUT/);
   assert.match(text, /body:\s*\$\{\{\s*steps\.release_notes\.outputs\.BODY\s*\}\}/);
 });
+
 
 test('release notes file matching package version exists', () => {
   const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
@@ -144,8 +151,10 @@ test('release notes file matching package version exists', () => {
 test('pr target guard workflow enforces dev-first promotion to main', () => {
   const text = read('.github/workflows/pr-target-guard.yml');
   assert.match(text, /pull_request:/);
-  assert.match(text, /github\.base_ref/);
-  assert.match(text, /github\.head_ref/);
+  assert.match(text, /env:\s*[\s\S]*BASE_REF:\s*\$\{\{ github\.base_ref \}\}/);
+  assert.match(text, /env:\s*[\s\S]*HEAD_REF:\s*\$\{\{ github\.head_ref \}\}/);
+  assert.match(text, /base="\$BASE_REF"/);
+  assert.match(text, /head="\$HEAD_REF"/);
   assert.match(text, /base.*dev|dev.*base/s);
   assert.match(text, /head.*dev|dev.*head/s);
 });
@@ -157,6 +166,32 @@ test('branch policy docs state main is public-facing and dev is the normal PR ta
   assert.match(contributing, /pull requests go to `dev`/i);
   assert.match(checklist, /merge `dev` into `main`/i);
   assert.match(gates, /work targets `dev` first/i);
+});
+
+test('public release checklist includes explicit public-launch gates', () => {
+  const checklist = read('docs/PUBLIC_RELEASE_CHECKLIST.md');
+  assert.match(checklist, /npm test passed/i);
+  assert.match(checklist, /npm run validate passed/i);
+  assert.match(checklist, /npm run pack:dry-run passed/i);
+  assert.match(checklist, /gitleaks working tree scan passed/i);
+  assert.match(checklist, /gitleaks history scan passed/i);
+  assert.match(checklist, /no internal docs exposed/i);
+  assert.match(checklist, /SECURITY\.md exists/i);
+  assert.match(checklist, /CODE_OF_CONDUCT\.md exists/i);
+  assert.match(checklist, /branch protection verified/i);
+  assert.match(checklist, /package tarball inspected/i);
+  assert.match(checklist, /explicit maintainer approval before public visibility change/i);
+});
+
+test('public repo baseline docs exist and README links the contributing guide', () => {
+  const readme = read('README.md');
+  const security = read('.github/SECURITY.md');
+  const conduct = read('CODE_OF_CONDUCT.md');
+  assert.match(readme, /docs\/CONTRIBUTING\.md/);
+  assert.match(security, /private vulnerability report/i);
+  assert.match(security, /supported versions/i);
+  assert.match(security, /response/i);
+  assert.match(conduct, /Contributor Covenant/i);
 });
 
 

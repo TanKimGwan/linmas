@@ -4,10 +4,12 @@ on:
     tags:
       - 'v*.*.*'
 permissions:
-  contents: write
+  contents: read
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -29,10 +31,11 @@ jobs:
             echo "::error::Release notes file $FILE is missing"
             exit 1
           fi
-          echo "BODY<<EOF" >> $GITHUB_OUTPUT
-          cat "$FILE" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          DELIM="release_notes_$(date +%s%N)"
+          echo "BODY<<$DELIM" >> "$GITHUB_OUTPUT"
+          cat "$FILE" >> "$GITHUB_OUTPUT"
+          echo "" >> "$GITHUB_OUTPUT"
+          echo "$DELIM" >> "$GITHUB_OUTPUT"
 
       - run: npm test
       - run: npm run validate
