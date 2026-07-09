@@ -141,6 +141,24 @@ test('release notes file matching package version exists', () => {
   assert.match(content, new RegExp(`^# Linmas ${version.replace(/\./g, '\\.')}`));
 });
 
+test('pr target guard workflow enforces dev-first promotion to main', () => {
+  const text = read('.github/workflows/pr-target-guard.yml');
+  assert.match(text, /pull_request:/);
+  assert.match(text, /github\.base_ref/);
+  assert.match(text, /github\.head_ref/);
+  assert.match(text, /base.*dev|dev.*base/s);
+  assert.match(text, /head.*dev|dev.*head/s);
+});
+
+test('branch policy docs state main is public-facing and dev is the normal PR target', () => {
+  const contributing = read('docs/CONTRIBUTING.md');
+  const checklist = read('docs/PUBLIC_RELEASE_CHECKLIST.md');
+  const gates = read('docs/QUALITY_GATES.md');
+  assert.match(contributing, /pull requests go to `dev`/i);
+  assert.match(checklist, /merge `dev` into `main`/i);
+  assert.match(gates, /work targets `dev` first/i);
+});
+
 
 
 
