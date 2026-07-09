@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -82,6 +83,30 @@ test('package metadata declares the hardened CI/runtime support floor', () => {
   assert.equal(pkg.engines.node, '>=24');
   assert.equal(fs.existsSync(path.join(rootDir, 'package-lock.json')), true);
 });
+
+test('package metadata includes public repository provenance fields', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+  assert.deepEqual(pkg.repository, {
+    type: 'git',
+    url: 'https://github.com/TanKimGwan/linmas'
+  });
+  assert.equal(pkg.homepage, 'https://github.com/TanKimGwan/linmas#readme');
+  assert.deepEqual(pkg.bugs, {
+    url: 'https://github.com/TanKimGwan/linmas/issues'
+  });
+});
+
+test('readme uses tracked public logo asset for GitHub and npm rendering', () => {
+  const readme = read('README.md');
+  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/TanKimGwan\/linmas\/main\/assets\/linmas\.jpg/);
+  assert.match(readme, /alt="Linmas logo"/);
+  assert.equal(fs.existsSync(path.join(rootDir, 'assets/linmas.jpg')), true);
+  assert.equal(execFileSync('git', ['ls-files', 'assets/linmas.jpg'], {
+    cwd: rootDir,
+    encoding: 'utf8'
+  }).trim(), 'assets/linmas.jpg');
+});
+
 
 test('ci and release workflows use node 24 with npm ci and npm cache', () => {
   const ci = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
