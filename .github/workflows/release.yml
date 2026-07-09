@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
@@ -28,6 +29,14 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
+      - name: Ensure npm supports trusted publishing
+        run: |
+          set -euo pipefail
+          npm --version
+          npm install -g npm@11
+          NPM_VERSION="$(npm --version)"
+          echo "$NPM_VERSION"
+          NPM_VERSION="$NPM_VERSION" node -e 'const [major = 0, minor = 0, patch = 0] = (process.env.NPM_VERSION || "0.0.0").split(".").map(Number); const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))); if (!ok) { console.error(`npm ${process.env.NPM_VERSION} does not support trusted publishing`); process.exit(1); }'
       - name: Validate release tag input
         run: |
           case "${RELEASE_TAG}" in
@@ -63,9 +72,8 @@ jobs:
         with:
           name: release-artifact
           path: '*.tgz'
-      - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm
+        run: npm publish --access public
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}

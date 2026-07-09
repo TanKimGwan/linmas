@@ -27,10 +27,15 @@ test('release workflow supports tag push and explicit dispatch and verifies main
   assert.match(text, /npm run validate/);
   assert.match(text, /npm run pack:dry-run/);
   assert.match(text, /npm pack/);
+  assert.match(text, /permissions:\s*[\s\S]*contents:\s*write/);
+  assert.match(text, /permissions:\s*[\s\S]*id-token:\s*write/);
   assert.match(text, /actions\/upload-artifact@v7/);
   assert.match(text, /name:\s*release-artifact/);
+  assert.match(text, /name:\s*Ensure npm supports trusted publishing/);
+  assert.match(text, /npm install -g npm@11/);
   assert.match(text, /npm publish --access public/);
-  assert.match(text, /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.NPM_TOKEN \}\}/);
+  assert.doesNotMatch(text, /NODE_AUTH_TOKEN:/);
+  assert.doesNotMatch(text, /secrets\.NPM_TOKEN/);
   assert.match(text, /softprops\/action-gh-release@v3/);
   assert.match(text, /tag_name:\s*\$\{\{ env\.RELEASE_TAG \}\}/);
   assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
@@ -101,6 +106,7 @@ test('release workflow skips provenance automatically on private repositories', 
   const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
   assert.match(text, /permissions:\s*\n\s*contents:\s*read/);
   assert.match(text, /publish:\s*[\s\S]*permissions:\s*[\s\S]*contents:\s*write/);
+  assert.match(text, /publish:\s*[\s\S]*permissions:\s*[\s\S]*id-token:\s*write/);
   assert.match(text, /provenance:\s*[\s\S]*if:\s*\$\{\{\s*!github\.event\.repository\.private\s*\}\}/);
   assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
 });
@@ -122,6 +128,7 @@ test('workflows use modern action major versions', () => {
   assert.match(release, /actions\/checkout@v7/);
   assert.match(release, /actions\/setup-node@v6/);
   assert.match(release, /actions\/upload-artifact@v7/);
+  assert.match(release, /npm install -g npm@11/);
   assert.match(release, /softprops\/action-gh-release@v3/);
 
   assert.match(provenance, /actions\/download-artifact@v8/);
