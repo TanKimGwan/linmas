@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/linmas.jpg" alt="Linmas logo" width="150" />
+  <img src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/linmas-logo-placeholder.svg" alt="Linmas logo" width="160">
 
   <h1>Linmas</h1>
 
