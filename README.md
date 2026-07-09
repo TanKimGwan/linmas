@@ -203,6 +203,15 @@ git diff --check
 npm pack --dry-run
 ```
 
+Published-package smoke tests must run from a neutral temporary directory, not from inside the Linmas source checkout. Running `npx linmas@<version>` inside the package checkout can produce false negatives due npm/npx same-package resolution behavior.
+
+Use:
+
+```bash
+npm view linmas version
+node scripts/smoke-published-package.mjs 0.1.6
+```
+
 ## Design principles
 
 - **Defense first** — every skill should improve legitimate security outcomes.

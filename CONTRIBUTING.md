@@ -86,4 +86,13 @@ git diff --cached --name-only
 
 ## 7. Release Contributions
 
+Published-package smoke tests must run from a neutral temporary directory, not from inside the Linmas source checkout. Running `npx linmas@<version>` inside the package checkout can produce false negatives due npm/npx same-package resolution behavior.
+
+Use:
+
+```bash
+npm view linmas version
+node scripts/smoke-published-package.mjs 0.1.6
+```
+
 Release-related changes must also pass `PUBLIC_RELEASE_CHECKLIST.md`.

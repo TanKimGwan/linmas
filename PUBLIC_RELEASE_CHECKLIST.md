@@ -61,6 +61,7 @@ npm run validate
 npm run pack:dry-run
 npm pack
 tar -tf linmas-*.tgz | sort
+node scripts/smoke-published-package.mjs 0.1.6
 ```
 
 Checklist:
