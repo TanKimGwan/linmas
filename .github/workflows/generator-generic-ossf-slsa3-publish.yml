@@ -17,7 +17,7 @@ jobs:
   provenance:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.artifact-name }}
       - uses: actions/attest@v4

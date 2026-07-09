@@ -27,7 +27,7 @@ test('release workflow supports tag push and explicit dispatch and verifies main
   assert.match(text, /npm run validate/);
   assert.match(text, /npm run pack:dry-run/);
   assert.match(text, /npm pack/);
-  assert.match(text, /actions\/upload-artifact@v5/);
+  assert.match(text, /actions\/upload-artifact@v7/);
   assert.match(text, /name:\s*release-artifact/);
   assert.match(text, /npm publish --access public/);
   assert.match(text, /NODE_AUTH_TOKEN:\s*\$\{\{ secrets\.NPM_TOKEN \}\}/);
@@ -58,7 +58,7 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
   assert.match(text, /attestations:\s*write/);
   assert.match(text, /contents:\s*read/);
   assert.match(text, /id-token:\s*write/);
-  assert.match(text, /actions\/download-artifact@v5/);
+  assert.match(text, /actions\/download-artifact@v8/);
   assert.match(text, /name:\s*\$\{\{ inputs\.artifact-name \}\}/);
   assert.match(text, /actions\/attest@v4/);
   assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
@@ -66,7 +66,7 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
 
 test('provenance workflow uses subject-path attestation without custom predicate requirement', () => {
   const text = read('.github/workflows/generator-generic-ossf-slsa3-publish.yml');
-  assert.match(text, /actions\/download-artifact@v5/);
+  assert.match(text, /actions\/download-artifact@v8/);
   assert.match(text, /actions\/attest@v4/);
   assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
   assert.doesNotMatch(text, /predicate-type:/);
@@ -116,21 +116,21 @@ test('workflows use modern action major versions', () => {
   const release = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
   const provenance = fs.readFileSync(path.resolve('.github/workflows/generator-generic-ossf-slsa3-publish.yml'), 'utf8');
 
-  assert.match(ci, /actions\/checkout@v6/);
-  assert.match(ci, /actions\/setup-node@v5/);
+  assert.match(ci, /actions\/checkout@v7/);
+  assert.match(ci, /actions\/setup-node@v6/);
 
-  assert.match(release, /actions\/checkout@v6/);
-  assert.match(release, /actions\/setup-node@v5/);
-  assert.match(release, /actions\/upload-artifact@v5/);
+  assert.match(release, /actions\/checkout@v7/);
+  assert.match(release, /actions\/setup-node@v6/);
+  assert.match(release, /actions\/upload-artifact@v7/);
   assert.match(release, /softprops\/action-gh-release@v3/);
 
-  assert.match(provenance, /actions\/download-artifact@v5/);
+  assert.match(provenance, /actions\/download-artifact@v8/);
 
-  assert.doesNotMatch(ci + release + provenance, /actions\/checkout@v4/);
-  assert.doesNotMatch(ci + release, /actions\/setup-node@v4/);
-  assert.doesNotMatch(release, /actions\/upload-artifact@v4/);
+  assert.doesNotMatch(ci + release + provenance, /actions\/checkout@v6/);
+  assert.doesNotMatch(ci + release, /actions\/setup-node@v5/);
+  assert.doesNotMatch(release, /actions\/upload-artifact@v5/);
   assert.doesNotMatch(release, /softprops\/action-gh-release@v2/);
-  assert.doesNotMatch(provenance, /actions\/download-artifact@v4/);
+  assert.doesNotMatch(provenance, /actions\/download-artifact@v5/);
 });
 
 // ponytail: action SHAs are a follow-up hardening step once maintainers choose exact pins.
