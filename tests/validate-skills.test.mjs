@@ -110,6 +110,80 @@ test('security-operations-lead documents operational advisor focus', async () =>
   ]) assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
+test('controls-compliance-reviewer documents controls advisor focus', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'controls-compliance-reviewer', 'SKILL.md'), 'utf8');
+
+  // Verify all headers are present and in order
+  const headings = [
+    '## Advisor review protocol',
+    '### Advisor review mode',
+    '### Design review mode',
+    '## Minimal guardrails',
+    '## Output contract',
+    '## Quality rubric',
+    '## Recommended deterministic checks',
+    '## Controls advisor checklist',
+    '## Safety boundary'
+  ];
+
+  let lastIndex = -1;
+  for (const heading of headings) {
+    const index = skill.indexOf(heading);
+    assert.ok(index !== -1, `Missing expected heading: "${heading}"`);
+    assert.ok(index > lastIndex, `Heading "${heading}" appeared out of order`);
+    lastIndex = index;
+  }
+
+  // Verify Output contract fields are present and in order
+  const outputContractIndex = skill.indexOf('## Output contract');
+  const outputContractSection = skill.slice(outputContractIndex);
+
+  const outputFields = [
+    'Scope and assumptions',
+    'Findings',
+    'Recommended deterministic checks',
+    'Safety boundary',
+    'Status',
+    'Confirmed finding',
+    'Needs validation',
+    'Recommendation',
+    'Severity',
+    'Evidence',
+    'Affected surface',
+    'Preconditions',
+    'Remediation',
+    'Verification'
+  ];
+
+  lastIndex = -1;
+  for (const field of outputFields) {
+    const index = outputContractSection.indexOf(field);
+    assert.ok(index !== -1, `Missing expected output contract field: "${field}"`);
+    assert.ok(index > lastIndex, `Output contract field "${field}" appeared out of order`);
+    lastIndex = index;
+  }
+
+  // Verify Controls advisor checklist terms are present and in order
+  const checklistIndex = skill.indexOf('## Controls advisor checklist');
+  const checklistSection = skill.slice(checklistIndex);
+
+  const checklistTerms = [
+    'applicable control',
+    'evidence sufficiency',
+    'ownership',
+    'test or attestation',
+    'remediation tracking'
+  ];
+
+  lastIndex = -1;
+  for (const term of checklistTerms) {
+    const index = checklistSection.indexOf(term);
+    assert.ok(index !== -1, `Missing expected checklist term: "${term}"`);
+    assert.ok(index > lastIndex, `Checklist term "${term}" appeared out of order`);
+    lastIndex = index;
+  }
+});
+
 test('validate-skills rejects a missing secure-code-reviewer advisor requirement', async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'linmas-validator-'));
 
