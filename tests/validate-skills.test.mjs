@@ -227,6 +227,49 @@ test('controls-compliance-reviewer documents controls advisor focus', async () =
   }
 });
 
+test('cloud-hardening-architect documents the cloud advisor contract in order', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'cloud-hardening-architect', 'SKILL.md'), 'utf8');
+  let lastIndex = -1;
+
+  for (const item of [
+    '## Advisor review protocol',
+    'runs only when invoked',
+    'optional repository policy',
+    '### Advisor review mode',
+    '### Design review mode',
+    '## Minimal guardrails',
+    '## Output contract',
+    'Scope and assumptions',
+    'Findings',
+    'Recommended deterministic checks',
+    'Safety boundary',
+    'Status',
+    'Confirmed finding',
+    'Needs validation',
+    'Recommendation',
+    'Severity',
+    'Evidence',
+    'Affected surface',
+    'Preconditions',
+    'Remediation',
+    'Verification',
+    '## Quality rubric',
+    '## Recommended deterministic checks',
+    '## Cloud hardening advisor checklist',
+    'IAM',
+    'network exposure',
+    'encryption',
+    'secrets',
+    'logs',
+    'baseline and policy enforcement',
+    '## Safety boundary'
+  ]) {
+    const index = skill.indexOf(item, lastIndex + 1);
+    assert.notEqual(index, -1, `missing or out-of-order: ${item}`);
+    lastIndex = index;
+  }
+});
+
 test('validate-skills rejects a missing secure-code-reviewer advisor requirement', async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'linmas-validator-'));
 
