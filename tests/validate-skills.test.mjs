@@ -173,6 +173,32 @@ test('exploit-validation-specialist documents bounded validation focus', async (
   assert.ok(checklistIdx < safetyIdx, 'Checklist should be before Safety boundary');
 });
 
+test('detection-rules-engineer documents detection advisor focus', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'detection-rules-engineer', 'SKILL.md'), 'utf8');
+
+  for (const text of ['## Advisor review protocol', 'telemetry prerequisites', 'detection logic', 'false positives', 'tuning', 'test data', 'response path']) {
+    assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+
+  const headings = [
+    '## Advisor review protocol',
+    '### Advisor review mode',
+    '### Design review mode',
+    '## Minimal guardrails',
+    '## Output contract',
+    '## Quality rubric',
+    '## Recommended deterministic checks',
+    '## Detection advisor checklist',
+    '## Safety boundary'
+  ];
+  let lastIndex = -1;
+  for (const heading of headings) {
+    const idx = skill.indexOf(heading, lastIndex + 1);
+    assert.ok(idx > lastIndex, `Expected '${heading}' to appear after position ${lastIndex}, got ${idx}`);
+    lastIndex = idx;
+  }
+});
+
 test('advisor validator profiles remain opt-in during staged rollout', async () => {
   const validatorSource = await readFile(path.join(rootDir, 'scripts', 'validate-skills.mjs'), 'utf8');
 
