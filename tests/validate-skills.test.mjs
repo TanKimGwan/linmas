@@ -146,6 +146,33 @@ test('smart-contract-reviewer documents contract advisor focus', async () => {
   }
 });
 
+test('exploit-validation-specialist documents bounded validation focus', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'exploit-validation-specialist', 'SKILL.md'), 'utf8');
+
+  for (const text of [
+    '## Advisor review protocol',
+    '### Advisor review mode',
+    '### Design review mode',
+    '## Minimal guardrails',
+    '## Quality rubric',
+    '## Recommended deterministic checks',
+    '## Safety boundary',
+    'authorization',
+    'bounded non-destructive proof',
+    'evidence',
+    'remediation priority'
+  ]) {
+    assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+
+  const checklistIdx = skill.indexOf('## Exploit validation advisor checklist');
+  const checksIdx = skill.indexOf('## Recommended deterministic checks');
+  const safetyIdx = skill.indexOf('## Safety boundary');
+
+  assert.ok(checklistIdx > checksIdx, 'Checklist should be after Recommended deterministic checks');
+  assert.ok(checklistIdx < safetyIdx, 'Checklist should be before Safety boundary');
+});
+
 test('advisor validator profiles remain opt-in during staged rollout', async () => {
   const validatorSource = await readFile(path.join(rootDir, 'scripts', 'validate-skills.mjs'), 'utf8');
 
