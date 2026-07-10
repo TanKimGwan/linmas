@@ -61,6 +61,49 @@ test('threat-research-analyst documents intelligence advisor focus', async () =>
   }
 });
 
+test('secure-systems-architect documents systems advisor focus', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'secure-systems-architect', 'SKILL.md'), 'utf8');
+  let lastIndex = -1;
+
+  for (const item of [
+    '## Advisor review protocol',
+    'runs only when invoked',
+    'optional repository policy',
+    '### Advisor review mode',
+    '### Design review mode',
+    '## Minimal guardrails',
+    '## Output contract',
+    'Scope and assumptions',
+    'Findings',
+    'Recommended deterministic checks',
+    'Safety boundary',
+    'Status',
+    'Confirmed finding',
+    'Needs validation',
+    'Recommendation',
+    'Severity',
+    'Evidence',
+    'Affected surface',
+    'Preconditions',
+    'Remediation',
+    'Verification',
+    '## Quality rubric',
+    '## Recommended deterministic checks',
+    '## Systems advisor checklist',
+    'trust boundaries',
+    'identity',
+    'data flow',
+    'isolation',
+    'failure modes',
+    'defense in depth',
+    '## Safety boundary'
+  ]) {
+    const index = skill.indexOf(item, lastIndex + 1);
+    assert.notEqual(index, -1, `missing or out-of-order: ${item}`);
+    lastIndex = index;
+  }
+});
+
 test('secure-code-reviewer documents the bounded advisor review contract', async () => {
   const skill = await readFile(path.join(rootDir, 'skills', 'secure-code-reviewer', 'SKILL.md'), 'utf8');
   const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
