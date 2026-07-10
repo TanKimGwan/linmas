@@ -77,17 +77,27 @@ test('validate-skills rejects a missing secure-code-reviewer advisor requirement
 
     const skillPath = path.join(tempDir, 'skills', 'secure-code-reviewer', 'SKILL.md');
     const skill = await readFile(skillPath, 'utf8');
-    await writeFile(skillPath, skill.replace('## Advisor review protocol', '## Removed advisor review protocol'));
+    await writeFile(skillPath, skill.replace('### Advisor review mode', '### Removed advisor review mode'));
 
     await assert.rejects(
       execFileAsync(process.execPath, ['scripts/validate-skills.mjs'], { cwd: tempDir }),
       (error) => {
         assert.equal(error.code, 1);
-        assert.match(error.stderr, /Missing secure-code-reviewer requirement '## Advisor review protocol'/);
+        assert.match(error.stderr, /Missing specialist advisor requirement '### Advisor review mode'/);
         return true;
       }
     );
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
+});
+
+test('advisor validator profiles remain opt-in during staged rollout', async () => {
+  const validatorSource = await readFile(path.join(rootDir, 'scripts', 'validate-skills.mjs'), 'utf8');
+
+  assert.match(validatorSource, /const specialistAdvisorRequirements = \[/);
+  assert.match(validatorSource, /const routerAdvisorRequirements = \[/);
+  assert.match(validatorSource, /function validateAdvisorContract\(skill, skillFile\)/);
+  assert.match(validatorSource, /text\.includes\('## Advisor review protocol'\)/);
+  assert.match(validatorSource, /text\.includes\('## Advisor routing protocol'\)/);
 });

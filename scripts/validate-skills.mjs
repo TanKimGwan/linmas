@@ -15,10 +15,11 @@ const requiredHeadings = [
   '## Output contract'
 ];
 
-const secureCodeReviewerRequirements = [
+const specialistAdvisorRequirements = [
   '## Advisor review protocol',
   '### Advisor review mode',
   '### Design review mode',
+  '## Minimal guardrails',
   '## Quality rubric',
   '## Recommended deterministic checks',
   '## Safety boundary',
@@ -29,6 +30,22 @@ const secureCodeReviewerRequirements = [
   'Preconditions',
   'Remediation',
   'Verification',
+  'runs only when invoked',
+  'optional repository policy'
+];
+
+const routerAdvisorRequirements = [
+  '## Advisor routing protocol',
+  '### Routing review mode',
+  '## Minimal guardrails',
+  '## Quality rubric',
+  '## Safety boundary',
+  'Routing recommendation',
+  'Needs clarification',
+  'Safety refusal',
+  'Recommended skill(s)',
+  'Required context',
+  'Next action',
   'runs only when invoked',
   'optional repository policy'
 ];
@@ -185,16 +202,22 @@ function validateSkillContent(skill, skillFile) {
   }
 }
 
-function validateSecureCodeReviewerContract(skill, skillFile) {
-  if (skill !== 'secure-code-reviewer') return;
-
+function validateAdvisorContract(skill, skillFile) {
   const relPath = path.relative(root, skillFile);
   const text = readText(skillFile);
   if (text === null) return;
 
-  for (const requiredText of secureCodeReviewerRequirements) {
+  const profile = text.includes('## Advisor review protocol')
+    ? { name: 'specialist advisor', requirements: specialistAdvisorRequirements }
+    : text.includes('## Advisor routing protocol')
+      ? { name: 'router advisor', requirements: routerAdvisorRequirements }
+      : null;
+
+  if (profile === null) return;
+
+  for (const requiredText of profile.requirements) {
     if (!text.includes(requiredText)) {
-      fail(`Missing secure-code-reviewer requirement '${requiredText}': ${relPath}`);
+      fail(`Missing ${profile.name} requirement '${requiredText}': ${relPath}`);
     }
   }
 }
@@ -266,7 +289,7 @@ for (const skill of expectedSkills) {
   }
 
   validateSkillContent(skill, skillFile);
-  validateSecureCodeReviewerContract(skill, skillFile);
+  validateAdvisorContract(skill, skillFile);
 }
 
 if (existsAsDir(skillsRoot)) {
