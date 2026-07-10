@@ -64,6 +64,24 @@ test('secure-code-reviewer documents the bounded advisor review contract', async
   assert.match(readme, /npm run validate/);
 });
 
+test('security-operations-lead documents operational advisor focus', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'security-operations-lead', 'SKILL.md'), 'utf8');
+
+  for (const text of [
+    '## Advisor review protocol',
+    '## Quality rubric',
+    '## Recommended deterministic checks',
+    'telemetry',
+    'monitoring coverage',
+    'alert ownership',
+    'escalation',
+    'access changes, and operational changes',
+    'Confirmed finding',
+    'Needs validation',
+    'Recommendation'
+  ]) assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
 test('validate-skills rejects a missing secure-code-reviewer advisor requirement', async () => {
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'linmas-validator-'));
 
