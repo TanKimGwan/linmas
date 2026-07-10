@@ -15,6 +15,24 @@ const requiredHeadings = [
   '## Output contract'
 ];
 
+const secureCodeReviewerRequirements = [
+  '## Advisor review protocol',
+  '### Advisor review mode',
+  '### Design review mode',
+  '## Quality rubric',
+  '## Recommended deterministic checks',
+  '## Safety boundary',
+  'Confirmed finding',
+  'Needs validation',
+  'Recommendation',
+  'Affected surface',
+  'Preconditions',
+  'Remediation',
+  'Verification',
+  'runs only when invoked',
+  'optional repository policy'
+];
+
 const forbiddenSkill = 'security';
 
 const forbiddenPatterns = [
@@ -167,6 +185,20 @@ function validateSkillContent(skill, skillFile) {
   }
 }
 
+function validateSecureCodeReviewerContract(skill, skillFile) {
+  if (skill !== 'secure-code-reviewer') return;
+
+  const relPath = path.relative(root, skillFile);
+  const text = readText(skillFile);
+  if (text === null) return;
+
+  for (const requiredText of secureCodeReviewerRequirements) {
+    if (!text.includes(requiredText)) {
+      fail(`Missing secure-code-reviewer requirement '${requiredText}': ${relPath}`);
+    }
+  }
+}
+
 function shouldIgnoreSecretMatch(line) {
   return safeSecretExamplePatterns.some((pattern) => line.includes(pattern));
 }
@@ -234,6 +266,7 @@ for (const skill of expectedSkills) {
   }
 
   validateSkillContent(skill, skillFile);
+  validateSecureCodeReviewerContract(skill, skillFile);
 }
 
 if (existsAsDir(skillsRoot)) {

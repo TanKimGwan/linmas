@@ -157,14 +157,32 @@ npx linmas uninstall secure-code-reviewer
 7. Re-run tests, validation, and security checks
 ```
 
-Example prompt after installing `secure-code-reviewer`:
+## Secure code advisor review
+
+Invoke `secure-code-reviewer` after an agent produces a sensitive diff, code change, configuration, or response. It reviews supplied material; installing Linmas does not automatically filter every agent response.
 
 ```text
-Use the Linmas secure-code-reviewer skill.
-Review this feature for authentication, authorization, input validation,
+Use the Linmas secure-code-reviewer skill in advisor review mode.
+Review the supplied diff for authentication, authorization, input validation,
 secret exposure, insecure file handling, logging gaps, and dependency risks.
-Return findings with severity, evidence, exploit preconditions, and concrete fixes.
-Stay within authorized defensive review scope.
+For each item, return Status, Severity, Evidence, Affected surface,
+Preconditions, Remediation, and Verification. Mark missing context as
+Needs validation. Stay within authorized defensive review scope.
+```
+
+Run the relevant project checks after review, such as tests, secret scanning, and `npm run validate`. The advisor complements these deterministic checks; it does not prove that a change is secure. Human review is required before shipping.
+
+### Optional repository policy
+
+Maintainers may copy this guidance into repository instructions when their host supports repository-local policy:
+
+```text
+For changes affecting authentication, authorization, untrusted input, file handling,
+secrets, dependencies, or trust boundaries: after generating the proposed diff or
+response, invoke Linmas secure-code-reviewer in advisor review mode. Address or
+explicitly track Confirmed findings, investigate Needs validation items, then run
+applicable tests and validation commands. This policy is optional, does not replace
+human review or deterministic checks, and does not automatically filter every agent response.
 ```
 
 ## Intended use
