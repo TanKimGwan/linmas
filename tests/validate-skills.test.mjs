@@ -33,6 +33,34 @@ test('validate-skills reuses the shared expected skill inventory contract', asyn
   assert.doesNotMatch(validatorSource, /const expectedSkills = \[/);
 });
 
+test('threat-research-analyst documents intelligence advisor focus', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'threat-research-analyst', 'SKILL.md'), 'utf8');
+
+  const orderedItems = [
+    '## Advisor review protocol',
+    '### Advisor review mode',
+    '### Design review mode',
+    '## Minimal guardrails',
+    '## Output contract',
+    '## Quality rubric',
+    '## Recommended deterministic checks',
+    '## Threat research advisor checklist',
+    'source confidence',
+    'indicator age',
+    'context',
+    'false-positive risk',
+    'defensive action',
+    '## Safety boundary'
+  ];
+
+  let lastIndex = -1;
+  for (const item of orderedItems) {
+    const index = skill.indexOf(item, lastIndex + 1);
+    assert.ok(index !== -1, `Expected skill to contain '${item}' after the previous item`);
+    lastIndex = index;
+  }
+});
+
 test('secure-code-reviewer documents the bounded advisor review contract', async () => {
   const skill = await readFile(path.join(rootDir, 'skills', 'secure-code-reviewer', 'SKILL.md'), 'utf8');
   const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
