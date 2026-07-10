@@ -138,6 +138,14 @@ test('validate-skills rejects a missing secure-code-reviewer advisor requirement
   }
 });
 
+test('smart-contract-reviewer documents contract advisor focus', async () => {
+  const skill = await readFile(path.join(rootDir, 'skills', 'smart-contract-reviewer', 'SKILL.md'), 'utf8');
+
+  for (const text of ['## Advisor review protocol', '### Advisor review mode', '### Design review mode', '## Quality rubric', '## Recommended deterministic checks', 'asset flow', 'authorization', 'external calls', 'arithmetic/invariants', 'upgrade and admin controls']) {
+    assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
 test('advisor validator profiles remain opt-in during staged rollout', async () => {
   const validatorSource = await readFile(path.join(rootDir, 'scripts', 'validate-skills.mjs'), 'utf8');
 
