@@ -95,4 +95,4 @@ npm view linmas version
 node scripts/smoke-published-package.mjs 0.1.6
 ```
 
-Release-related changes must also pass `PUBLIC_RELEASE_CHECKLIST.md`.
+Release-related changes must also pass the internal release checklist (see `PUBLIC_RELEASE_CHECKLIST.md` locally).
