@@ -135,6 +135,22 @@ test('secure-code-reviewer documents the bounded advisor review contract', async
   assert.match(readme, /npm run validate/);
 });
 
+test('README documents the specialist advisor rollout', async () => {
+  const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+
+  for (const text of [
+    '## Security advisor skills',
+    'advisor review mode',
+    'design review mode',
+    'security-domain-router',
+    'Confirmed finding',
+    'Needs validation',
+    'Recommendation',
+    'does not automatically filter every agent response',
+    'Human review is required'
+  ]) assert.match(readme, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+});
+
 test('security-operations-lead documents operational advisor focus', async () => {
   const skill = await readFile(path.join(rootDir, 'skills', 'security-operations-lead', 'SKILL.md'), 'utf8');
 

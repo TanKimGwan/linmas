@@ -172,15 +172,34 @@ Needs validation. Stay within authorized defensive review scope.
 
 Run the relevant project checks after review, such as tests, secret scanning, and `npm run validate`. The advisor complements these deterministic checks; it does not prove that a change is secure. Human review is required before shipping.
 
+## Security advisor skills
+
+All ten specialist skills support **advisor review mode** for supplied diffs, code, configuration, evidence, or operational proposals, and **design review mode** for defensive plans before implementation. Choose the specialist that fits the task:
+
+- `secure-code-reviewer` — application code and secure SDLC;
+- `secure-systems-architect` — cross-system trust boundaries and security design;
+- `cloud-hardening-architect` — cloud IAM, network exposure, and platform controls;
+- `incident-triage-lead` — incident classification, containment, and recovery;
+- `security-operations-lead` — monitoring, alert ownership, and response readiness;
+- `detection-rules-engineer` — telemetry and detection logic;
+- `threat-research-analyst` — adversary research and indicators;
+- `controls-compliance-reviewer` — control evidence and compliance review;
+- `smart-contract-reviewer` — blockchain and smart-contract security; and
+- `exploit-validation-specialist` — authorized, bounded exploit-path validation.
+
+Use `security-domain-router` to choose a specialist when the domain is unclear or the task spans more than one area. The router selects the next workflow; it does not replace specialist assessment.
+
+Specialist responses distinguish `Confirmed finding`, `Needs validation`, and `Recommendation`. Each finding includes severity, evidence, affected surface, preconditions, remediation, verification, and relevant deterministic checks. Advisors review only supplied material in authorized scope, never approve a change, and do not automatically filter every agent response. Human review is required before shipping.
+
 ### Optional repository policy
 
 Maintainers may copy this guidance into repository instructions when their host supports repository-local policy:
 
 ```text
-For changes affecting authentication, authorization, untrusted input, file handling,
-secrets, dependencies, or trust boundaries: after generating the proposed diff or
-response, invoke Linmas secure-code-reviewer in advisor review mode. Address or
-explicitly track Confirmed findings, investigate Needs validation items, then run
+For defensive security changes, after generating the proposed diff, response, or
+plan, invoke the relevant Linmas specialist in advisor review mode or design review
+mode. Use security-domain-router when the appropriate specialist is unclear. Address
+or explicitly track Confirmed findings, investigate Needs validation items, then run
 applicable tests and validation commands. This policy is optional, does not replace
 human review or deterministic checks, and does not automatically filter every agent response.
 ```
