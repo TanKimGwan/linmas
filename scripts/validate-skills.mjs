@@ -15,6 +15,41 @@ const requiredHeadings = [
   '## Output contract'
 ];
 
+const specialistAdvisorRequirements = [
+  '## Advisor review protocol',
+  '### Advisor review mode',
+  '### Design review mode',
+  '## Minimal guardrails',
+  '## Quality rubric',
+  '## Recommended deterministic checks',
+  '## Safety boundary',
+  'Confirmed finding',
+  'Needs validation',
+  'Recommendation',
+  'Affected surface',
+  'Preconditions',
+  'Remediation',
+  'Verification',
+  'runs only when invoked',
+  'optional repository policy'
+];
+
+const routerAdvisorRequirements = [
+  '## Advisor routing protocol',
+  '### Routing review mode',
+  '## Minimal guardrails',
+  '## Quality rubric',
+  '## Safety boundary',
+  'Routing recommendation',
+  'Needs clarification',
+  'Safety refusal',
+  'Recommended skill(s)',
+  'Required context',
+  'Next action',
+  'runs only when invoked',
+  'optional repository policy'
+];
+
 const forbiddenSkill = 'security';
 
 const forbiddenPatterns = [
@@ -167,6 +202,26 @@ function validateSkillContent(skill, skillFile) {
   }
 }
 
+function validateAdvisorContract(skill, skillFile) {
+  const relPath = path.relative(root, skillFile);
+  const text = readText(skillFile);
+  if (text === null) return;
+
+  const profile = text.includes('## Advisor review protocol')
+    ? { name: 'specialist advisor', requirements: specialistAdvisorRequirements }
+    : text.includes('## Advisor routing protocol')
+      ? { name: 'router advisor', requirements: routerAdvisorRequirements }
+      : null;
+
+  if (profile === null) return;
+
+  for (const requiredText of profile.requirements) {
+    if (!text.includes(requiredText)) {
+      fail(`Missing ${profile.name} requirement '${requiredText}': ${relPath}`);
+    }
+  }
+}
+
 function shouldIgnoreSecretMatch(line) {
   return safeSecretExamplePatterns.some((pattern) => line.includes(pattern));
 }
@@ -234,6 +289,7 @@ for (const skill of expectedSkills) {
   }
 
   validateSkillContent(skill, skillFile);
+  validateAdvisorContract(skill, skillFile);
 }
 
 if (existsAsDir(skillsRoot)) {
