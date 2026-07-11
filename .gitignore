@@ -24,6 +24,9 @@ pnpm-debug.log*
 AGENTS.md
 CLAUDE.md
 docs/
+PUBLIC_RELEASE_CHECKLIST.md
+QUALITY_GATES.md
+releases/0.1.5-rehearsal-runbook.md
 
 # Temp/build
 tmp/
