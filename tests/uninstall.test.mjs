@@ -135,6 +135,44 @@ test('applyUninstallPlan throws if outside root', () => {
   }
 });
 
+test('applyUninstallPlan refuses to delete through a symlink escaping the install root', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-'));
+  try {
+    const installRoot = path.join(tmp, '.claude', 'skills');
+    const manifestPath = path.join(tmp, '.claude', 'linmas-manifest.json');
+    fs.mkdirSync(installRoot, { recursive: true });
+
+    // Sensitive data outside the install root that a tampered manifest tries to
+    // reach via a symlink placed inside the install root.
+    const outside = path.join(tmp, 'precious');
+    fs.mkdirSync(outside, { recursive: true });
+    fs.writeFileSync(path.join(outside, 'data.txt'), 'keep me\n');
+
+    const skillPath = path.join(installRoot, 'secure-code-reviewer');
+    fs.symlinkSync(outside, skillPath);
+
+    const manifest = {
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'claude',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'secure-code-reviewer', path: skillPath, backupPath: null }]
+    };
+
+    const plan = [{ host: 'claude', skillName: 'secure-code-reviewer', skillPath, installRoot }];
+    const manifests = new Map([['claude', manifest]]);
+    const manifestPathByHost = new Map([['claude', manifestPath]]);
+
+    assert.throws(() => {
+      applyUninstallPlan(plan, manifests, manifestPathByHost);
+    }, /refusing to write outside root/);
+    assert.equal(fs.existsSync(path.join(outside, 'data.txt')), true);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('applyUninstallPlan throws if skill path is the install root itself', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-'));
   try {
