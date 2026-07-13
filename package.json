@@ -1,6 +1,6 @@
 {
   "name": "linmas",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Defensive security skill collection for Claude Code and compatible AI coding agents.",
   "homepage": "https://github.com/TanKimGwan/linmas#readme",
   "bugs": {
@@ -20,6 +20,7 @@
     "src/",
     "skills/",
     "scripts/",
+    "evaluations/",
     "README.md",
     "package.json",
     "LICENSE",
@@ -29,8 +30,9 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "validate": "node scripts/validate-skills.mjs",
-    "pack:dry-run": "npm pack --dry-run",
-    "smoke:published": "node scripts/smoke-published-package.mjs"
+    "eval:offline": "node scripts/evaluate-offline.mjs",
+    "eval:live": "node scripts/evaluate-live.mjs",
+    "pack:dry-run": "npm pack --dry-run"
   },
   "keywords": [
     "claude",

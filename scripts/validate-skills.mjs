@@ -68,6 +68,7 @@ const publishedSurface = [
   'README.md',
   'package.json',
   'scripts',
+  'evaluations',
   'skills',
   'LICENSE',
   'NOTICE',

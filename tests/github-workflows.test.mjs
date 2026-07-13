@@ -49,8 +49,22 @@ test('ci workflow triggers on PR and pushes to dev/main', () => {
   assert.match(text, /contents:\s*read/);
   assert.match(text, /npm test/);
   assert.match(text, /npm run validate/);
+  assert.match(text, /npm run eval:offline/);
   assert.match(text, /npm run pack:dry-run/);
   assert.doesNotMatch(text, /npm publish/);
+});
+
+test('live evaluation workflow is trusted, scheduled, and bounded', () => {
+  const text = read('.github/workflows/evaluation-live.yml');
+  assert.match(text, /schedule:/);
+  assert.match(text, /workflow_dispatch:/);
+  assert.doesNotMatch(text, /pull_request:/);
+  assert.match(text, /persist-credentials:\s*false/);
+  assert.match(text, /timeout-minutes:/);
+  assert.match(text, /github\.event(?:_name|\.name) == 'schedule'/);
+  assert.match(text, /ANTHROPIC_API_KEY:\s*\$\{\{ secrets\.ANTHROPIC_API_KEY \}\}/);
+  assert.match(text, /LINMAS_EVAL_MODEL:\s*\$\{\{ vars\.LINMAS_EVAL_MODEL \}\}/);
+  assert.match(text, /retention-days:\s*14/);
 });
 
 test('provenance workflow is a reusable attestation workflow with artifact download', () => {
