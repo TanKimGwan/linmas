@@ -11,6 +11,10 @@ export async function loadReviewInput({ inputPath = null, useStdin = false, stdi
   let source;
   if (inputPath) {
     const resolved = path.resolve(cwd, inputPath);
+    const relative = path.relative(cwd, resolved);
+    if (relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new ReviewError('input must stay within the current working directory', 'input', EXIT_CODES.INPUT);
+    }
     let stat;
     try {
       stat = await fs.stat(resolved);

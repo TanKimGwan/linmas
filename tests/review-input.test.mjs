@@ -9,6 +9,7 @@ import { loadReviewInput } from '../src/review/load-input.mjs';
 test('requires exactly one explicit input source', async () => {
   await assert.rejects(() => loadReviewInput({}), /exactly one of --input or --stdin/);
   await assert.rejects(() => loadReviewInput({ inputPath: 'a', useStdin: true }), /exactly one/);
+  await assert.rejects(() => loadReviewInput({ inputPath: '../outside', cwd: '/tmp/review-root' }), /stay within/);
 });
 
 test('loads text file and rejects NUL or oversized content', async () => {
