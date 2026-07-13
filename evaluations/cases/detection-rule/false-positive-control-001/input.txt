@@ -1,0 +1,1 @@
+A detection rule lacks a false-positive test.
