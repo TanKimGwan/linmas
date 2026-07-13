@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { detectHosts } from '../src/core/detect-hosts.mjs';
 import { createHostRegistry } from '../src/hosts/registry.mjs';
 
 test('host registry contains Claude and Codex in stable order', () => {
@@ -12,4 +13,12 @@ test('host registry contains Claude and Codex in stable order', () => {
     assert.equal(typeof adapter.getManifestPath, 'function');
     assert.equal(typeof adapter.validateTarget, 'function');
   }
+});
+
+test('detectHosts accepts an injected registry', () => {
+  const registry = new Map([['fake', {
+    detect: () => ({ host: 'fake', status: 'not_detected' })
+  }]]);
+
+  assert.deepEqual(detectHosts({ registry }), [{ host: 'fake', status: 'not_detected' }]);
 });
