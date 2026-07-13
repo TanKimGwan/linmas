@@ -57,7 +57,7 @@ test('runs Codex read-only with supported pinned flags and reads the final messa
     const runner = createCodexRunner({ model: 'codex-model', schemaPath, outputPath, spawnImpl: fakeSpawn({}, calls) });
     const result = await runner.run(request);
     assert.equal(calls[0].command, 'codex');
-    assert.deepEqual(calls[0].args, ['exec', '--model', 'codex-model', '--sandbox', 'read-only', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
+    assert.deepEqual(calls[0].args, ['exec', '--model', 'codex-model', '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
     assert.equal(calls[0].options.shell, false);
     assert.equal(calls[0].child.stdin.read().toString(), 'Return ReviewResult JSON.\n\nreview this input');
     assert.equal(result.provider, 'codex');
@@ -74,7 +74,7 @@ test('classifies missing binary as provider configuration', async () => {
   });
 });
 
-test('classifies timeout, nonzero exit, and absent output as provider failures', async (t) => {
+test('classifies timeout, nonzero exit, and absent output as provider failures, including auth and rate limits', async (t) => {
   await t.test('timeout', async () => withPaths(async (paths) => {
     const runner = createCodexRunner({ model: 'm', ...paths, timeoutMs: 1, spawnImpl: fakeSpawn({ delay: 100 }) });
     await assert.rejects(runner.run(request), (error) => assertProviderError(error, 'provider-timeout'));
@@ -89,10 +89,52 @@ test('classifies timeout, nonzero exit, and absent output as provider failures',
       return true;
     });
   }));
+  await t.test('authentication', async () => withPaths(async (paths) => {
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ code: 1, stderr: '401 Unauthorized' }) });
+    await assert.rejects(runner.run(request), (error) => assertProviderError(error, 'provider-authentication'));
+  }));
+  await t.test('rate limit', async () => withPaths(async (paths) => {
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ code: 1, stderr: '429 rate limit exceeded' }) });
+    await assert.rejects(runner.run(request), (error) => assertProviderError(error, 'provider-rate-limit'));
+  }));
   await t.test('absent output', async () => withPaths(async (paths) => {
     const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ lastMessage: null }) });
     await assert.rejects(runner.run(request), (error) => assertProviderError(error, 'provider-transport'));
   }));
+});
+
+test('passes an isolated working directory to Codex', async () => {
+  await withPaths(async (paths) => {
+    const calls = [];
+    const runner = createCodexRunner({ model: 'm', ...paths, cwd: '/tmp/linmas-input-only', spawnImpl: fakeSpawn({}, calls) });
+    await runner.run(request);
+    assert.equal(calls[0].options.cwd, '/tmp/linmas-input-only');
+  });
+});
+
+test('redacts common credential forms from Codex stderr', async () => {
+  await withPaths(async (paths) => {
+    const stderr = 'password=hunter2 ghp_012345678901234567890123456789012345 AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE';
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ code: 1, stderr }) });
+    await assert.rejects(runner.run(request), (error) => {
+      assert.doesNotMatch(error.message, /hunter2|ghp_|AKIAIOSFODNN7EXAMPLE/);
+      return true;
+    });
+  });
+});
+
+test('process cleanup does not wait forever for an inherited stderr pipe', async () => {
+  await withPaths(async (paths) => {
+    const child = new EventEmitter();
+    child.stdin = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => true;
+    const runner = createCodexRunner({ model: 'm', ...paths, timeoutMs: 1, spawnImpl: () => child });
+    await assert.rejects(Promise.race([
+      runner.run(request),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('cleanup hung')), 100))
+    ]), (error) => error instanceof ReviewError && error.failureClass === 'provider-timeout');
+  });
 });
 
 test('cancels an active Codex process through AbortSignal', async () => {

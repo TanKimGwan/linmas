@@ -43,7 +43,7 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     }
   }
 
-  const runner = resolveProvider(providerRegistry, args.provider, { model: args.model });
+  const runner = resolveProvider(providerRegistry, args.provider, { model: args.model, cwd });
   const runResult = await runner.run({
     system: 'Return only ReviewResult schemaVersion 1 JSON.',
     user: JSON.stringify(request)

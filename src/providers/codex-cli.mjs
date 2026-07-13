@@ -63,23 +63,32 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
       }
     },
     safetyBoundary: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['satisfied', 'humanReviewRequired', 'statement'],
-      properties: {
-        satisfied: { type: 'boolean' },
-        humanReviewRequired: { const: true },
-        statement: { type: 'string', minLength: 1 }
-      }
+      anyOf: [
+        {
+          type: 'string',
+          minLength: 1,
+          pattern: 'human review(?: remains)? required'
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['satisfied', 'humanReviewRequired', 'statement'],
+          properties: {
+            satisfied: { type: 'boolean' },
+            humanReviewRequired: { const: true },
+            statement: { type: 'string', minLength: 1 }
+          }
+        }
+      ]
     }
   }
 });
 
 function codexArgs(model, schemaPath, outputPath) {
-  return ['exec', '--model', model, '--sandbox', 'read-only', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
+  return ['exec', '--model', model, '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
 }
 
-export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
+export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, cwd, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
   return {
     id: 'codex', model,
     async run(request) {
@@ -90,7 +99,7 @@ export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, tempRoot
         const schemaPath = path.join(tempDir, 'review-result.schema.json');
         const outputPath = path.join(tempDir, 'last-message.json');
         await fs.writeFile(schemaPath, JSON.stringify(REVIEW_RESULT_SCHEMA), { mode: 0o600 });
-        return await createCodexRunner({ model, schemaPath, outputPath, spawnImpl, timeoutMs }).run(request);
+        return await createCodexRunner({ model, schemaPath, outputPath, cwd: tempDir, spawnImpl, timeoutMs }).run(request);
       } catch (cause) {
         failure = cause instanceof ReviewError
           ? cause
@@ -109,7 +118,7 @@ export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, tempRoot
   };
 }
 
-export function createCodexRunner({ model, schemaPath, outputPath, spawnImpl = spawn, timeoutMs = 60000, killGraceMs = 5000 } = {}) {
+export function createCodexRunner({ model, schemaPath, outputPath, cwd = path.dirname(schemaPath), spawnImpl = spawn, timeoutMs = 60000, killGraceMs = 5000 } = {}) {
   if (!model || !schemaPath || !outputPath) throw classified('provider-configuration', 'Codex model, schemaPath, and outputPath are required');
   return {
     id: 'codex', model,
@@ -117,7 +126,7 @@ export function createCodexRunner({ model, schemaPath, outputPath, spawnImpl = s
       if (signal?.aborted) throw classified('provider-transport', 'Codex invocation cancelled', signal.reason);
       let child;
       try {
-        child = spawnImpl('codex', codexArgs(model, schemaPath, outputPath), { shell: false, stdio: ['pipe', 'ignore', 'pipe'] });
+        child = spawnImpl('codex', codexArgs(model, schemaPath, outputPath), { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'] });
       } catch (cause) {
         throw classified(cause?.code === 'ENOENT' ? 'provider-configuration' : 'provider-transport', 'Codex invocation failed to start', cause);
       }
@@ -128,7 +137,15 @@ export function createCodexRunner({ model, schemaPath, outputPath, spawnImpl = s
       }
       if (outcome.timedOut) throw classified('provider-timeout', 'Codex invocation timed out');
       if (outcome.aborted) throw classified('provider-transport', 'Codex invocation cancelled', signal?.reason);
-      if (outcome.code !== 0) throw classified('provider-transport', `Codex exited ${outcome.code}: ${sanitize(outcome.stderr)}`);
+      if (outcome.code !== 0) {
+        const stderr = outcome.stderr;
+        const category = /(?:401|403|unauthori[sz]ed|forbidden|authentication|invalid api key|login required)/i.test(stderr)
+          ? 'provider-authentication'
+          : /(?:429|rate[ -]?limit|too many requests|quota)/i.test(stderr)
+            ? 'provider-rate-limit'
+            : 'provider-transport';
+        throw classified(category, `Codex exited ${outcome.code}: ${sanitize(stderr)}`);
+      }
       let size;
       try {
         ({ size } = await fs.stat(outputPath));
@@ -150,12 +167,14 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
     let timedOut = false;
     let settled = false;
     let forceTimer;
+    let cleanupTimer;
 
     const finish = (value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       clearTimeout(forceTimer);
+      clearTimeout(cleanupTimer);
       signal?.removeEventListener('abort', abort);
       resolve({ stderr, error, timedOut, aborted: signal?.aborted === true, ...value });
     };
@@ -173,8 +192,14 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
       stderr += value.toString('utf8');
       stderrBytes += value.length;
     });
-    child.once('error', (cause) => { error = cause; });
+    child.once('error', (cause) => { error = cause; finish({ code: null, signal: null }); });
     child.once('close', (code, closeSignal) => finish({ code, signal: closeSignal }));
+    child.once('exit', (code, closeSignal) => {
+      if (timedOut || signal?.aborted) finish({ code, signal: closeSignal });
+    });
+    cleanupTimer = setTimeout(() => {
+      if (timedOut || signal?.aborted) finish({ code: null, signal: null });
+    }, Math.min(Math.max(killGraceMs, 10), 50));
     signal?.addEventListener('abort', abort, { once: true });
     child.stdin.end(input);
   });
@@ -190,6 +215,9 @@ function classified(category, message, cause) {
 function sanitize(value) {
   return value
     .replace(/authorization\s*[:=]\s*(?:bearer\s+)?\S+/gi, 'Authorization=[redacted]')
-    .replace(/(api[_-]?key|token)\s*[:=]\s*\S+/gi, '$1=[redacted]')
+    .replace(/(api[_-]?key|token|password|secret)\s*[:=]\s*\S+/gi, '$1=[redacted]')
+    .replace(/\bgh[pousr]_[A-Za-z0-9_]+\b/g, '[redacted-github-token]')
+    .replace(/\bAKIA[0-9A-Z]{16}\b/g, '[redacted-aws-key]')
+    .replace(/-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g, '[redacted-private-key]')
     .slice(0, 512);
 }

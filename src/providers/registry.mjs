@@ -33,10 +33,10 @@ export function createProviderRegistry({ env = process.env, fetchImpl = fetch, s
       const reason = !binaryAvailable ? 'codex binary is not available' : !source.LINMAS_EVAL_MODEL ? 'LINMAS_EVAL_MODEL is not set' : 'codex binary and LINMAS_EVAL_MODEL are configured';
       return { provider: 'codex', status: binaryAvailable && source.LINMAS_EVAL_MODEL ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
     },
-    create({ model = env.LINMAS_EVAL_MODEL, timeoutMs } = {}) {
+    create({ model = env.LINMAS_EVAL_MODEL, timeoutMs, cwd } = {}) {
       if (!binaryLookup('codex', { env })) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
       if (!model) throw new ReviewError('Codex model is required', 'provider-configuration', EXIT_CODES.PROVIDER);
-      return createManagedCodexRunner({ model, spawnImpl, timeoutMs });
+      return createManagedCodexRunner({ model, spawnImpl, timeoutMs, cwd });
     }
   };
   return new Map([['claude', claude], ['codex', codex]]);
