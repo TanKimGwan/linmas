@@ -69,6 +69,7 @@ const publishedSurface = [
   'package.json',
   'scripts',
   'evaluations',
+  'policies',
   'skills',
   'LICENSE',
   'NOTICE',

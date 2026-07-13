@@ -1,6 +1,6 @@
 {
   "name": "linmas",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Defensive security skill collection for Claude Code and compatible AI coding agents.",
   "homepage": "https://github.com/TanKimGwan/linmas#readme",
   "bugs": {
@@ -21,6 +21,7 @@
     "skills/",
     "scripts/",
     "evaluations/",
+    "policies/",
     "README.md",
     "package.json",
     "LICENSE",

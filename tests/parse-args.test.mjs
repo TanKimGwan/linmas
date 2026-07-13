@@ -42,8 +42,15 @@ test('parses explicit review file and provider options', () => {
   ]), {
     command: 'review', skillName: 'secure-code-reviewer', installAll: false,
     dryRun: false, inputPath: 'patch.diff', useStdin: false,
-    provider: 'claude', model: 'model-id', output: 'json', assumeYes: true
+    provider: 'claude', model: 'model-id', output: 'json', assumeYes: true,
+    policyId: null, policyFile: null
   });
+});
+
+test('parses exactly one policy source', () => {
+  const args = parseArgv(['node', 'linmas', 'review', '--policy', 'baseline-appsec']);
+  assert.equal(args.policyId, 'baseline-appsec');
+  assert.equal(args.policyFile, null);
 });
 
 test('parses review stdin without treating flag values as positional skills', () => {

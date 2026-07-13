@@ -155,6 +155,24 @@ linmas review --skill secure-code-reviewer --input patch.diff --provider claude
 
 Only the named input is transmitted, and execution requires visible confirmation that data leaves the machine (or explicit `--yes` for non-interactive use). `--output json` emits `ReviewResult` schema version 1. Provider output is normalized and raw responses are not stable output. Findings require human review; this command never approves, merges, releases, or automatically fixes changes.
 
+## Declarative policy packs
+
+After an explicit provider review is normalized, apply one built-in policy pack:
+
+```text
+linmas review --skill secure-code-reviewer --input patch.diff --provider claude --policy baseline-appsec
+```
+
+Or load one explicitly named local JSON pack:
+
+```text
+linmas review --skill secure-code-reviewer --input patch.diff --provider claude --policy-file ./team-policy.json
+```
+
+Built-in packs are `baseline-appsec`, `cloud-change`, and `release-security`. Packs are schema-versioned declarative JSON; they contain no commands, code, expressions, templates, plugins, remote imports, or provider hooks. Local packs must be regular files no larger than 64 KiB and are never discovered automatically.
+
+Policy decisions are `pass`, `needs-review`, or `blocked`. `pass` means only that the declared conditions were met; it does not prove security, compliance, certification, or approval. Safety or contract failures always produce `blocked`, and no pack can remove the human-review requirement. Every rule includes a reason, and policy output is separate from the normalized `ReviewResult`.
+
 ## CLI command reference
 
 | Command | Purpose |
