@@ -5,6 +5,7 @@ export class ReviewError extends Error {
     super(message);
     this.name = 'ReviewError';
     this.category = category;
+    this.failureClass = category;
     this.exitCode = exitCode;
   }
 }

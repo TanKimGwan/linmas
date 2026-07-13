@@ -13,3 +13,11 @@ test('requires credentials and model when creating Claude runner', () => {
   assert.throws(() => resolveProvider(createProviderRegistry({ env: {} }), 'claude', {}), /credentials/);
   assert.throws(() => resolveProvider(createProviderRegistry({ env: { ANTHROPIC_API_KEY: 'test' } }), 'claude', {}), /model is required/);
 });
+
+test('Claude configuration detection names a missing LINMAS_EVAL_MODEL', () => {
+  const registry = createProviderRegistry({ env: { ANTHROPIC_API_KEY: 'test-secret' } });
+  const status = registry.get('claude').detectConfiguration();
+  assert.equal(status.status, 'missing');
+  assert.equal(status.reason, 'LINMAS_EVAL_MODEL is not set');
+  assert.doesNotMatch(JSON.stringify(status), /test-secret/);
+});
