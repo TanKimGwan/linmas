@@ -40,6 +40,19 @@ Before changing a skill, read:
 - `SKILL_STANDARD.md`
 - `SECURITY_AND_AUTHORIZED_USE.md`
 
+### New installation hosts
+
+Do not name or scaffold another installation host speculatively. Before an adapter file is created, an approved proposal must document:
+
+- the concrete host ID and a user-demand evidence reference;
+- the installation root, manifest location, and conflict semantics;
+- parity for detection, doctor, onboarding, install, and uninstall behavior;
+- the credential boundary: credentials remain in provider-native configuration and must never be written to Linmas manifests;
+- a named maintenance owner; and
+- fake home tests covering absent, detected, writable, unwritable, conflict, manifest, and removal cases.
+
+Installation hosts and review execution providers are independent extension points. Supporting one does not imply support for the other.
+
 ## 4. Validation
 
 Run:
