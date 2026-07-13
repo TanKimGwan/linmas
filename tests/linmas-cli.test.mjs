@@ -84,33 +84,63 @@ test('run injects the host registry lazily for host commands only', async () => 
   const detection = {
     host: 'fake',
     status: 'detected',
-    reason: 'injected',
-    rootPath: '/fake',
-    installRoot: '/fake/skills',
-    manifestPath: '/fake/manifest.json',
+    reason: 'injected-sentinel',
+    rootPath: '/sentinel-root',
+    installRoot: '/sentinel-install-root',
+    manifestPath: '/sentinel-manifest.json',
     writable: true
   };
   let registryReads = 0;
-  const registry = new Map([['fake', {
-    detect() { return detection; },
+  let registryValuesCalls = 0;
+  let detectCalls = 0;
+  let injectedRegistry;
+  const registry = new (class extends Map {
+    values() {
+      assert.equal(this, injectedRegistry);
+      registryValuesCalls += 1;
+      return super.values();
+    }
+  })([['fake', {
+    detect() {
+      detectCalls += 1;
+      return detection;
+    },
     getInstallRoot() { return detection.installRoot; },
     getManifestPath() { return detection.manifestPath; },
-    validateTarget() { return { status: 'detected', writable: true, reason: 'injected' }; }
+    validateTarget() { return { status: 'detected', writable: true, reason: 'injected-sentinel' }; }
   }]]);
+  injectedRegistry = registry;
   const dependencies = {
     get hostRegistry() {
       registryReads += 1;
-      return registry;
+      return injectedRegistry;
+    },
+    createHostRegistry() {
+      throw new Error('default host registry must not be created');
     }
   };
 
   assert.equal(await run(['node', 'bin/linmas.mjs', 'list'], createMockIO(), dependencies), 0);
   assert.equal(registryReads, 0);
+  assert.equal(registryValuesCalls, 0);
+  assert.equal(detectCalls, 0);
 
-  const detectIo = createMockIO();
-  assert.equal(await run(['node', 'bin/linmas.mjs', 'detect'], detectIo, dependencies), 0);
-  assert.equal(registryReads, 1);
-  assert.match(detectIo.getStdout(), /fake: detected/);
+  const reviewIo = createMockIO();
+  assert.equal(await run(['node', 'bin/linmas.mjs', 'review', '--input', 'README.md'], reviewIo, dependencies), 0);
+  assert.equal(registryReads, 0);
+  assert.equal(registryValuesCalls, 0);
+  assert.equal(detectCalls, 0);
+
+  for (const command of ['detect', 'doctor', 'onboard']) {
+    const io = createMockIO();
+    assert.equal(await run(['node', 'bin/linmas.mjs', command], io, dependencies), 0);
+    assert.match(io.getStdout(), /fake/);
+    if (command === 'doctor') assert.match(io.getStdout(), /injected-sentinel/);
+    if (command !== 'doctor') assert.match(io.getStdout(), /sentinel-install-root/);
+  }
+  assert.equal(registryReads, 3);
+  assert.equal(registryValuesCalls, 3);
+  assert.equal(detectCalls, 3);
 });
 
 test('run unknown command prints error and returns 1', async () => {
@@ -180,7 +210,9 @@ test('run install command perform dry-run preview or actual install', async () =
     assert.match(installIo.getStdout(), /Install completed\./);
     assert.match(installIo.getStdout(), /Installed: security-operations-lead/);
     assert.match(installIo.getStdout(), /Next steps:/);
-    assert.equal(fs.existsSync(path.join(installRoot, 'security-operations-lead', 'SKILL.md')), true);
+    const installedSkillPath = path.join(installRoot, 'security-operations-lead');
+    assert.equal(fs.existsSync(path.join(installedSkillPath, 'SKILL.md')), true);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(claudeDir, 'linmas-manifest.json'), 'utf8')).skills[0].path, installedSkillPath);
     assert.equal(fs.existsSync(path.join(codexDir, 'skills', 'security-operations-lead')), false);
   } finally {
     os.homedir = originalHomedir;

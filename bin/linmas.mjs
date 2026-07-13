@@ -25,7 +25,7 @@ const modulePath = fileURLToPath(import.meta.url);
 export async function run(argv, io = process, dependencies = {}) {
   const args = parseArgv(argv);
   let hostRegistry;
-  const getDetections = () => detectHosts({ registry: hostRegistry ||= dependencies.hostRegistry || createHostRegistry() });
+  const getDetections = () => detectHosts({ registry: hostRegistry ||= dependencies.hostRegistry || (dependencies.createHostRegistry ?? createHostRegistry)() });
 
   if (args.command === 'list') {
     const skills = listSkills(rootDir);
