@@ -12,6 +12,9 @@ import { formatOnboarding } from '../src/core/onboard.mjs';
 import { selectSkills, selectTargets, planInstall, formatInstallPreview, formatInstallSummary, applyInstallPlan, promptForInstallChoices, promptForInstallTarget, promptForInstallConfirmation } from '../src/core/install-skills.mjs';
 import { createTimestamp } from '../src/core/fs-utils.mjs';
 import { planUninstall, formatUninstallPreview, applyUninstallPlan, promptForUninstallChoices, promptForUninstallTarget, promptForUninstallConfirmation } from '../src/core/uninstall-skills.mjs';
+import { runReview } from '../src/review/run-review.mjs';
+import { ReviewError } from '../src/review/errors.mjs';
+import { createProviderRegistry } from '../src/providers/registry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -52,6 +55,20 @@ export async function run(argv, io = process) {
     const skills = listSkills(rootDir);
     io.stdout.write(formatOnboarding(detections, skills, manifests));
     return 0;
+  }
+
+  if (args.command === 'review') {
+    try {
+      const result = await runReview(args, {
+        io,
+        providerRegistry: createProviderRegistry()
+      });
+      io.stdout.write(result.output);
+      return result.exitCode;
+    } catch (error) {
+      io.stderr.write(`Error: ${error.message}\n`);
+      return error instanceof ReviewError ? error.exitCode : 1;
+    }
   }
 
   if (args.command === 'install') {

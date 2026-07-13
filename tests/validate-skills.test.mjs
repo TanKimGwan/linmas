@@ -135,6 +135,15 @@ test('secure-code-reviewer documents the bounded advisor review contract', async
   assert.match(readme, /npm run validate/);
 });
 
+test('README documents safe review boundaries', async () => {
+  const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+  assert.match(readme, /linmas review --skill secure-code-reviewer --input patch\.diff/);
+  assert.match(readme, /prepare mode/i);
+  assert.match(readme, /no network call/i);
+  assert.match(readme, /data leaves (your|the) machine/i);
+  assert.match(readme, /human review/i);
+});
+
 test('README documents the specialist advisor rollout', async () => {
   const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
 

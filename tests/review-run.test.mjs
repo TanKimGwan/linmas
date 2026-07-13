@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { Readable } from 'node:stream';
+import { runReview } from '../src/review/run-review.mjs';
+
+function fakeIo(lines = [], { isTTY = false } = {}) {
+  const output = [];
+  const errors = [];
+  return {
+    stdin: Readable.from([]),
+    isTTY,
+    stdout: { write(value) { output.push(value); } },
+    stderr: { write(value) { errors.push(value); } },
+    async readLine() { return lines.shift() ?? ''; },
+    written() { return output.join(''); },
+    errors() { return errors.join(''); }
+  };
+}
+
+const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-review-run-'));
+fs.writeFileSync(path.join(fixtureDir, 'input.txt'), 'review this safe input');
+
+const validResult = JSON.stringify({
+  schemaVersion: 1,
+  caseId: 'review/local',
+  specialist: 'secure-code-reviewer',
+  modelMetadata: { provider: 'fake', model: 'fake-model', usage: {}, requestId: 'fake-request' },
+  scopeAndAssumptions: ['Review is limited to the supplied input.'],
+  findings: [{
+    id: 'input handling',
+    status: 'Recommendation',
+    severity: 'Low',
+    evidence: 'The input is supplied as a bounded fixture.',
+    affectedSurface: 'review input',
+    preconditions: 'A user supplies a review request.',
+    remediation: 'Keep the input boundary explicit.',
+    verification: 'Run the bounded input test.'
+  }],
+  deterministicChecks: ['security regression test'],
+  safetyBoundary: { satisfied: true, humanReviewRequired: true, statement: 'Human review remains required.' }
+});
+
+test('prepare mode never resolves or runs a provider', async () => {
+  let called = false;
+  const result = await runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: null, output: 'text' }, {
+    cwd: fixtureDir,
+    io: fakeIo(),
+    providerRegistry: new Map([['claude', { create() { called = true; } }]])
+  });
+  assert.equal(result.exitCode, 0);
+  assert.equal(called, false);
+  assert.match(result.output, /No data was transmitted/);
+});
+
+test('execution reports outbound boundary and requires confirmation', async () => {
+  const io = fakeIo(['no'], { isTTY: true });
+  const providerRegistry = new Map([['fake', { create() { throw new Error('must not run'); } }]]);
+  await assert.rejects(() => runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'text' }, { cwd: fixtureDir, io, providerRegistry }), /not confirmed/);
+  assert.match(io.written(), /source: input\.txt[\s\S]*bytes:[\s\S]*provider: fake[\s\S]*data leaves this machine: yes/i);
+});
+
+test('execution invokes the fake provider only after --yes', async () => {
+  let called = false;
+  const io = fakeIo();
+  const providerRegistry = new Map([['fake', { create() { return { async run() { called = true; return { provider: 'fake', model: 'fake-model', rawResponse: validResult, usage: {}, requestId: 'fake-request' }; } }; } }]]);
+  const result = await runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json', assumeYes: true }, { cwd: fixtureDir, io, providerRegistry });
+  assert.equal(called, true);
+  assert.equal(JSON.parse(result.output).schemaVersion, 1);
+});
