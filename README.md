@@ -133,6 +133,24 @@ Remove a Linmas-managed skill:
 npx linmas uninstall secure-code-reviewer
 ```
 
+### Installation hosts and execution providers
+
+Installation and review execution are independent capabilities:
+
+| Installation hosts | Installs Linmas skills into |
+|---|---|
+| Claude Code | Claude Code's managed skills directory |
+| Codex | Codex's managed skills directory |
+
+| Execution providers | Runs an explicitly requested `linmas review` with |
+|---|---|
+| Claude | Claude provider-native configuration |
+| Codex | Codex provider-native configuration |
+
+Supporting an installation host does not automatically enable its execution provider, or vice versa. Provider credentials remain in provider-native configuration and are never stored in Linmas installation manifests. Live execution is opt-in and transmits only the explicitly supplied review input after confirmation. Results remain advisory and require human review; Linmas does not approve, merge, release, or automatically fix changes.
+
+Additional installation hosts are demand-driven rather than universally supported. A new host requires documented user demand, testable installation and removal behavior, and a named maintenance owner before implementation.
+
 ## `linmas review` MVP
 
 Prepare a bounded local review bundle from one explicitly named text file:

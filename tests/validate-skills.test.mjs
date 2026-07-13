@@ -135,6 +135,18 @@ test('secure-code-reviewer documents the bounded advisor review contract', async
   assert.match(readme, /npm run validate/);
 });
 
+test('README separates installation hosts and execution providers', async () => {
+  const text = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+
+  assert.match(text, /installation hosts/i);
+  assert.match(text, /execution providers/i);
+  assert.match(text, /Claude Code.*Codex|Codex.*Claude Code/is);
+  assert.match(text, /credentials.*(?:not|never).*manifest|manifest.*never.*credentials/is);
+  assert.match(text, /live execution.*opt-in|execution.*explicitly enabled/is);
+  assert.match(text, /additional (?:installation )?hosts.*demand|demand.*additional (?:installation )?hosts/is);
+  assert.match(text, /human review/i);
+});
+
 test('README defines policy decision limits', async () => {
   const text = await readFile(path.join(rootDir, 'README.md'), 'utf8');
   assert.match(text, /--policy baseline-appsec/);
