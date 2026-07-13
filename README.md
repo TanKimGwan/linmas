@@ -133,6 +133,28 @@ Remove a Linmas-managed skill:
 npx linmas uninstall secure-code-reviewer
 ```
 
+## `linmas review` MVP
+
+Prepare a bounded local review bundle from one explicitly named text file:
+
+```text
+linmas review --skill secure-code-reviewer --input patch.diff
+```
+
+Or prepare from explicitly supplied stdin:
+
+```text
+git diff --cached | linmas review --skill secure-code-reviewer --stdin
+```
+
+Prepare mode makes no network call, never invokes Git, and never scans the repository. It prints a versioned request and states that no data was transmitted. To execute an opt-in Claude review, select the provider explicitly:
+
+```text
+linmas review --skill secure-code-reviewer --input patch.diff --provider claude
+```
+
+Only the named input is transmitted, and execution requires visible confirmation that data leaves the machine (or explicit `--yes` for non-interactive use). `--output json` emits `ReviewResult` schema version 1. Provider output is normalized and raw responses are not stable output. Findings require human review; this command never approves, merges, releases, or automatically fixes changes.
+
 ## CLI command reference
 
 | Command | Purpose |
