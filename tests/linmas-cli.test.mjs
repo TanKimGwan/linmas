@@ -80,6 +80,39 @@ test('run list command prints available skills', async () => {
   assert.equal(io.getStderr(), '');
 });
 
+test('run injects the host registry lazily for host commands only', async () => {
+  const detection = {
+    host: 'fake',
+    status: 'detected',
+    reason: 'injected',
+    rootPath: '/fake',
+    installRoot: '/fake/skills',
+    manifestPath: '/fake/manifest.json',
+    writable: true
+  };
+  let registryReads = 0;
+  const registry = new Map([['fake', {
+    detect() { return detection; },
+    getInstallRoot() { return detection.installRoot; },
+    getManifestPath() { return detection.manifestPath; },
+    validateTarget() { return { status: 'detected', writable: true, reason: 'injected' }; }
+  }]]);
+  const dependencies = {
+    get hostRegistry() {
+      registryReads += 1;
+      return registry;
+    }
+  };
+
+  assert.equal(await run(['node', 'bin/linmas.mjs', 'list'], createMockIO(), dependencies), 0);
+  assert.equal(registryReads, 0);
+
+  const detectIo = createMockIO();
+  assert.equal(await run(['node', 'bin/linmas.mjs', 'detect'], detectIo, dependencies), 0);
+  assert.equal(registryReads, 1);
+  assert.match(detectIo.getStdout(), /fake: detected/);
+});
+
 test('run unknown command prints error and returns 1', async () => {
   const io = createMockIO();
   const code = await run(['node', 'bin/linmas.mjs', 'invalid-command'], io);

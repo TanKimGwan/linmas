@@ -4,6 +4,66 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { detectHosts } from '../src/core/detect-hosts.mjs';
+import { assertHostAdapter } from '../src/hosts/adapter-contract.mjs';
+import { createClaudeAdapter } from '../src/hosts/claude.mjs';
+import { createCodexAdapter } from '../src/hosts/codex.mjs';
+import { createHostRegistry } from '../src/hosts/registry.mjs';
+
+test('host registry exposes validated Claude and Codex adapters in stable order', () => {
+  const registry = createHostRegistry();
+  assert.deepEqual([...registry.keys()], ['claude', 'codex']);
+  assert.equal(typeof registry.get('claude').detect, 'function');
+  assert.equal(typeof registry.get('codex').detect, 'function');
+});
+
+test('host adapter contract accepts both built-in adapters and rejects invalid adapters', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-contract-'));
+  try {
+    assert.doesNotThrow(() => assertHostAdapter('claude', createClaudeAdapter({ homedir: home })));
+    assert.doesNotThrow(() => assertHostAdapter('codex', createCodexAdapter({ homedir: home })));
+    assert.throws(() => assertHostAdapter('broken', { detect() {} }), /getInstallRoot/);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('built-in host adapters maintain contract parity', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-parity-'));
+  try {
+    const claudeMethods = Object.keys(createClaudeAdapter({ homedir: home })).sort();
+    const codexMethods = Object.keys(createCodexAdapter({ homedir: home })).sort();
+    assert.deepEqual(claudeMethods, codexMethods);
+    assert.deepEqual(claudeMethods, ['detect', 'getInstallRoot', 'getManifestPath', 'validateTarget']);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('detectHosts instantiates only injected registry entries', () => {
+  let calls = 0;
+  const detection = {
+    host: 'fake',
+    status: 'detected',
+    reason: 'injected',
+    rootPath: '/fake',
+    installRoot: '/fake/skills',
+    manifestPath: '/fake/manifest.json',
+    writable: true
+  };
+  const registry = new Map([['fake', {
+    detect(options) {
+      calls += 1;
+      assert.deepEqual(options, { env: { PATH: '/bin' }, platform: 'test' });
+      return detection;
+    },
+    getInstallRoot() { return detection.installRoot; },
+    getManifestPath() { return detection.manifestPath; },
+    validateTarget() { return { status: 'detected', writable: true, reason: 'injected' }; }
+  }]]);
+
+  assert.deepEqual(detectHosts({ env: { PATH: '/bin' }, homedir: '/home/test', platform: 'test', registry }), [detection]);
+  assert.equal(calls, 1);
+});
 
 test('detectHosts accepts an injected registry', () => {
   const registry = new Map([

@@ -15,14 +15,17 @@ import { planUninstall, formatUninstallPreview, applyUninstallPlan, promptForUni
 import { runReview } from '../src/review/run-review.mjs';
 import { ReviewError } from '../src/review/errors.mjs';
 import { createProviderRegistry } from '../src/providers/registry.mjs';
+import { createHostRegistry } from '../src/hosts/registry.mjs';
 import { loadPolicyPack } from '../src/policy/load-pack.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const modulePath = fileURLToPath(import.meta.url);
 
-export async function run(argv, io = process) {
+export async function run(argv, io = process, dependencies = {}) {
   const args = parseArgv(argv);
+  let hostRegistry;
+  const getDetections = () => detectHosts({ registry: hostRegistry ||= dependencies.hostRegistry || createHostRegistry() });
 
   if (args.command === 'list') {
     const skills = listSkills(rootDir);
@@ -34,7 +37,7 @@ export async function run(argv, io = process) {
   }
 
   if (args.command === 'detect') {
-    const detections = detectHosts();
+    const detections = getDetections();
     for (const detection of detections) {
       io.stdout.write(`${detection.host}: ${detection.status}\n`);
       io.stdout.write(`  reason: ${detection.reason}\n`);
@@ -45,7 +48,7 @@ export async function run(argv, io = process) {
   }
 
   if (args.command === 'doctor' || args.command === 'onboard') {
-    const detections = detectHosts();
+    const detections = getDetections();
     const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
 
     if (args.command === 'doctor') {
@@ -76,7 +79,7 @@ export async function run(argv, io = process) {
 
   if (args.command === 'install') {
     try {
-      const detections = detectHosts();
+      const detections = getDetections();
       const skills = listSkills(rootDir);
       const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
 
@@ -140,7 +143,7 @@ export async function run(argv, io = process) {
 
   if (args.command === 'uninstall') {
     try {
-      const detections = detectHosts();
+      const detections = getDetections();
       const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
       const fullPlan = planUninstall({
         manifests,
