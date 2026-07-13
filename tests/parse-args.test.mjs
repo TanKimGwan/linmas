@@ -33,3 +33,22 @@ test('parseArgv parses flags and positional skill names independently', () => {
   assert.equal(result.installAll, false);
   assert.equal(result.dryRun, true);
 });
+
+test('parses explicit review file and provider options', () => {
+  assert.deepEqual(parseArgv([
+    'node', 'linmas', 'review', '--skill', 'secure-code-reviewer',
+    '--input', 'patch.diff', '--provider', 'claude', '--model', 'model-id',
+    '--output', 'json', '--yes'
+  ]), {
+    command: 'review', skillName: 'secure-code-reviewer', installAll: false,
+    dryRun: false, inputPath: 'patch.diff', useStdin: false,
+    provider: 'claude', model: 'model-id', output: 'json', assumeYes: true
+  });
+});
+
+test('parses review stdin without treating flag values as positional skills', () => {
+  const args = parseArgv(['node', 'linmas', 'review', '--stdin', '--skill', 'cloud-hardening-architect']);
+  assert.equal(args.useStdin, true);
+  assert.equal(args.skillName, 'cloud-hardening-architect');
+  assert.equal(args.provider, null);
+});
