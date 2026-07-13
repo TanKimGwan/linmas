@@ -4,8 +4,18 @@ import { prepareReview } from './prepare-review.mjs';
 import { normalizeProviderResponse } from './normalize-response.mjs';
 import { EXIT_CODES, ReviewError } from './errors.mjs';
 import { resolveProvider } from '../providers/registry.mjs';
+import { loadPolicyPack } from '../policy/load-pack.mjs';
+import { evaluatePolicy } from '../policy/evaluate-policy.mjs';
+import { formatPolicyResult } from '../policy/format-policy.mjs';
 
-export async function runReview(args, { io, cwd = process.cwd(), providerRegistry }) {
+export async function runReview(args, { io, cwd = process.cwd(), rootDir, providerRegistry, loadPolicy = loadPolicyPack }) {
+  if (args.policyId && args.policyFile) {
+    throw new ReviewError('provide exactly one policy id or policy file', 'input', EXIT_CODES.INPUT);
+  }
+  if ((args.policyId || args.policyFile) && !args.provider) {
+    throw new ReviewError('policy evaluation requires --provider', 'input', EXIT_CODES.INPUT);
+  }
+
   const input = await loadReviewInput({ inputPath: args.inputPath, useStdin: args.useStdin, stdin: io.stdin, cwd });
   const request = prepareReview({ input, skillName: args.skillName });
 
@@ -38,9 +48,36 @@ export async function runReview(args, { io, cwd = process.cwd(), providerRegistr
     system: 'Return only ReviewResult schemaVersion 1 JSON.',
     user: JSON.stringify(request)
   });
-  const result = normalizeProviderResponse(runResult, {
+  const reviewResult = normalizeProviderResponse(runResult, {
     caseId: 'review/local',
     specialist: request.specialist
   });
-  return { exitCode: EXIT_CODES.OK, output: formatReviewResult(result, { output: args.output }) };
+
+  if (!args.policyId && !args.policyFile) {
+    return { exitCode: EXIT_CODES.OK, output: formatReviewResult(reviewResult, { output: args.output }) };
+  }
+
+  const policy = loadPolicy({
+    id: args.policyId,
+    filePath: args.policyFile,
+    rootDir,
+    cwd
+  });
+  if (!policy.specialists.includes(reviewResult.specialist)) {
+    throw new ReviewError(`policy does not accept specialist: ${reviewResult.specialist}`, 'input', EXIT_CODES.INPUT);
+  }
+  if (!policy.modes.includes(request.mode)) {
+    throw new ReviewError(`policy does not accept mode: ${request.mode}`, 'input', EXIT_CODES.INPUT);
+  }
+  const policyResult = evaluatePolicy(policy, reviewResult);
+  if (args.output === 'json') {
+    return {
+      exitCode: EXIT_CODES.OK,
+      output: `${JSON.stringify({ review: reviewResult, policy: policyResult }, null, 2)}\n`
+    };
+  }
+  return {
+    exitCode: EXIT_CODES.OK,
+    output: `${formatReviewResult(reviewResult)}\n${formatPolicyResult(policyResult)}`
+  };
 }

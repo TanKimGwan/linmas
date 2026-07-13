@@ -15,6 +15,7 @@ import { planUninstall, formatUninstallPreview, applyUninstallPlan, promptForUni
 import { runReview } from '../src/review/run-review.mjs';
 import { ReviewError } from '../src/review/errors.mjs';
 import { createProviderRegistry } from '../src/providers/registry.mjs';
+import { loadPolicyPack } from '../src/policy/load-pack.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -61,7 +62,9 @@ export async function run(argv, io = process) {
     try {
       const result = await runReview(args, {
         io,
-        providerRegistry: createProviderRegistry()
+        rootDir,
+        providerRegistry: createProviderRegistry(),
+        loadPolicy: loadPolicyPack
       });
       io.stdout.write(result.output);
       return result.exitCode;

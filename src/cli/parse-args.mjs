@@ -3,7 +3,9 @@ const VALUE_FLAGS = new Map([
   ['--input', 'inputPath'],
   ['--provider', 'provider'],
   ['--model', 'model'],
-  ['--output', 'output']
+  ['--output', 'output'],
+  ['--policy', 'policyId'],
+  ['--policy-file', 'policyFile']
 ]);
 
 export function parseArgv(argv) {
@@ -17,7 +19,9 @@ export function parseArgv(argv) {
     provider: null,
     model: null,
     output: 'text',
-    assumeYes: false
+    assumeYes: false,
+    policyId: null,
+    policyFile: null
   };
   const args = argv.slice(2);
   if (args[0] && !args[0].startsWith('--')) result.command = args.shift();
