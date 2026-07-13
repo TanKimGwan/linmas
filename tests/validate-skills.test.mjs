@@ -135,6 +135,14 @@ test('secure-code-reviewer documents the bounded advisor review contract', async
   assert.match(readme, /npm run validate/);
 });
 
+test('README defines policy decision limits', async () => {
+  const text = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+  assert.match(text, /--policy baseline-appsec/);
+  assert.match(text, /pass.*does not.*secure|does not.*prove.*security/is);
+  assert.match(text, /human review.*required/i);
+  assert.doesNotMatch(text, /certified by Linmas/i);
+});
+
 test('README documents safe review boundaries', async () => {
   const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
   assert.match(readme, /linmas review --skill secure-code-reviewer --input patch\.diff/);

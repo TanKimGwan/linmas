@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Readable } from 'node:stream';
 import { runReview } from '../src/review/run-review.mjs';
 
 const providerResult = JSON.stringify({
@@ -44,7 +45,7 @@ function executionArgs(overrides = {}) {
 test('evaluates selected policy after normalized review', async () => {
   const result = await runReview(executionArgs({ policyId: 'baseline-appsec' }), {
     ...fakeDependencies,
-    io: { stdin: [Buffer.from('safe')], stdout: { write() {} }, isTTY: false }
+    io: { stdin: Readable.from(['safe']), stdout: { write() {} }, isTTY: false }
   });
   const value = JSON.parse(result.output);
   assert.equal(value.review.schemaVersion, 1);
@@ -54,11 +55,11 @@ test('evaluates selected policy after normalized review', async () => {
 
 test('policy flags require provider and exactly one source', async () => {
   await assert.rejects(
-    () => runReview(executionArgs({ provider: null, policyId: 'baseline-appsec' }), { ...fakeDependencies, io: { stdin: [Buffer.from('safe')], stdout: { write() {} } } }),
+    () => runReview(executionArgs({ provider: null, policyId: 'baseline-appsec' }), { ...fakeDependencies, io: { stdin: Readable.from(['safe']), stdout: { write() {} } } }),
     /policy evaluation requires --provider/
   );
   await assert.rejects(
-    () => runReview(executionArgs({ policyId: 'baseline-appsec', policyFile: './team.json' }), { ...fakeDependencies, io: { stdin: [Buffer.from('safe')], stdout: { write() {} } } }),
+    () => runReview(executionArgs({ policyId: 'baseline-appsec', policyFile: './team.json' }), { ...fakeDependencies, io: { stdin: Readable.from(['safe']), stdout: { write() {} } } }),
     /exactly one policy/
   );
 });
