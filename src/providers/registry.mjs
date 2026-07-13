@@ -46,5 +46,20 @@ export function resolveProvider(registry, providerId, options) {
   if (!providerId) throw new ReviewError('provider is required for execution', 'provider-configuration', EXIT_CODES.PROVIDER);
   const provider = registry.get(providerId);
   if (!provider) throw new ReviewError(`unsupported provider: ${providerId}`, 'provider-configuration', EXIT_CODES.PROVIDER);
-  return provider.create(options);
+  let runner;
+  try { runner = provider.create(options); }
+  catch (error) { throw translateProviderError(error); }
+  return {
+    ...runner,
+    async run(request) {
+      try { return await runner.run(request); }
+      catch (error) { throw translateProviderError(error); }
+    }
+  };
+}
+
+function translateProviderError(error) {
+  if (error instanceof ReviewError) return error;
+  const normalization = error.failureClass === 'normalization-failed';
+  return new ReviewError(error.message, normalization ? 'normalization' : error.failureClass ?? 'provider-transport', normalization ? EXIT_CODES.CONTRACT : EXIT_CODES.PROVIDER);
 }

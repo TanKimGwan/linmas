@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { runReview } from '../src/review/run-review.mjs';
+import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
 
 function fakeIo(lines = [], { isTTY = false } = {}) {
   const output = [];
@@ -69,4 +70,12 @@ test('execution invokes the fake provider only after --yes', async () => {
   const result = await runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json', assumeYes: true }, { cwd: fixtureDir, io, providerRegistry });
   assert.equal(called, true);
   assert.equal(JSON.parse(result.output).schemaVersion, 1);
+});
+
+test('descriptor creation failures remain provider errors', async () => {
+  const providerRegistry = new Map([['fake', { create() { throw Object.assign(new Error('missing configuration'), { failureClass: 'provider-configuration' }); } }]]);
+  await assert.rejects(
+    runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json', assumeYes: true }, { cwd: fixtureDir, io: fakeIo(), providerRegistry }),
+    (error) => error instanceof ReviewError && error.category === 'provider-configuration' && error.exitCode === EXIT_CODES.PROVIDER
+  );
 });
