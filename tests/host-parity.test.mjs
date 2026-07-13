@@ -111,9 +111,13 @@ test('registered hosts preserve detection parity across filesystem states', asyn
     {
       name: 'not writable',
       binary: true,
-      setup({ rootPath }) {
+      setup({ rootPath }, t) {
         fs.mkdirSync(rootPath, { recursive: true });
-        fs.chmodSync(rootPath, 0o500);
+        const accessSync = fs.accessSync;
+        t.mock.method(fs, 'accessSync', (target, mode) => {
+          if (target === rootPath && mode === fs.constants.W_OK) throw Object.assign(new Error('not writable'), { code: 'EACCES' });
+          return accessSync(target, mode);
+        });
       },
       expected({ id, rootPath, installRoot, manifestPath }) {
         return { host: id, status: 'probably_detected', reason: `${rootPath} exists but is not writable`, rootPath, installRoot, manifestPath, writable: false };
@@ -123,7 +127,7 @@ test('registered hosts preserve detection parity across filesystem states', asyn
 
   for (const id of hostIds) {
     for (const parityCase of cases) {
-      await t.test(`${id}: ${parityCase.name}`, () => {
+      await t.test(`${id}: ${parityCase.name}`, (t) => {
         const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), `linmas-${id}-parity-`));
         const rootPath = path.join(tempHome, `.${id}`);
         const installRoot = path.join(rootPath, 'skills');
@@ -132,7 +136,7 @@ test('registered hosts preserve detection parity across filesystem states', asyn
         const context = { id, rootPath, installRoot, manifestPath };
 
         try {
-          parityCase.setup(context);
+          parityCase.setup(context, t);
           if (parityCase.binary) {
             fs.mkdirSync(binPath, { recursive: true });
             fs.writeFileSync(path.join(binPath, id), 'test binary');
