@@ -27,7 +27,8 @@ test('rejects executable, unknown, and safety-downgrade fields', () => {
   assert.throws(() => validatePolicyPack({ ...validPack, command: 'scan' }), /unknown field command/);
   assert.throws(() => validatePolicyPack({ ...validPack, humanReview: { required: false, statement: 'none' } }), /human review must be required/);
   assert.throws(() => validatePolicyPack({ ...validPack, description: 'SOC 2 certified policy' }), /certification claim/);
-  assert.throws(() => validatePolicyPack({ ...validPack, rules: [{ id: 'bad', type: 'expression', expression: 'true' }] }), /unsupported rule type/);
+  assert.throws(() => validatePolicyPack({ ...validPack, rules: [{ id: 'bad', type: 'expression', expression: 'true' }] }), /unknown rule field expression/);
+  assert.throws(() => validatePolicyPack({ ...validPack, rules: [{ id: 'bad', type: 'expression' }] }), /unsupported rule type/);
 });
 
 test('rejects unsupported versions and unknown rule fields', () => {
