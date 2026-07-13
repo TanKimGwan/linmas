@@ -15,6 +15,9 @@ function createMockIO() {
   let stdoutData = '';
   let stderrData = '';
   return {
+    stdin: { async *[Symbol.asyncIterator]() {} },
+    isTTY: false,
+    async readLine() { return ''; },
     stdout: {
       write(chunk) {
         stdoutData += chunk;
@@ -41,6 +44,8 @@ function createPromptIO(inputs) {
   let stderrData = '';
   const queue = [...inputs];
   return {
+    stdin: { async *[Symbol.asyncIterator]() {} },
+    isTTY: true,
     stdout: {
       write(chunk) {
         stdoutData += chunk;
