@@ -14,6 +14,26 @@ const RULE_TYPES = new Set(['minimum-checks', 'finding-threshold', 'require-evid
 const DECISIONS = new Set(['needs-review', 'blocked']);
 const CERTIFICATION = /\b(certified|certification|compliant with|guarantees compliance)\b/i;
 const HUMAN_REVIEW_FIELDS = new Set(['required', 'statement']);
+const EXPECTED_SPECIALISTS = new Set([
+  'secure-code-reviewer',
+  'smart-contract-reviewer',
+  'cloud-hardening-architect',
+  'controls-compliance-reviewer',
+  'incident-triage-lead',
+  'exploit-validation-specialist',
+  'secure-systems-architect',
+  'security-operations-lead',
+  'detection-rules-engineer',
+  'threat-research-analyst'
+]);
+const EXPECTED_MODES = new Set(['advisor-review']);
+const EXPECTED_INPUTS = new Set(['text', 'diff', 'code']);
+const RULE_REQUIREMENTS = {
+  'minimum-checks': ['checks'],
+  'finding-threshold': ['severities', 'status'],
+  'require-evidence': [],
+  'require-verification': []
+};
 
 function requiredString(value, field, source) {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${source}: ${field} is required`);
@@ -36,6 +56,10 @@ export function validatePolicyPack(value, { source = '<policy>' } = {}) {
   for (const key of ['specialists', 'modes', 'acceptedInputs', 'rules']) {
     if (!Array.isArray(value[key]) || value[key].length === 0) throw new Error(`${source}: ${key} must not be empty`);
   }
+  if (value.specialists.some((specialist) => !EXPECTED_SPECIALISTS.has(specialist))) throw new Error(`${source}: unknown specialist`);
+  if (value.modes.some((mode) => !EXPECTED_MODES.has(mode))) throw new Error(`${source}: unsupported mode`);
+  if (value.acceptedInputs.some((input) => !EXPECTED_INPUTS.has(input))) throw new Error(`${source}: unsupported accepted input`);
+  if (new Set(value.rules.map((rule) => rule.id)).size !== value.rules.length) throw new Error(`${source}: duplicate rule id`);
   if (!value.humanReview || typeof value.humanReview !== 'object' || Array.isArray(value.humanReview)) throw new Error(`${source}: human review must be required`);
   for (const key of Object.keys(value.humanReview)) if (!HUMAN_REVIEW_FIELDS.has(key)) throw new Error(`${source}: unknown human review field ${key}`);
   if (value.humanReview.required !== true || typeof value.humanReview.statement !== 'string' || !value.humanReview.statement.trim()) throw new Error(`${source}: human review must be required`);
@@ -44,6 +68,7 @@ export function validatePolicyPack(value, { source = '<policy>' } = {}) {
     for (const key of Object.keys(rule)) if (!RULE_FIELDS.has(key)) throw new Error(`${source}: unknown rule field ${key}`);
     requiredString(rule.id, 'rule.id', source);
     if (!RULE_TYPES.has(rule.type)) throw new Error(`${source}: unsupported rule type ${rule.type}`);
+    for (const field of RULE_REQUIREMENTS[rule.type]) if (rule[field] === undefined) throw new Error(`${source}: rule.${field} is required`);
     if (rule.status !== undefined && !DECISIONS.has(rule.status)) throw new Error(`${source}: rule cannot produce ${rule.status}`);
     if (rule.checks !== undefined) stringList(rule.checks, 'rule.checks', source);
     if (rule.severities !== undefined) stringList(rule.severities, 'rule.severities', source);

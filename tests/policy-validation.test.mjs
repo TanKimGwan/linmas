@@ -34,4 +34,7 @@ test('rejects executable, unknown, and safety-downgrade fields', () => {
 test('rejects unsupported versions and unknown rule fields', () => {
   assert.throws(() => validatePolicyPack({ ...validPack, schemaVersion: 2 }), /unsupported schemaVersion 2/);
   assert.throws(() => validatePolicyPack({ ...validPack, rules: [{ ...validPack.rules[0], template: 'x' }] }), /unknown rule field template/);
+  assert.throws(() => validatePolicyPack({ ...validPack, specialists: ['unknown-specialist'] }), /unknown specialist/);
+  assert.throws(() => validatePolicyPack({ ...validPack, modes: ['execute'] }), /unsupported mode/);
+  assert.throws(() => validatePolicyPack({ ...validPack, rules: [{ id: 'threshold', type: 'finding-threshold' }] }), /rule.severities is required/);
 });
