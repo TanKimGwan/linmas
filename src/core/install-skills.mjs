@@ -55,10 +55,13 @@ export async function promptForInstallTarget(io, detections) {
 
   if (io && typeof io.readLine === 'function' && detected.length > 1) {
     io.stdout.write('Choose target host: [1] Claude [2] Codex [3] Both\n');
-    const ans = (await io.readLine()).trim();
-    if (ans === '1') targetChoice = 'claude';
-    else if (ans === '2') targetChoice = 'codex';
-    else targetChoice = 'both';
+    const line = await io.readLine();
+    if (line !== null) {
+      const ans = line.trim();
+      if (ans === '1') targetChoice = 'claude';
+      else if (ans === '2') targetChoice = 'codex';
+      else targetChoice = 'both';
+    }
   }
 
   return targetChoice;
@@ -72,8 +75,8 @@ export async function promptForInstallConfirmation(io, options = {}) {
   if (io && typeof io.readLine === 'function') {
     if (options.hasManagedConflicts) {
       io.stdout.write('Replace managed skills? [replace/cancel]\n');
-      const ans = (await io.readLine()).trim();
-      if (ans === 'replace') {
+      const line = await io.readLine();
+      if (line !== null && line.trim() === 'replace') {
         allowReplaceManaged = true;
       } else {
         return {
@@ -85,8 +88,8 @@ export async function promptForInstallConfirmation(io, options = {}) {
     }
     if (options.hasUnmanagedConflicts) {
       io.stdout.write('Replace unmanaged files? [replace/cancel]\n');
-      const ans = (await io.readLine()).trim();
-      if (ans === 'replace') {
+      const line = await io.readLine();
+      if (line !== null && line.trim() === 'replace') {
         allowReplaceUnmanaged = true;
       } else {
         return {
@@ -98,8 +101,11 @@ export async function promptForInstallConfirmation(io, options = {}) {
     }
 
     io.stdout.write('Confirm installation? [yes/no]\n');
-    const ans = (await io.readLine()).trim();
-    if (ans === 'yes' || ans === 'y') confirm = true;
+    const line = await io.readLine();
+    if (line !== null) {
+      const ans = line.trim();
+      if (ans === 'yes' || ans === 'y') confirm = true;
+    }
   }
 
   return {
