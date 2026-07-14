@@ -6,7 +6,7 @@ import path from 'node:path';
 import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
 
 const MAX_STDERR_BYTES = 64 * 1024;
-const MAX_RESPONSE_BYTES = 1024 * 1024;
+export const MAX_RESPONSE_BYTES = 1024 * 1024;
 const FINAL_CLOSE_GRACE_MS = 20;
 
 export const REVIEW_RESULT_SCHEMA = Object.freeze({
@@ -147,14 +147,21 @@ export function createCodexRunner({ model, schemaPath, outputPath, cwd = path.di
             : 'provider-transport';
         throw classified(category, `Codex exited ${outcome.code}: ${sanitize(stderr)}`);
       }
-      let size;
+      let rawResponse;
       try {
-        ({ size } = await fs.stat(outputPath));
+        const handle = await fs.open(outputPath, 'r');
+        try {
+          const buffer = Buffer.alloc(MAX_RESPONSE_BYTES + 1);
+          const { bytesRead } = await handle.read(buffer, 0, MAX_RESPONSE_BYTES + 1, 0);
+          if (bytesRead > MAX_RESPONSE_BYTES) throw classified('provider-transport', `Codex response exceeds ${MAX_RESPONSE_BYTES} bytes`);
+          rawResponse = buffer.toString('utf8', 0, bytesRead);
+        } finally {
+          await handle.close();
+        }
       } catch (cause) {
+        if (cause instanceof ReviewError) throw cause;
         throw classified('provider-transport', 'Codex did not produce a final response', cause);
       }
-      if (size > MAX_RESPONSE_BYTES) throw classified('provider-transport', `Codex response exceeds ${MAX_RESPONSE_BYTES} bytes`);
-      const rawResponse = await fs.readFile(outputPath, 'utf8');
       return { provider: 'codex', model, rawResponse, usage: null, requestId: randomUUID() };
     }
   };

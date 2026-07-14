@@ -5,7 +5,7 @@ import { PassThrough } from 'node:stream';
 import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { REVIEW_RESULT_SCHEMA, createCodexRunner, createManagedCodexRunner } from '../src/providers/codex-cli.mjs';
+import { REVIEW_RESULT_SCHEMA, MAX_RESPONSE_BYTES, createCodexRunner, createManagedCodexRunner } from '../src/providers/codex-cli.mjs';
 import { createProviderRegistry, resolveProvider } from '../src/providers/registry.mjs';
 import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
 
@@ -325,4 +325,47 @@ test('registry writes a restrictive ReviewResult schema artifact before spawning
   assert.equal(value.type, 'object');
   assert.equal(value.properties.schemaVersion.const, 1);
   assert.equal(value.additionalProperties, false);
+});
+
+test('Codex output schema enforces contract boundary without requiring caller-injected fields', () => {
+  const props = REVIEW_RESULT_SCHEMA.properties;
+  assert.equal(REVIEW_RESULT_SCHEMA.additionalProperties, false, 'top-level additionalProperties must be false');
+  assert.deepEqual(REVIEW_RESULT_SCHEMA.required, ['schemaVersion', 'scopeAndAssumptions', 'findings', 'deterministicChecks', 'safetyBoundary'], 'required must not include caseId, specialist, or modelMetadata');
+  assert.ok('schemaVersion' in props, 'schemaVersion must be declared');
+  assert.ok('caseId' in props, 'caseId must be declared (optional, injected by normalization)');
+  assert.ok('specialist' in props, 'specialist must be declared (optional, injected by normalization)');
+  assert.ok('modelMetadata' in props, 'modelMetadata must be declared (optional, injected by normalization)');
+  assert.equal(props.caseId.type, 'string', 'caseId type must be string');
+  assert.equal(props.specialist.type, 'string', 'specialist type must be string');
+  assert.equal(props.modelMetadata.type, 'object', 'modelMetadata type must be object');
+  assert.equal(props.modelMetadata.additionalProperties, false, 'modelMetadata must have additionalProperties: false');
+  assert.deepEqual(props.modelMetadata.required, ['provider', 'model'], 'modelMetadata must require provider and model');
+  assert.deepEqual(props.modelMetadata.properties.usage.type, ['object', 'null'], 'usage must be nullable (object | null)');
+  assert.deepEqual(props.modelMetadata.properties.requestId.type, ['string', 'null'], 'requestId must be nullable (string | null)');
+  assert.equal(props.findings.items.additionalProperties, false, 'finding items must have additionalProperties: false');
+  assert.equal(props.deterministicChecks.items.anyOf[1].additionalProperties, false, 'object deterministicCheck must have additionalProperties: false');
+  assert.equal(props.safetyBoundary.anyOf[1].additionalProperties, false, 'object safetyBoundary must have additionalProperties: false');
+});
+
+test('bounded output read accepts response exactly at limit', async () => {
+  await withPaths(async (paths) => {
+    const payload = '{' + 'a'.repeat(MAX_RESPONSE_BYTES - 2) + '}';
+    assert.equal(Buffer.byteLength(payload, 'utf8'), MAX_RESPONSE_BYTES);
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ lastMessage: payload }) });
+    const result = await runner.run(request);
+    assert.equal(result.rawResponse, payload);
+  });
+});
+
+test('bounded output read rejects response exceeding limit', async () => {
+  await withPaths(async (paths) => {
+    const payload = '{' + 'a'.repeat(MAX_RESPONSE_BYTES - 1) + '}';
+    assert.equal(Buffer.byteLength(payload, 'utf8'), MAX_RESPONSE_BYTES + 1);
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ lastMessage: payload }) });
+    await assert.rejects(runner.run(request), (error) => {
+      assertProviderError(error, 'provider-transport');
+      assert.match(error.message, /Codex response exceeds/);
+      return true;
+    });
+  });
 });
