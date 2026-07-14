@@ -181,6 +181,7 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
     const stop = () => {
       child.kill('SIGTERM');
       forceTimer ??= setTimeout(() => child.kill('SIGKILL'), killGraceMs);
+      cleanupTimer ??= setTimeout(() => finish({ code: null, signal: null }), Math.min(Math.max(killGraceMs, 10), 50));
     };
     const abort = stop;
     const timer = setTimeout(() => { timedOut = true; stop(); }, timeoutMs);
@@ -197,9 +198,6 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
     child.once('exit', (code, closeSignal) => {
       if (timedOut || signal?.aborted) finish({ code, signal: closeSignal });
     });
-    cleanupTimer = setTimeout(() => {
-      if (timedOut || signal?.aborted) finish({ code: null, signal: null });
-    }, Math.min(Math.max(killGraceMs, 10), 50));
     signal?.addEventListener('abort', abort, { once: true });
     child.stdin.end(input);
   });
