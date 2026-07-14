@@ -532,3 +532,84 @@ test('direct CLI uninstall reprompts on invalid target input', () => {
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
 });
+
+test('CLI install aborts on manifest host mismatch before copying skill', () => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-host-mismatch-'));
+
+  try {
+    const claudeRoot = path.join(tempHome, '.claude');
+    const codexRoot = path.join(tempHome, '.codex');
+    const claudeManifestPath = path.join(claudeRoot, 'linmas-manifest.json');
+
+    fs.mkdirSync(path.join(claudeRoot, 'skills'), { recursive: true });
+    fs.mkdirSync(path.join(codexRoot, 'skills'), { recursive: true });
+
+    fs.writeFileSync(claudeManifestPath, JSON.stringify({
+      tool: 'linmas',
+      version: '0.3.0',
+      manifestVersion: 1,
+      host: 'codex',
+      installedAt: '2026-07-14T00:00:00.000Z',
+      skills: []
+    }));
+
+    const result = spawnSync(process.execPath, [cliPath, 'install', 'security-operations-lead'], {
+      cwd: rootDir,
+      env: { ...process.env, HOME: tempHome },
+      input: '',
+      encoding: 'utf8'
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Manifest host mismatch/);
+    assert.equal(fs.existsSync(path.join(claudeRoot, 'skills', 'security-operations-lead')), false, 'skill must not be copied to claude');
+    assert.equal(fs.existsSync(path.join(codexRoot, 'skills', 'security-operations-lead')), false, 'skill must not be copied to codex');
+  } finally {
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+});
+
+test('CLI uninstall with closed stdin exits as cancellation', () => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-uninstall-eof-'));
+
+  try {
+    const claudeSkillPath = path.join(tempHome, '.claude', 'skills', 'security-operations-lead');
+    const codexSkillPath = path.join(tempHome, '.codex', 'skills', 'security-operations-lead');
+
+    fs.mkdirSync(claudeSkillPath, { recursive: true });
+    fs.mkdirSync(codexSkillPath, { recursive: true });
+    fs.writeFileSync(path.join(claudeSkillPath, 'SKILL.md'), '# skill\n');
+    fs.writeFileSync(path.join(codexSkillPath, 'SKILL.md'), '# skill\n');
+
+    fs.writeFileSync(path.join(tempHome, '.claude', 'linmas-manifest.json'), JSON.stringify({
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'claude',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'security-operations-lead', path: claudeSkillPath, backupPath: null }]
+    }));
+    fs.writeFileSync(path.join(tempHome, '.codex', 'linmas-manifest.json'), JSON.stringify({
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'codex',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'security-operations-lead', path: codexSkillPath, backupPath: null }]
+    }));
+
+    const result = spawnSync(process.execPath, [cliPath, 'uninstall', 'security-operations-lead'], {
+      cwd: rootDir,
+      env: { ...process.env, HOME: tempHome },
+      input: '',
+      encoding: 'utf8'
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Uninstall cancelled/);
+    assert.equal(fs.existsSync(claudeSkillPath), true, 'claude skill must not be removed on EOF');
+    assert.equal(fs.existsSync(codexSkillPath), true, 'codex skill must not be removed on EOF');
+  } finally {
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+});
