@@ -201,7 +201,7 @@ function createProcessIO(proc) {
     ...proc,
     async readLine() {
       const { value, done } = await lines.next();
-      return done ? '' : value;
+      return done ? null : value;
     },
     close() {
       rl.close();

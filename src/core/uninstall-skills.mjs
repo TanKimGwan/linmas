@@ -38,12 +38,14 @@ export function formatUninstallPreview(plan) {
 
 export async function promptForUninstallTarget(io, plan) {
   const hosts = [...new Set(plan.map((item) => item.host))];
-  let selectedHosts = [...hosts];
+  let selectedHosts = [];
 
   if (io && typeof io.readLine === 'function' && hosts.length > 1) {
     while (true) {
       io.stdout.write('Choose uninstall target: claude, codex, or both\n');
-      const ans = (await io.readLine()).trim().toLowerCase();
+      const line = await io.readLine();
+      if (line === null) break;
+      const ans = line.trim().toLowerCase();
       if (ans === 'claude') {
         selectedHosts = ['claude'];
         break;
@@ -56,8 +58,10 @@ export async function promptForUninstallTarget(io, plan) {
         selectedHosts = [...hosts];
         break;
       }
-      io.stdout.write('Invalid uninstall target.\n');
+      if (ans) io.stdout.write('Invalid uninstall target.\n');
     }
+  } else {
+    selectedHosts = [...hosts];
   }
 
   return selectedHosts;
@@ -67,8 +71,11 @@ export async function promptForUninstallConfirmation(io) {
   let confirm = false;
   if (io && typeof io.readLine === 'function') {
     io.stdout.write('Confirm uninstallation? [yes/no]\n');
-    const ans = (await io.readLine()).trim().toLowerCase();
-    if (ans === 'yes' || ans === 'y') confirm = true;
+    const line = await io.readLine();
+    if (line !== null) {
+      const ans = line.trim().toLowerCase();
+      if (ans === 'yes' || ans === 'y') confirm = true;
+    }
   }
   return confirm;
 }

@@ -183,7 +183,8 @@ function createPromptIO(inputs) {
       return stderrData;
     },
     async readLine() {
-      return queue.shift() || '';
+      const value = queue.shift();
+      return value === undefined ? null : value;
     }
   };
 }
@@ -213,6 +214,25 @@ test('promptForUninstallTarget and promptForUninstallConfirmation work independe
   const io2 = createPromptIO(['yes']);
   const confirm = await promptForUninstallConfirmation(io2);
   assert.equal(confirm, true);
+});
+
+test('promptForUninstallTarget returns empty selection on EOF', async () => {
+  const { promptForUninstallTarget } = await import('../src/core/uninstall-skills.mjs');
+  const io = createPromptIO([]);
+  const plan = [
+    { host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/claude/skills/secure-code-reviewer' },
+    { host: 'codex', skillName: 'secure-code-reviewer', skillPath: '/tmp/codex/skills/secure-code-reviewer' }
+  ];
+  const selectedHosts = await promptForUninstallTarget(io, plan);
+  assert.deepEqual(selectedHosts, []);
+  assert.doesNotMatch(io.getStdout(), /Invalid/);
+});
+
+test('promptForUninstallConfirmation returns false on EOF', async () => {
+  const { promptForUninstallConfirmation } = await import('../src/core/uninstall-skills.mjs');
+  const io = createPromptIO([]);
+  const confirm = await promptForUninstallConfirmation(io);
+  assert.equal(confirm, false);
 });
 
 test('promptForUninstallTarget reprompts on invalid input instead of defaulting to both', async () => {
