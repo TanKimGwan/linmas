@@ -67,7 +67,6 @@ jobs:
       - run: npm test
       - run: npm run validate
       - run: npm run pack:dry-run
-      - run: npm pack
       - uses: actions/upload-artifact@v7
         with:
           name: release-artifact
