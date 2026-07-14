@@ -15,6 +15,62 @@ test('readManifest returns an empty manifest when none exists', () => {
   assert.deepEqual(manifest.skills, []);
 });
 
+test('readManifest rejects host mismatch with field-specific error', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-manifest-'));
+  try {
+    const manifestPath = path.join(tempDir, 'mismatched-manifest.json');
+    const manifest = {
+      tool: 'linmas',
+      version: '0.3.0',
+      manifestVersion: 1,
+      host: 'codex',
+      installedAt: '2026-07-14T00:00:00.000Z',
+      skills: []
+    };
+    writeManifest(manifestPath, manifest);
+    assert.throws(
+      () => readManifest(manifestPath, 'claude'),
+      /host mismatch.*claude.*codex|codex.*claude/i
+    );
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('readManifest returns empty manifest for malformed JSON', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-manifest-'));
+  try {
+    const manifestPath = path.join(tempDir, 'bad-manifest.json');
+    fs.writeFileSync(manifestPath, '{invalid json}', 'utf8');
+    const result = readManifest(manifestPath, 'claude');
+    assert.equal(result.host, 'claude');
+    assert.deepEqual(result.skills, []);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('readManifest accepts manifest with matching host', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-manifest-'));
+  try {
+    const manifestPath = path.join(tempDir, 'valid-manifest.json');
+    const manifest = {
+      tool: 'linmas',
+      version: '0.3.0',
+      manifestVersion: 1,
+      host: 'claude',
+      installedAt: '2026-07-14T00:00:00.000Z',
+      skills: [{ name: 'secure-code-reviewer', path: path.join(tempDir, 'secure-code-reviewer'), backupPath: null }]
+    };
+    writeManifest(manifestPath, manifest);
+    const result = readManifest(manifestPath, 'claude');
+    assert.equal(result.host, 'claude');
+    assert.equal(result.skills.length, 1);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('writeManifest round-trips manifest data through readManifest', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-manifest-'));
   try {

@@ -17,11 +17,18 @@ export function readManifest(manifestPath, host, version = '0.1.0') {
     return createEmptyManifest(host, version);
   }
 
+  let manifest;
   try {
-    return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   } catch {
     return createEmptyManifest(host, version);
   }
+
+  if (manifest.host && manifest.host !== host) {
+    throw new Error(`Manifest host mismatch: expected "${host}", got "${manifest.host}"`);
+  }
+
+  return manifest;
 }
 
 export function writeManifest(manifestPath, manifest) {
