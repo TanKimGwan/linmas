@@ -7,6 +7,7 @@ import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
 
 const MAX_STDERR_BYTES = 64 * 1024;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
+const FINAL_CLOSE_GRACE_MS = 20;
 
 export const REVIEW_RESULT_SCHEMA = Object.freeze({
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -67,7 +68,7 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
         {
           type: 'string',
           minLength: 1,
-          pattern: 'human review(?: remains)? required'
+          pattern: '[hH]uman [rR]eview(?: [rR]emains)? [rR]equired'
         },
         {
           type: 'object',
@@ -85,7 +86,7 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
 });
 
 function codexArgs(model, schemaPath, outputPath) {
-  return ['exec', '--model', model, '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
+  return ['exec', '--model', model, '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
 }
 
 export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, cwd, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
@@ -166,6 +167,7 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
     let error;
     let timedOut = false;
     let settled = false;
+    let stopped = false;
     let forceTimer;
     let cleanupTimer;
 
@@ -179,11 +181,15 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
       resolve({ stderr, error, timedOut, aborted: signal?.aborted === true, ...value });
     };
     const stop = () => {
+      if (stopped) return;
+      stopped = true;
       child.kill('SIGTERM');
-      forceTimer ??= setTimeout(() => child.kill('SIGKILL'), killGraceMs);
-      cleanupTimer ??= setTimeout(() => finish({ code: null, signal: null }), Math.min(Math.max(killGraceMs, 10), 50));
+      forceTimer = setTimeout(() => {
+        child.kill('SIGKILL');
+        cleanupTimer = setTimeout(() => finish({ code: null, signal: 'SIGKILL' }), FINAL_CLOSE_GRACE_MS);
+      }, killGraceMs);
     };
-    const abort = stop;
+    const abort = () => stop();
     const timer = setTimeout(() => { timedOut = true; stop(); }, timeoutMs);
 
     child.stderr?.on('data', (chunk) => {
@@ -197,6 +203,9 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
     child.once('close', (code, closeSignal) => finish({ code, signal: closeSignal }));
     child.once('exit', (code, closeSignal) => {
       if (timedOut || signal?.aborted) finish({ code, signal: closeSignal });
+    });
+    child.stdin?.once('error', (cause) => {
+      finish({ code: null, signal: null, error: cause });
     });
     signal?.addEventListener('abort', abort, { once: true });
     child.stdin.end(input);
@@ -214,7 +223,7 @@ function sanitize(value) {
   return value
     .replace(/authorization\s*[:=]\s*(?:bearer\s+)?\S+/gi, 'Authorization=[redacted]')
     .replace(/(api[_-]?key|token|password|secret)\s*[:=]\s*\S+/gi, '$1=[redacted]')
-    .replace(/\bgh[pousr]_[A-Za-z0-9_]+\b/g, '[redacted-github-token]')
+    .replace(/\b(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]+\b/g, '[redacted-github-token]')
     .replace(/\bAKIA[0-9A-Z]{16}\b/g, '[redacted-aws-key]')
     .replace(/-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g, '[redacted-private-key]')
     .slice(0, 512);

@@ -5,7 +5,7 @@ import { PassThrough } from 'node:stream';
 import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createCodexRunner, createManagedCodexRunner } from '../src/providers/codex-cli.mjs';
+import { REVIEW_RESULT_SCHEMA, createCodexRunner, createManagedCodexRunner } from '../src/providers/codex-cli.mjs';
 import { createProviderRegistry, resolveProvider } from '../src/providers/registry.mjs';
 import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
 
@@ -57,12 +57,40 @@ test('runs Codex read-only with supported pinned flags and reads the final messa
     const runner = createCodexRunner({ model: 'codex-model', schemaPath, outputPath, spawnImpl: fakeSpawn({}, calls) });
     const result = await runner.run(request);
     assert.equal(calls[0].command, 'codex');
-    assert.deepEqual(calls[0].args, ['exec', '--model', 'codex-model', '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
+    assert.deepEqual(calls[0].args, ['exec', '--model', 'codex-model', '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
     assert.equal(calls[0].options.shell, false);
     assert.equal(calls[0].child.stdin.read().toString(), 'Return ReviewResult JSON.\n\nreview this input');
     assert.equal(result.provider, 'codex');
     assert.equal(result.model, 'codex-model');
     assert.equal(result.rawResponse, validJson);
+  });
+});
+
+test('safetyBoundary schema accepts canonical case variations', () => {
+  const stringSchema = REVIEW_RESULT_SCHEMA.properties.safetyBoundary.anyOf[0];
+  const objectSchema = REVIEW_RESULT_SCHEMA.properties.safetyBoundary.anyOf[1];
+  assert.equal(stringSchema.type, 'string');
+  const pattern = new RegExp(stringSchema.pattern);
+  assert.ok(pattern.test('Human review remains required.'), 'capitalized form must match');
+  assert.ok(pattern.test('human review remains required.'), 'lowercase form must match');
+  assert.ok(pattern.test('Human review required.'), 'short capitalized form must match');
+  assert.ok(pattern.test('human review required.'), 'short lowercase form must match');
+  assert.ok(!pattern.test('Human review is optional.'), 'different term must not match');
+  assert.ok(!pattern.test('human review optional'), 'missing required must not match');
+  assert.equal(objectSchema.type, 'object');
+  assert.equal(objectSchema.required[1], 'humanReviewRequired');
+  assert.equal(objectSchema.properties.humanReviewRequired.const, true);
+});
+
+test('safetyBoundary schema accepts GitHub fine-grained PAT in redaction', async () => {
+  await withPaths(async (paths) => {
+    const stderr = 'token=github_pat_11AA_TEST_SYNTHETIC_VALUE abc123';
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ code: 1, stderr }) });
+    await assert.rejects(runner.run(request), (error) => {
+      assert.doesNotMatch(error.message, /github_pat_11AA_TEST_SYNTHETIC_VALUE/);
+      assert.doesNotMatch(error.message, /github_pat_/);
+      return true;
+    });
   });
 });
 
@@ -129,7 +157,7 @@ test('process cleanup does not wait forever for an inherited stderr pipe', async
     child.stdin = new PassThrough();
     child.stderr = new PassThrough();
     child.kill = () => true;
-    const runner = createCodexRunner({ model: 'm', ...paths, timeoutMs: 1, spawnImpl: () => child });
+    const runner = createCodexRunner({ model: 'm', ...paths, timeoutMs: 1, killGraceMs: 1, spawnImpl: () => child });
     await assert.rejects(Promise.race([
       runner.run(request),
       new Promise((_, reject) => setTimeout(() => reject(new Error('cleanup hung')), 100))
@@ -146,6 +174,65 @@ test('cancels an active Codex process through AbortSignal', async () => {
     controller.abort();
     await assert.rejects(running, (error) => assertProviderError(error, 'provider-transport'));
     assert.equal(calls[0].child.killedWith, 'SIGTERM');
+  });
+});
+
+test('timeout sends SIGTERM then SIGKILL in order', async () => {
+  await withPaths(async (paths) => {
+    const signals = [];
+    const spawnImpl = () => {
+      const child = new EventEmitter();
+      child.stdin = new PassThrough();
+      child.stderr = new PassThrough();
+      child.kill = (signal) => {
+        signals.push(signal);
+        if (signal === 'SIGKILL') queueMicrotask(() => child.emit('close', null, signal));
+        return true;
+      };
+      return child;
+    };
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl, timeoutMs: 1, killGraceMs: 5 });
+    await assert.rejects(runner.run(request), (error) => assertProviderError(error, 'provider-timeout'));
+    assert.equal(signals[0], 'SIGTERM', 'SIGTERM must be sent first');
+    assert.equal(signals[1], 'SIGKILL', 'SIGKILL must be sent after SIGTERM');
+  });
+});
+
+test('abort sends SIGTERM then SIGKILL when child ignores SIGTERM', async () => {
+  await withPaths(async (paths) => {
+    const signals = [];
+    const spawnImpl = () => {
+      const child = new EventEmitter();
+      child.stdin = new PassThrough();
+      child.stderr = new PassThrough();
+      child.kill = (signal) => {
+        signals.push(signal);
+        if (signal === 'SIGKILL') queueMicrotask(() => child.emit('close', null, signal));
+        return true;
+      };
+      return child;
+    };
+    const controller = new AbortController();
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl, killGraceMs: 1 }).run({ ...request, signal: controller.signal });
+    controller.abort();
+    await assert.rejects(runner, (error) => assertProviderError(error, 'provider-transport'));
+    assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
+  });
+});
+
+test('handles stdin stream error without crashing', async () => {
+  await withPaths(async (paths) => {
+    const child = new EventEmitter();
+    child.stdin = new PassThrough();
+    child.stderr = new PassThrough();
+    child.kill = () => true;
+    const runner = createCodexRunner({ model: 'm', ...paths, timeoutMs: 100, spawnImpl: () => child });
+    const running = runner.run(request);
+    child.stdin.destroy(new Error('EPIPE'));
+    await assert.rejects(running, (error) => {
+      assertProviderError(error, 'provider-transport');
+      return true;
+    });
   });
 });
 
