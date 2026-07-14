@@ -14,9 +14,9 @@
 ## 2. Public Documentation Baseline
 
 - [x] `README.md` accurately describes current capabilities.
-- [x] `README.md` links to `docs/CONTRIBUTING.md`.
-- [x] `docs/CONTRIBUTING.md` exists.
-- [x] `docs/QUALITY_GATES.md` exists.
+- [x] `README.md` links to `CONTRIBUTING.md`.
+- [x] `CONTRIBUTING.md` exists.
+- [x] `QUALITY_GATES.md` exists.
 - [x] `.github/SECURITY.md` exists.
 - [x] `CODE_OF_CONDUCT.md` exists.
 - [x] License and attribution files exist: `LICENSE`, `NOTICE`, `TRADEMARK.md`.

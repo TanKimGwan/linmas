@@ -20,11 +20,10 @@ pnpm-debug.log*
 .claude/settings.local.json
 .claude/worktrees/
 
-# Internal planning docs
+# Internal planning docs (entire docs/ is internal/private)
 AGENTS.md
 CLAUDE.md
-docs/superpowers/
-docs/repo-agency-agents/
+docs/
 
 # Temp/build
 tmp/

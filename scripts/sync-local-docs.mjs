@@ -4,9 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const DOCS = [
-  'docs/NPM_PACKAGING_PLAN.md',
-  'docs/PUBLIC_RELEASE_CHECKLIST.md',
-  'docs/QUALITY_GATES.md'
+  'docs/NPM_PACKAGING_PLAN.md'
 ];
 
 const mode = process.argv[2];

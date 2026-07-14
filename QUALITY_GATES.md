@@ -44,7 +44,7 @@ Run:
 
 ```bash
 grep -RInE "(sk-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9_]{20,}|github_pat_|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|password=|token=|api[_-]?key=|apikey=)" \
-  README.md package.json scripts docs skills .gitignore AGENTS.md CLAUDE.md || true
+  README.md package.json scripts skills .gitignore || true
 ```
 
 Classify matches:

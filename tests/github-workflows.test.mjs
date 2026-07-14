@@ -83,7 +83,7 @@ test('ci and release workflows use node 24 with npm ci and npm cache', () => {
 });
 
 test('release 0.1.1 artifacts exist', () => {
-  const notes = fs.readFileSync(path.join(rootDir, 'docs/releases/0.1.1.md'), 'utf8');
+  const notes = fs.readFileSync(path.join(rootDir, 'releases/0.1.1.md'), 'utf8');
   assert.match(notes, /Linmas 0.1.1/);
   assert.match(notes, /release CI\/CD workflows/i);
 });
@@ -98,7 +98,7 @@ test('release workflow skips provenance automatically on private repositories', 
 
 test('internal planning docs stay out of the shared repo surface', () => {
   const ignore = read('.gitignore');
-  assert.match(ignore, /docs\/superpowers\//);
+  assert.match(ignore, /^docs\//m);
   assert.equal(fs.existsSync(path.resolve('docs/superpowers/specs/2026-07-07-release-provenance-failure-analysis.md')), false);
 });
 
@@ -131,7 +131,7 @@ test('release workflow reads release notes file and passes body to gh release', 
   const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
   assert.match(text, /name:\s*Read release notes/);
   assert.match(text, /id:\s*release_notes/);
-  assert.match(text, /FILE="docs\/releases\/\$\{VERSION\}\.md"/);
+  assert.match(text, /FILE="releases\/\$\{VERSION\}\.md"/);
   assert.match(text, /DELIM=/);
   assert.doesNotMatch(text, /echo "BODY<<EOF" >> \$GITHUB_OUTPUT/);
   assert.match(text, /body:\s*\$\{\{\s*steps\.release_notes\.outputs\.BODY\s*\}\}/);
@@ -141,7 +141,7 @@ test('release workflow reads release notes file and passes body to gh release', 
 test('release notes file matching package version exists', () => {
   const pkg = JSON.parse(fs.readFileSync(path.resolve('package.json'), 'utf8'));
   const version = pkg.version;
-  const notesPath = path.resolve(`docs/releases/${version}.md`);
+  const notesPath = path.resolve(`releases/${version}.md`);
   assert.equal(fs.existsSync(notesPath), true, `Release notes file ${notesPath} must exist for the current package version ${version}`);
 
   const content = fs.readFileSync(notesPath, 'utf8');
@@ -160,16 +160,16 @@ test('pr target guard workflow enforces dev-first promotion to main', () => {
 });
 
 test('branch policy docs state main is public-facing and dev is the normal PR target', () => {
-  const contributing = read('docs/CONTRIBUTING.md');
-  const checklist = read('docs/PUBLIC_RELEASE_CHECKLIST.md');
-  const gates = read('docs/QUALITY_GATES.md');
+  const contributing = read('CONTRIBUTING.md');
+  const checklist = read('PUBLIC_RELEASE_CHECKLIST.md');
+  const gates = read('QUALITY_GATES.md');
   assert.match(contributing, /pull requests go to `dev`/i);
   assert.match(checklist, /merge `dev` into `main`/i);
   assert.match(gates, /work targets `dev` first/i);
 });
 
 test('public release checklist includes explicit public-launch gates', () => {
-  const checklist = read('docs/PUBLIC_RELEASE_CHECKLIST.md');
+  const checklist = read('PUBLIC_RELEASE_CHECKLIST.md');
   assert.match(checklist, /npm test passed/i);
   assert.match(checklist, /npm run validate passed/i);
   assert.match(checklist, /npm run pack:dry-run passed/i);
@@ -187,7 +187,7 @@ test('public repo baseline docs exist and README links the contributing guide', 
   const readme = read('README.md');
   const security = read('.github/SECURITY.md');
   const conduct = read('CODE_OF_CONDUCT.md');
-  assert.match(readme, /docs\/CONTRIBUTING\.md/);
+  assert.match(readme, /CONTRIBUTING\.md/);
   assert.match(security, /private vulnerability report/i);
   assert.match(security, /supported versions/i);
   assert.match(security, /response/i);

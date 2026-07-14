@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/linmas.jpg" alt="Linmas logo" width="150" />
+  <img src="assets/linmas.jpg" alt="Linmas logo" width="150" />
 
   <h1>Linmas</h1>
 
@@ -226,7 +226,7 @@ Planned directions:
 
 Contributions are welcome when they improve defensive security quality, clarity, safety, or usability.
 
-See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for the full contributing guide.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contributing guide.
 
 Before contributing:
 

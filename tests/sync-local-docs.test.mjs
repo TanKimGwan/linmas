@@ -8,9 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../scripts/sync-local-docs.mjs');
 const DOCS = [
-  'docs/NPM_PACKAGING_PLAN.md',
-  'docs/PUBLIC_RELEASE_CHECKLIST.md',
-  'docs/QUALITY_GATES.md'
+  'docs/NPM_PACKAGING_PLAN.md'
 ];
 
 function withTempDirs(fn) {
@@ -50,14 +48,10 @@ function runSync(mode, { cwd, backupDir, env = {} }) {
 test('backup copies the local-only docs into the backup root', () => {
   withTempDirs(({ repo, backup }) => {
     writeDocs(repo, {
-      [DOCS[0]]: 'npm plan',
-      [DOCS[1]]: 'release checklist',
-      [DOCS[2]]: 'quality gates'
+      [DOCS[0]]: 'npm plan'
     });
     runSync('backup', { cwd: repo, backupDir: backup });
     assert.equal(fs.readFileSync(path.join(backup, DOCS[0]), 'utf8'), 'npm plan');
-    assert.equal(fs.readFileSync(path.join(backup, DOCS[1]), 'utf8'), 'release checklist');
-    assert.equal(fs.readFileSync(path.join(backup, DOCS[2]), 'utf8'), 'quality gates');
   });
 });
 
@@ -66,15 +60,11 @@ test('backup defaults to ~/.claude/linmas-docs-backup when env is unset', () => 
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-docsync-home-'));
     try {
       writeDocs(repo, {
-        [DOCS[0]]: 'npm plan',
-        [DOCS[1]]: 'release checklist',
-        [DOCS[2]]: 'quality gates'
+        [DOCS[0]]: 'npm plan'
       });
       runSync('backup', { cwd: repo, env: { HOME: home } });
       const backupRoot = path.join(home, '.claude', 'linmas-docs-backup');
       assert.equal(fs.readFileSync(path.join(backupRoot, DOCS[0]), 'utf8'), 'npm plan');
-      assert.equal(fs.readFileSync(path.join(backupRoot, DOCS[1]), 'utf8'), 'release checklist');
-      assert.equal(fs.readFileSync(path.join(backupRoot, DOCS[2]), 'utf8'), 'quality gates');
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
     }
@@ -85,14 +75,10 @@ test('restore recreates missing docs in repo root', () => {
   withTempDirs(({ repo, backup }) => {
     fs.writeFileSync(path.join(repo, 'package.json'), JSON.stringify({ version: '1.0.0' }));
     writeDocs(backup, {
-      [DOCS[0]]: 'restored npm plan',
-      [DOCS[1]]: 'restored release checklist',
-      [DOCS[2]]: 'restored quality gates'
+      [DOCS[0]]: 'restored npm plan'
     });
     runSync('restore', { cwd: repo, backupDir: backup });
     assert.equal(fs.readFileSync(path.join(repo, DOCS[0]), 'utf8'), 'restored npm plan');
-    assert.equal(fs.readFileSync(path.join(repo, DOCS[1]), 'utf8'), 'restored release checklist');
-    assert.equal(fs.readFileSync(path.join(repo, DOCS[2]), 'utf8'), 'restored quality gates');
   });
 });
 
@@ -124,9 +110,7 @@ test('helper ignores docs outside the fixed allowlist', () => {
 test('unsafe backup path configuration exits non-zero', () => {
   withTempDirs(({ repo }) => {
     writeDocs(repo, {
-      [DOCS[0]]: 'npm plan',
-      [DOCS[1]]: 'release checklist',
-      [DOCS[2]]: 'quality gates'
+      [DOCS[0]]: 'npm plan'
     });
     assert.throws(() => {
       runSync('backup', { cwd: repo, backupDir: path.join(repo, '.backup') });
@@ -141,9 +125,7 @@ test('unsafe backup path configuration exits non-zero', () => {
 test('unsafe backup path inside repo root with dotdot prefix exits non-zero', () => {
   withTempDirs(({ repo }) => {
     writeDocs(repo, {
-      [DOCS[0]]: 'npm plan',
-      [DOCS[1]]: 'release checklist',
-      [DOCS[2]]: 'quality gates'
+      [DOCS[0]]: 'npm plan'
     });
     assert.throws(() => {
       runSync('backup', { cwd: repo, backupDir: path.join(repo, '..backup') });

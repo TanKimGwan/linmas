@@ -37,8 +37,8 @@ skills/<skill-name>/SKILL.md
 
 Before changing a skill, read:
 
-- `docs/SKILL_STANDARD.md`
-- `docs/SECURITY_AND_AUTHORIZED_USE.md`
+- `SKILL_STANDARD.md`
+- `SECURITY_AND_AUTHORIZED_USE.md`
 
 ## 4. Validation
 
@@ -86,4 +86,4 @@ git diff --cached --name-only
 
 ## 7. Release Contributions
 
-Release-related changes must also pass `docs/PUBLIC_RELEASE_CHECKLIST.md`.
+Release-related changes must also pass `PUBLIC_RELEASE_CHECKLIST.md`.

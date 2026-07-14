@@ -26,7 +26,7 @@ jobs:
         id: release_notes
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          FILE="docs/releases/${VERSION}.md"
+          FILE="releases/${VERSION}.md"
           if [ ! -f "$FILE" ]; then
             echo "::error::Release notes file $FILE is missing"
             exit 1
