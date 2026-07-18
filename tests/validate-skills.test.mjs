@@ -343,6 +343,29 @@ test('validate-skills rejects a missing secure-code-reviewer advisor requirement
   }
 });
 
+test('validate-skills accepts CRLF frontmatter from Windows checkouts', async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'linmas-validator-crlf-'));
+
+  try {
+    await cp(rootDir, tempDir, {
+      recursive: true,
+      filter(source) {
+        return !['.git', 'node_modules', 'docs'].includes(path.basename(source));
+      }
+    });
+
+    const skillPath = path.join(tempDir, 'skills', 'linmas-secure-code-reviewer', 'SKILL.md');
+    const skill = await readFile(skillPath, 'utf8');
+    await writeFile(skillPath, skill.replace(/\r?\n/g, '\r\n'));
+
+    const { stdout, stderr } = await execFileAsync(process.execPath, ['scripts/validate-skills.mjs'], { cwd: tempDir });
+    assert.match(stdout, /Validation passed\.\s+Validated 11 skills\./);
+    assert.equal(stderr, '');
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+});
+
 test('smart-contract-reviewer documents contract advisor focus', async () => {
   const skill = await readFile(path.join(rootDir, 'skills', 'linmas-smart-contract-reviewer', 'SKILL.md'), 'utf8');
 

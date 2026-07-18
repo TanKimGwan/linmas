@@ -153,12 +153,12 @@ function listTopLevelSkillDirs() {
 }
 
 function parseFrontmatter(text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
   if (!match) return null;
 
   const frontmatter = match[1];
   const data = {};
-  for (const line of frontmatter.split('\n')) {
+  for (const line of frontmatter.split(/\r?\n/)) {
     if (/^\s/.test(line) || !line.includes(':')) continue;
     const [rawKey, ...rest] = line.split(':');
     data[rawKey.trim()] = rest.join(':').trim();
