@@ -4,6 +4,11 @@ const TOP_FIELDS = new Set(['schemaVersion', 'kind', 'input', 'execution', 'revi
 const INPUT_FIELDS = new Set(['source', 'bytes', 'sha256']);
 const EXECUTION_FIELDS = new Set(['mode', 'provider', 'authMode', 'model', 'modelVerified', 'generatedAt']);
 const POLICY_FIELDS = new Set(['status', 'result']);
+const POLICY_RESULT_FIELDS = new Set(['schemaVersion', 'policy', 'review', 'decision', 'rules', 'completedChecks', 'outstandingChecks', 'humanReviewRequired', 'disclaimer']);
+const POLICY_IDENTITY_FIELDS = new Set(['id', 'version']);
+const POLICY_REVIEW_FIELDS = new Set(['caseId', 'specialist']);
+const POLICY_RULE_FIELDS = new Set(['id', 'outcome', 'decision', 'reason']);
+const POLICY_DECISIONS = new Set(['pass', 'needs-review', 'blocked']);
 const AUTH_MODES = new Set(['chatgpt', 'apiKey', 'unverified', 'unavailable']);
 const CANONICAL_STATEMENT = 'Human review remains required.';
 const PRIVATE_KEYS = /^(?:email|accountId|planType|stderr|rawStderr|sessionId|token|apiKey|password|secret)$/i;
@@ -43,9 +48,7 @@ export function validateReviewCapsule(value) {
   if (value.policy.status === 'not-evaluated') {
     if (value.policy.result !== null) fail('non-evaluated policy result must be null');
   } else if (value.policy.status === 'evaluated') {
-    object(value.policy.result, 'policy.result');
-    if (!['pass', 'needs-review', 'blocked'].includes(value.policy.result.decision)) fail('policy decision is invalid');
-    if (value.policy.result.humanReviewRequired !== true) fail('policy must require human review');
+    validatePolicyResult(value.policy.result);
   } else {
     fail('policy.status is invalid');
   }
@@ -54,6 +57,53 @@ export function validateReviewCapsule(value) {
   if (JSON.stringify(value.safetyBoundary) !== JSON.stringify(review.safetyBoundary)) fail('capsule safety boundary must match the review');
   rejectPrivateKeys(value);
   return structuredClone(value);
+}
+
+function validatePolicyResult(value) {
+  object(value, 'policy.result');
+  exactFields(value, POLICY_RESULT_FIELDS, 'policy.result');
+  if (value.schemaVersion !== 1) fail('policy.result schemaVersion is invalid');
+
+  object(value.policy, 'policy.result.policy');
+  exactFields(value.policy, POLICY_IDENTITY_FIELDS, 'policy.result.policy');
+  string(value.policy.id, 'policy.result.policy.id');
+  string(value.policy.version, 'policy.result.policy.version');
+
+  object(value.review, 'policy.result.review');
+  exactFields(value.review, POLICY_REVIEW_FIELDS, 'policy.result.review');
+  string(value.review.caseId, 'policy.result.review.caseId');
+  string(value.review.specialist, 'policy.result.review.specialist');
+
+  policyDecision(value.decision, 'policy.result.decision');
+  if (!Array.isArray(value.rules)) fail('policy.result.rules must be an array');
+  for (const [index, rule] of value.rules.entries()) {
+    const field = `policy.result.rules[${index}]`;
+    object(rule, field);
+    exactFields(rule, POLICY_RULE_FIELDS, field);
+    string(rule.id, `${field}.id`);
+    if (rule.outcome !== 'met' && rule.outcome !== 'failed') fail(`${field}.outcome is invalid`);
+    policyDecision(rule.decision, `${field}.decision`);
+    string(rule.reason, `${field}.reason`);
+  }
+
+  stringArray(value.completedChecks, 'policy.result.completedChecks');
+  stringArray(value.outstandingChecks, 'policy.result.outstandingChecks');
+  if (value.humanReviewRequired !== true) fail('policy must require human review');
+  string(value.disclaimer, 'policy.result.disclaimer');
+}
+
+function policyDecision(value, field) {
+  if (!POLICY_DECISIONS.has(value)) fail(`${field} is invalid`);
+}
+
+function stringArray(value, field) {
+  if (!Array.isArray(value)) fail(`${field} must be an array`);
+  const seen = new Set();
+  for (const item of value) {
+    string(item, field);
+    if (seen.has(item)) fail(`${field} must not contain duplicates`);
+    seen.add(item);
+  }
 }
 
 function canonicalSafety(value, field) {
