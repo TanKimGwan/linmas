@@ -4,14 +4,26 @@ import { createClaudeRunner } from './claude-api.mjs';
 import { createManagedCodexRunner } from './codex-cli.mjs';
 import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
 
-function defaultBinaryLookup(name, { env = process.env } = {}) {
-  return (env.PATH || '').split(path.delimiter).filter(Boolean).some((dir) => {
-    try { fs.accessSync(path.join(dir, name), fs.constants.X_OK); return true; }
-    catch { return false; }
-  });
+export function defaultBinaryLookup(name, { env = process.env, platform = process.platform, accessSync = fs.accessSync } = {}) {
+  const windows = platform === 'win32';
+  const delimiter = windows ? ';' : path.delimiter;
+  const extensions = windows
+    ? (env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean).map((extension) => extension.startsWith('.') ? extension : `.${extension}`)
+    : [''];
+  const candidates = windows ? [name, ...extensions.map((extension) => `${name}${extension}`)] : [name];
+  for (const dir of (env.PATH || '').split(delimiter).filter(Boolean)) {
+    for (const candidate of candidates) {
+      const executable = path.join(dir, candidate);
+      try {
+        accessSync(executable, windows ? fs.constants.F_OK : fs.constants.X_OK);
+        return executable;
+      } catch { /* try the next candidate */ }
+    }
+  }
+  return null;
 }
 
-export function createProviderRegistry({ env = process.env, fetchImpl = fetch, spawnImpl, binaryLookup = defaultBinaryLookup } = {}) {
+export function createProviderRegistry({ env = process.env, platform = process.platform, fetchImpl = fetch, spawnImpl, binaryLookup = defaultBinaryLookup } = {}) {
   const claude = {
     id: 'claude',
     detectConfiguration({ env: source = env } = {}) {
@@ -30,15 +42,16 @@ export function createProviderRegistry({ env = process.env, fetchImpl = fetch, s
   const codex = {
     id: 'codex',
     detectConfiguration({ env: source = env } = {}) {
-      const binaryAvailable = binaryLookup('codex', { env: source });
+      const binaryAvailable = binaryLookup('codex', { env: source, platform });
       const reason = !binaryAvailable ? 'codex binary is not available' : !source.LINMAS_EVAL_MODEL ? 'LINMAS_EVAL_MODEL is not set' : 'codex binary and LINMAS_EVAL_MODEL are configured';
       return { provider: 'codex', status: binaryAvailable && source.LINMAS_EVAL_MODEL ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
     },
     create({ model, timeoutMs, cwd } = {}) {
       const resolvedModel = model ?? env.LINMAS_EVAL_MODEL;
-      if (!binaryLookup('codex', { env })) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
+      const binary = binaryLookup('codex', { env, platform });
+      if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
       if (!resolvedModel) throw new ReviewError('Codex model is required', 'provider-configuration', EXIT_CODES.PROVIDER);
-      return createManagedCodexRunner({ model: resolvedModel, spawnImpl, timeoutMs, cwd });
+      return createManagedCodexRunner({ model: resolvedModel, command: typeof binary === 'string' ? binary : 'codex', spawnImpl, timeoutMs, cwd });
     }
   };
   return new Map([['claude', claude], ['codex', codex]]);

@@ -80,7 +80,7 @@ function codexArgs(model, schemaPath, outputPath) {
   return ['exec', '--model', model, '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
 }
 
-export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, cwd, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
+export function createManagedCodexRunner({ model, command = 'codex', spawnImpl, timeoutMs, cwd, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
   return {
     id: 'codex', model,
     async run(request) {
@@ -91,7 +91,7 @@ export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, cwd, tem
         const schemaPath = path.join(tempDir, 'review-result.schema.json');
         const outputPath = path.join(tempDir, 'last-message.json');
         await fs.writeFile(schemaPath, JSON.stringify(REVIEW_RESULT_SCHEMA), { mode: 0o600 });
-        return await createCodexRunner({ model, schemaPath, outputPath, cwd: tempDir, spawnImpl, timeoutMs }).run(request);
+        return await createCodexRunner({ model, command, schemaPath, outputPath, cwd: tempDir, spawnImpl, timeoutMs }).run(request);
       } catch (cause) {
         failure = cause instanceof ReviewError
           ? cause
@@ -110,7 +110,7 @@ export function createManagedCodexRunner({ model, spawnImpl, timeoutMs, cwd, tem
   };
 }
 
-export function createCodexRunner({ model, schemaPath, outputPath, cwd = path.dirname(schemaPath), spawnImpl = spawn, timeoutMs = 60000, killGraceMs = 5000 } = {}) {
+export function createCodexRunner({ model, command = 'codex', schemaPath, outputPath, cwd = path.dirname(schemaPath), spawnImpl = spawn, timeoutMs = 60000, killGraceMs = 5000 } = {}) {
   if (!model || !schemaPath || !outputPath) throw classified('provider-configuration', 'Codex model, schemaPath, and outputPath are required');
   return {
     id: 'codex', model,
@@ -118,7 +118,7 @@ export function createCodexRunner({ model, schemaPath, outputPath, cwd = path.di
       if (signal?.aborted) throw classified('provider-transport', 'Codex invocation cancelled', signal.reason);
       let child;
       try {
-        child = spawnImpl('codex', codexArgs(model, schemaPath, outputPath), { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'] });
+        child = spawnImpl(command, codexArgs(model, schemaPath, outputPath), { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'] });
       } catch (cause) {
         throw classified(cause?.code === 'ENOENT' ? 'provider-configuration' : 'provider-transport', 'Codex invocation failed to start', cause);
       }

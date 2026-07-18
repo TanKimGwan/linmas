@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createProviderRegistry, resolveProvider } from '../src/providers/registry.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createProviderRegistry, defaultBinaryLookup, resolveProvider } from '../src/providers/registry.mjs';
 import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
 
 test('resolves Claude only when explicitly selected', () => {
@@ -63,4 +66,66 @@ test('resolveProvider translates non-Error provider failures without throwing a 
     runner.run({}),
     (error) => error instanceof ReviewError && error.category === 'provider-transport' && error.exitCode === EXIT_CODES.PROVIDER
   );
+});
+
+test('defaultBinaryLookup finds POSIX executable and rejects a non-executable file', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-binary-'));
+  try {
+    const executable = path.join(root, 'codex');
+    fs.writeFileSync(executable, '#!/bin/sh\n');
+    fs.chmodSync(executable, 0o755);
+    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux' }), executable);
+    fs.chmodSync(executable, 0o644);
+    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux' }), null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('defaultBinaryLookup honors Windows PATHEXT including CMD and paths with spaces', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas binary '));
+  try {
+    const command = path.join(root, 'codex.CMD');
+    fs.writeFileSync(command, '@echo off\r\n');
+    assert.equal(defaultBinaryLookup('codex', {
+      env: { PATH: root, PATHEXT: '.EXE;.CMD' },
+      platform: 'win32'
+    }), command);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('defaultBinaryLookup uses safe Windows defaults and fails cleanly for empty PATH', () => {
+  assert.equal(defaultBinaryLookup('codex', { env: { PATH: '', PATHEXT: '' }, platform: 'win32' }), null);
+  const seen = [];
+  const found = defaultBinaryLookup('codex', {
+    env: { PATH: 'C:\\tools', PATHEXT: '' },
+    platform: 'win32',
+    accessSync(candidate) {
+      seen.push(candidate);
+      if (candidate.endsWith('codex.EXE')) return;
+      throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+    }
+  });
+  assert.match(found, /codex\.EXE$/);
+  assert.ok(seen.some((candidate) => candidate.endsWith('codex.CMD')) || seen.some((candidate) => candidate.endsWith('codex.EXE')));
+});
+
+test('Codex detection and creation use the same resolved executable', async () => {
+  const calls = [];
+  const binary = path.join('/tmp', 'Codex Tools', 'codex.cmd');
+  const registry = createProviderRegistry({
+    env: { PATH: '/tmp/Codex Tools', PATHEXT: '.CMD', LINMAS_EVAL_MODEL: 'model' },
+    platform: 'win32',
+    binaryLookup() { return binary; },
+    spawnImpl(command) {
+      calls.push(command);
+      throw Object.assign(new Error('stop after command assertion'), { code: 'ENOENT' });
+    }
+  });
+  assert.equal(registry.get('codex').detectConfiguration().status, 'configured');
+  const runner = resolveProvider(registry, 'codex', {});
+  await assert.rejects(runner.run({ system: 's', user: 'u' }), /failed to start/);
+  assert.deepEqual(calls, [binary]);
 });
