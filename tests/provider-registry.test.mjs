@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createProviderRegistry, defaultBinaryLookup, resolveProvider } from '../src/providers/registry.mjs';
+import { createProviderRegistry, defaultBinaryLookup, prepareProviderExecution, resolveProvider } from '../src/providers/registry.mjs';
 import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
 
 test('resolves Claude only when explicitly selected', () => {
@@ -146,6 +146,19 @@ test('Codex reports a Windows CMD shim as unsupported instead of failing at runt
   );
 });
 
+test('Codex binary is configured without requiring LINMAS_EVAL_MODEL', () => {
+  const registry = createProviderRegistry({
+    env: {},
+    binaryLookup() { return '/usr/bin/codex'; }
+  });
+  assert.deepEqual(registry.get('codex').detectConfiguration(), {
+    provider: 'codex',
+    status: 'configured',
+    reason: 'codex binary is available; authentication and model are verified at execution',
+    defaultModel: null
+  });
+});
+
 test('Codex capability discovery uses the same direct executable and returns sanitized capabilities', async () => {
   const binary = path.join('/tmp', 'Codex Tools', 'codex');
   const factoryCalls = [];
@@ -206,4 +219,87 @@ test('Codex capability discovery fails before spawning for missing or unsupporte
     (error) => error instanceof ReviewError && error.category === 'provider-configuration' && /shims are unsupported/.test(error.message)
   );
   assert.equal(factoryCalled, false);
+});
+
+test('subscription-first Codex preparation verifies auth and model before runner creation', async () => {
+  let created = false;
+  const registry = new Map([['codex', {
+    id: 'codex',
+    async prepareExecution(options) {
+      assert.deepEqual(options, { model: null, cwd: '/fixture' });
+      return { model: 'gpt-5.6-sol', authMode: 'chatgpt', modelVerified: true };
+    },
+    create(options) {
+      created = true;
+      assert.equal(options.model, 'gpt-5.6-sol');
+      return { id: 'codex', model: options.model, async run() {} };
+    }
+  }]]);
+
+  const prepared = await prepareProviderExecution(registry, 'codex', { model: null, cwd: '/fixture' });
+  assert.equal(created, false);
+  assert.deepEqual(prepared.metadata, {
+    provider: 'codex',
+    model: 'gpt-5.6-sol',
+    authMode: 'chatgpt',
+    modelVerified: true
+  });
+  const runner = prepared.createRunner();
+  assert.equal(created, true);
+  assert.equal(runner.model, 'gpt-5.6-sol');
+});
+
+test('Codex registry prepares both ChatGPT and API-key auth through one verified contract', async () => {
+  for (const authMode of ['chatgpt', 'apiKey']) {
+    let runnerModel;
+    const registry = createProviderRegistry({
+      env: {},
+      binaryLookup() { return '/usr/bin/codex'; },
+      createCodexCapabilityProbeImpl() {
+        return {
+          async read() {
+            return {
+              authMode,
+              requiresOpenaiAuth: true,
+              models: [{ id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', isDefault: true }]
+            };
+          }
+        };
+      },
+      spawnImpl() { throw new Error('runner must not execute in preparation test'); }
+    });
+
+    const prepared = await prepareProviderExecution(registry, 'codex', {});
+    assert.equal(prepared.metadata.authMode, authMode);
+    assert.equal(prepared.metadata.model, 'gpt-5.6-sol');
+    assert.equal(prepared.metadata.modelVerified, true);
+    runnerModel = prepared.createRunner().model;
+    assert.equal(runnerModel, 'gpt-5.6-sol');
+  }
+});
+
+test('older Codex can retain explicit-model execution with unverified capability metadata', async () => {
+  const unavailable = new ReviewError('Codex capability method is unavailable', 'provider-configuration', EXIT_CODES.PROVIDER);
+  unavailable.capabilityUnavailable = true;
+  const registry = createProviderRegistry({
+    env: {},
+    binaryLookup() { return '/usr/bin/codex'; },
+    createCodexCapabilityProbeImpl() {
+      return { async read() { throw unavailable; } };
+    }
+  });
+
+  const prepared = await prepareProviderExecution(registry, 'codex', { model: 'explicit-model' });
+  assert.deepEqual(prepared.metadata, {
+    provider: 'codex',
+    model: 'explicit-model',
+    authMode: 'unverified',
+    modelVerified: false
+  });
+  assert.equal(prepared.createRunner().model, 'explicit-model');
+
+  await assert.rejects(
+    prepareProviderExecution(registry, 'codex', {}),
+    (error) => error === unavailable
+  );
 });

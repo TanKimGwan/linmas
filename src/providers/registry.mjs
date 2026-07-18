@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createClaudeRunner } from './claude-api.mjs';
-import { createCodexCapabilityProbe } from './codex-capabilities.mjs';
+import { createCodexCapabilityProbe, selectCodexModel } from './codex-capabilities.mjs';
 import { createManagedCodexRunner } from './codex-cli.mjs';
 import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
 
@@ -60,8 +60,8 @@ export function createProviderRegistry({
         ? 'codex binary is not available'
         : !binaryAvailable
           ? 'codex .cmd/.bat shims are unsupported without a shell; install a direct executable'
-          : !source.LINMAS_EVAL_MODEL ? 'LINMAS_EVAL_MODEL is not set' : 'codex binary and LINMAS_EVAL_MODEL are configured';
-      return { provider: 'codex', status: binaryAvailable && source.LINMAS_EVAL_MODEL ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
+          : 'codex binary is available; authentication and model are verified at execution';
+      return { provider: 'codex', status: binaryAvailable ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
     },
     async discoverCapabilities({ includeModels = false, signal, timeoutMs } = {}) {
       const binary = binaryLookup('codex', { env, platform });
@@ -81,6 +81,27 @@ export function createProviderRegistry({
         throw translateProviderError(error);
       }
     },
+    async prepareExecution(options = {}) {
+      let capabilities;
+      try {
+        capabilities = await this.discoverCapabilities({
+          includeModels: true,
+          signal: options.signal,
+          timeoutMs: options.capabilityTimeoutMs
+        });
+      } catch (error) {
+        if (options.model && error?.capabilityUnavailable === true) {
+          return { ...options, authMode: 'unverified', modelVerified: false };
+        }
+        throw error;
+      }
+      return {
+        ...options,
+        model: selectCodexModel(capabilities.models, options.model),
+        authMode: capabilities.authMode,
+        modelVerified: true
+      };
+    },
     create({ model, timeoutMs, cwd } = {}) {
       const resolvedModel = model ?? env.LINMAS_EVAL_MODEL;
       const binary = binaryLookup('codex', { env, platform });
@@ -94,6 +115,39 @@ export function createProviderRegistry({
 }
 
 export function resolveProvider(registry, providerId, options) {
+  const provider = getProviderDescriptor(registry, providerId);
+  return createResolvedRunner(provider, providerId, options);
+}
+
+export async function prepareProviderExecution(registry, providerId, options = {}) {
+  const provider = getProviderDescriptor(registry, providerId);
+  let preparedOptions = options;
+  if (typeof provider.prepareExecution === 'function') {
+    try { preparedOptions = await provider.prepareExecution(options); }
+    catch (error) { throw translateProviderError(error); }
+    if (!preparedOptions || typeof preparedOptions !== 'object' || Array.isArray(preparedOptions)) {
+      throw providerConfiguration(`provider ${providerId} returned invalid execution options`);
+    }
+  }
+
+  const metadata = {
+    provider: providerId,
+    model: typeof preparedOptions.model === 'string' && preparedOptions.model ? preparedOptions.model : 'provider default',
+    authMode: typeof preparedOptions.authMode === 'string' && preparedOptions.authMode ? preparedOptions.authMode : 'unverified',
+    modelVerified: preparedOptions.modelVerified === true
+  };
+  let created = false;
+  return {
+    metadata,
+    createRunner() {
+      if (created) throw providerConfiguration(`provider ${providerId} runner was already created`);
+      created = true;
+      return createResolvedRunner(provider, providerId, preparedOptions);
+    }
+  };
+}
+
+function getProviderDescriptor(registry, providerId) {
   if (!providerId) throw new ReviewError('provider is required for execution', 'provider-configuration', EXIT_CODES.PROVIDER);
   if (!registry || typeof registry.get !== 'function') throw providerConfiguration('provider registry is invalid');
   const provider = registry.get(providerId);
@@ -101,6 +155,10 @@ export function resolveProvider(registry, providerId, options) {
   if (typeof provider !== 'object' || Array.isArray(provider) || typeof provider.create !== 'function') {
     throw providerConfiguration(`provider ${providerId} has an invalid descriptor`);
   }
+  return provider;
+}
+
+function createResolvedRunner(provider, providerId, options) {
   let runner;
   try { runner = provider.create(options); }
   catch (error) { throw translateProviderError(error); }

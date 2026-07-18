@@ -3,7 +3,7 @@ import { loadReviewInput } from './load-input.mjs';
 import { prepareReview } from './prepare-review.mjs';
 import { normalizeProviderResponse } from './normalize-response.mjs';
 import { EXIT_CODES, ReviewError } from './errors.mjs';
-import { resolveProvider } from '../providers/registry.mjs';
+import { prepareProviderExecution } from '../providers/registry.mjs';
 import { loadPolicyPack } from '../policy/load-pack.mjs';
 import { evaluatePolicy } from '../policy/evaluate-policy.mjs';
 import { formatPolicyResult } from '../policy/format-policy.mjs';
@@ -34,7 +34,8 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     );
   }
 
-  const summary = `Outbound review\nsource: ${input.source}\nbytes: ${input.bytes}\nspecialist: ${request.specialist}\nprovider: ${args.provider}\nmodel: ${args.model ?? 'provider default'}\ndata leaves this machine: yes\n`;
+  const execution = await prepareProviderExecution(providerRegistry, args.provider, { model: args.model, cwd });
+  const summary = `Outbound review\nsource: ${input.source}\nbytes: ${input.bytes}\nspecialist: ${request.specialist}\nprovider: ${execution.metadata.provider}\nauth: ${execution.metadata.authMode}\nmodel: ${execution.metadata.model}\nmodel verified: ${execution.metadata.modelVerified ? 'yes' : 'no'}\ndata leaves this machine: yes\n`;
   io.stdout.write(summary);
   if (!args.assumeYes) {
     if (!io.isTTY) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);
@@ -44,7 +45,7 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     }
   }
 
-  const runner = resolveProvider(providerRegistry, args.provider, { model: args.model, cwd });
+  const runner = execution.createRunner();
   const runResult = await runner.run({
     system: 'Return only ReviewResult schemaVersion 1 JSON.',
     user: JSON.stringify(request)

@@ -57,7 +57,7 @@ test('runs Codex read-only with supported pinned flags and reads the final messa
     const runner = createCodexRunner({ model: 'codex-model', schemaPath, outputPath, spawnImpl: fakeSpawn({}, calls) });
     const result = await runner.run(request);
     assert.equal(calls[0].command, 'codex');
-    assert.deepEqual(calls[0].args, ['exec', '--model', 'codex-model', '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
+    assert.deepEqual(calls[0].args, ['exec', '--model', 'codex-model', '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
     assert.equal(calls[0].options.shell, false);
     assert.equal(calls[0].child.stdin.read().toString(), 'Return ReviewResult JSON.\n\nreview this input');
     assert.equal(result.provider, 'codex');
@@ -72,9 +72,11 @@ test('safetyBoundary schema enforces canonical object contract only', () => {
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required, ['satisfied', 'humanReviewRequired', 'statement']);
   assert.equal(schema.properties.humanReviewRequired.const, true);
+  assert.equal(schema.properties.humanReviewRequired.type, 'boolean');
   assert.equal(schema.properties.satisfied.const, true);
+  assert.equal(schema.properties.satisfied.type, 'boolean');
   assert.equal(schema.properties.statement.type, 'string');
-  assert.equal(schema.properties.statement.minLength, 1);
+  assert.equal(schema.properties.statement.const, 'Human review remains required.');
   assert.equal(schema.anyOf, undefined, 'string variant must be removed');
 });
 
@@ -142,6 +144,20 @@ test('redacts common credential forms from Codex stderr', async () => {
     const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ code: 1, stderr }) });
     await assert.rejects(runner.run(request), (error) => {
       assert.doesNotMatch(error.message, /hunter2|ghp_|AKIAIOSFODNN7EXAMPLE/);
+      return true;
+    });
+  });
+});
+
+test('bounded Codex diagnostics preserve the final error after repetitive warnings', async () => {
+  await withPaths(async (paths) => {
+    const stderr = `Authorization: Bearer top-secret\n${'repetitive warning\n'.repeat(80)}fatal: unsupported configuration option`;
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ code: 1, stderr }) });
+    await assert.rejects(runner.run(request), (error) => {
+      assert.match(error.message, /Authorization=\[redacted\]/);
+      assert.match(error.message, /fatal: unsupported configuration option/);
+      assert.doesNotMatch(error.message, /top-secret/);
+      assert.ok(error.message.length < 700, 'diagnostic must remain bounded');
       return true;
     });
   });
@@ -299,7 +315,7 @@ test('registry uses injected binary lookup and removes its private schema direct
   };
   const registry = createProviderRegistry({ env: { LINMAS_EVAL_MODEL: 'codex-model' }, binaryLookup, spawnImpl });
   const descriptor = registry.get('codex');
-  assert.deepEqual(descriptor.detectConfiguration(), { provider: 'codex', status: 'configured', reason: 'codex binary and LINMAS_EVAL_MODEL are configured', defaultModel: 'codex-model' });
+  assert.deepEqual(descriptor.detectConfiguration(), { provider: 'codex', status: 'configured', reason: 'codex binary is available; authentication and model are verified at execution', defaultModel: 'codex-model' });
   const runner = resolveProvider(registry, 'codex', {});
   const result = await runner.run(request);
   assert.equal(result.rawResponse, validJson);
@@ -323,21 +339,15 @@ test('registry writes a restrictive ReviewResult schema artifact before spawning
   assert.equal(value.additionalProperties, false);
 });
 
-test('Codex output schema enforces contract boundary without requiring caller-injected fields', () => {
+test('Codex output schema contains only model-owned required fields', () => {
   const props = REVIEW_RESULT_SCHEMA.properties;
   assert.equal(REVIEW_RESULT_SCHEMA.additionalProperties, false, 'top-level additionalProperties must be false');
   assert.deepEqual(REVIEW_RESULT_SCHEMA.required, ['schemaVersion', 'scopeAndAssumptions', 'findings', 'deterministicChecks', 'safetyBoundary'], 'required must not include caseId, specialist, or modelMetadata');
-  assert.ok('schemaVersion' in props, 'schemaVersion must be declared');
-  assert.ok('caseId' in props, 'caseId must be declared (optional, injected by normalization)');
-  assert.ok('specialist' in props, 'specialist must be declared (optional, injected by normalization)');
-  assert.ok('modelMetadata' in props, 'modelMetadata must be declared (optional, injected by normalization)');
-  assert.equal(props.caseId.type, 'string', 'caseId type must be string');
-  assert.equal(props.specialist.type, 'string', 'specialist type must be string');
-  assert.equal(props.modelMetadata.type, 'object', 'modelMetadata type must be object');
-  assert.equal(props.modelMetadata.additionalProperties, false, 'modelMetadata must have additionalProperties: false');
-  assert.deepEqual(props.modelMetadata.required, ['provider', 'model'], 'modelMetadata must require provider and model');
-  assert.deepEqual(props.modelMetadata.properties.usage.type, ['object', 'null'], 'usage must be nullable (object | null)');
-  assert.deepEqual(props.modelMetadata.properties.requestId.type, ['string', 'null'], 'requestId must be nullable (string | null)');
+  assert.deepEqual(Object.keys(props), REVIEW_RESULT_SCHEMA.required, 'strict provider schema must expose only model-owned fields');
+  assert.equal('caseId' in props, false, 'caseId is injected after provider execution');
+  assert.equal('specialist' in props, false, 'specialist is injected after provider execution');
+  assert.equal('modelMetadata' in props, false, 'provider metadata is injected after provider execution');
+  assert.equal(props.schemaVersion.type, 'integer', 'const fields still require an explicit structured-output type');
   assert.equal(props.findings.items.additionalProperties, false, 'finding items must have additionalProperties: false');
   assert.equal(props.deterministicChecks.items.anyOf[1].additionalProperties, false, 'object deterministicCheck must have additionalProperties: false');
   assert.equal(props.safetyBoundary.additionalProperties, false, 'safetyBoundary must have additionalProperties: false');

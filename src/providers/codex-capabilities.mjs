@@ -7,6 +7,24 @@ const MAX_MODEL_PAGES = 5;
 const FINAL_CLOSE_GRACE_MS = 20;
 export const MAX_CAPABILITY_MODELS = 200;
 
+export function selectCodexModel(models, requestedModel) {
+  if (!Array.isArray(models)) throw classified('provider-configuration', 'Codex model inventory is unavailable');
+  if (requestedModel !== undefined && requestedModel !== null && requestedModel !== '') {
+    const match = models.find((item) => item?.id === requestedModel || item?.model === requestedModel);
+    if (!match) throw classified('provider-configuration', `Requested Codex model is not available: ${sanitize(requestedModel)}`);
+    return match.model;
+  }
+
+  const eligible = models.filter((item) => /^gpt-5\.6(?:[-.]|$)/i.test(item?.model ?? ''));
+  if (eligible.length === 0) throw classified('provider-configuration', 'No compatible GPT-5.6 model is available to this Codex account');
+  const defaults = eligible.filter((item) => item.isDefault === true);
+  if (defaults.length === 1) return defaults[0].model;
+  if (eligible.length === 1) return eligible[0].model;
+
+  const choices = [...new Set(eligible.map((item) => item.model))].slice(0, 10);
+  throw classified('provider-configuration', `Multiple compatible GPT-5.6 models are available; choose an explicit model: ${choices.join(', ')}`);
+}
+
 export function createCodexCapabilityProbe({
   command = 'codex',
   spawnImpl = spawn,
@@ -102,7 +120,11 @@ function createSession(child, { timeoutMs, signal }) {
       const waiter = pending.get(message.id);
       if (!waiter) continue;
       pending.delete(message.id);
-      if (message.error) waiter.reject(classified('provider-configuration', `Codex capability protocol error: ${safeProtocolError(message.error)}`));
+      if (message.error) {
+        const error = classified('provider-configuration', `Codex capability protocol error: ${safeProtocolError(message.error)}`);
+        if (message.error.code === -32601) error.capabilityUnavailable = true;
+        waiter.reject(error);
+      }
       else if (!Object.hasOwn(message, 'result')) waiter.reject(classified('provider-configuration', 'Codex capability response has no result'));
       else waiter.resolve(message.result);
     }

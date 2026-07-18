@@ -102,3 +102,58 @@ test('descriptor creation failures remain provider errors', async () => {
     (error) => error instanceof ReviewError && error.category === 'provider-configuration' && error.exitCode === EXIT_CODES.PROVIDER
   );
 });
+
+test('outbound summary displays verified auth class and exact model without account PII', async () => {
+  let created = false;
+  const io = fakeIo();
+  const providerRegistry = new Map([['codex', {
+    id: 'codex',
+    async prepareExecution() {
+      return {
+        model: 'gpt-5.6-sol',
+        authMode: 'chatgpt',
+        modelVerified: true,
+        email: 'must-not-appear@example.test'
+      };
+    },
+    create({ model }) {
+      created = true;
+      return {
+        id: 'codex',
+        model,
+        async run() { return { provider: 'codex', model, rawResponse: validResult, usage: null, requestId: 'request' }; }
+      };
+    }
+  }]]);
+
+  const result = await runReview({
+    inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'codex', output: 'json', assumeYes: true
+  }, { cwd: fixtureDir, io, providerRegistry });
+
+  assert.equal(result.exitCode, EXIT_CODES.OK);
+  assert.equal(created, true);
+  assert.match(io.written(), /provider: codex[\s\S]*auth: chatgpt[\s\S]*model: gpt-5\.6-sol[\s\S]*model verified: yes/i);
+  assert.doesNotMatch(io.written(), /must-not-appear|example\.test/);
+});
+
+test('capability failure occurs before confirmation and provider runner creation', async () => {
+  let created = false;
+  let prompted = false;
+  const io = fakeIo(['yes'], { isTTY: true });
+  io.readLine = async () => { prompted = true; return 'yes'; };
+  const providerRegistry = new Map([['codex', {
+    id: 'codex',
+    async prepareExecution() {
+      throw new ReviewError('Codex is not authenticated', 'provider-authentication', EXIT_CODES.PROVIDER);
+    },
+    create() { created = true; return { run() {} }; }
+  }]]);
+
+  await assert.rejects(
+    runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'codex', output: 'json' }, { cwd: fixtureDir, io, providerRegistry }),
+    (error) => error.category === 'provider-authentication' && error.exitCode === EXIT_CODES.PROVIDER
+  );
+  assert.equal(prompted, false);
+  assert.equal(created, false);
+  assert.equal(io.written(), '');
+});

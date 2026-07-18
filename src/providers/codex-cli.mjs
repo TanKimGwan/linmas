@@ -15,21 +15,7 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
   additionalProperties: false,
   required: ['schemaVersion', 'scopeAndAssumptions', 'findings', 'deterministicChecks', 'safetyBoundary'],
   properties: {
-    schemaVersion: { const: 1 },
-    caseId: { type: 'string', minLength: 1 },
-    specialist: { type: 'string', minLength: 1 },
-    modelMetadata: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['provider', 'model'],
-      properties: {
-        provider: { type: 'string', minLength: 1 },
-        model: { type: 'string', minLength: 1 },
-        generatedAt: { type: 'string', minLength: 1 },
-        usage: { type: ['object', 'null'] },
-        requestId: { type: ['string', 'null'] }
-      }
-    },
+    schemaVersion: { type: 'integer', const: 1 },
     scopeAndAssumptions: { type: 'array', items: { type: 'string', minLength: 1 } },
     findings: {
       type: 'array',
@@ -68,16 +54,16 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
       additionalProperties: false,
       required: ['satisfied', 'humanReviewRequired', 'statement'],
       properties: {
-        satisfied: { const: true },
-        humanReviewRequired: { const: true },
-        statement: { type: 'string', minLength: 1 }
+        satisfied: { type: 'boolean', const: true },
+        humanReviewRequired: { type: 'boolean', const: true },
+        statement: { type: 'string', const: 'Human review remains required.' }
       }
     }
   }
 });
 
 function codexArgs(model, schemaPath, outputPath) {
-  return ['exec', '--model', model, '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
+  return ['exec', '--model', model, '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
 }
 
 export function createManagedCodexRunner({ model, command = 'codex', spawnImpl, timeoutMs, cwd, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
@@ -218,11 +204,12 @@ function classified(category, message, cause) {
 }
 
 function sanitize(value) {
-  return value
+  const redacted = value
     .replace(/authorization\s*[:=]\s*(?:bearer\s+)?\S+/gi, 'Authorization=[redacted]')
     .replace(/(api[_-]?key|token|password|secret)\s*[:=]\s*\S+/gi, '$1=[redacted]')
     .replace(/\b(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]+\b/g, '[redacted-github-token]')
     .replace(/\bAKIA[0-9A-Z]{16}\b/g, '[redacted-aws-key]')
-    .replace(/-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g, '[redacted-private-key]')
-    .slice(0, 512);
+    .replace(/-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g, '[redacted-private-key]');
+  if (redacted.length <= 512) return redacted;
+  return `${redacted.slice(0, 240)}\n...[diagnostic truncated]...\n${redacted.slice(-240)}`;
 }

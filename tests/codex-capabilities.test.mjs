@@ -4,7 +4,8 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import {
   MAX_CAPABILITY_MODELS,
-  createCodexCapabilityProbe
+  createCodexCapabilityProbe,
+  selectCodexModel
 } from '../src/providers/codex-capabilities.mjs';
 
 function fakeAppServer(handler = () => {}) {
@@ -106,6 +107,19 @@ test('rejects malformed protocol output and bounds model inventory', async () =>
   );
 });
 
+test('classifies JSON-RPC method absence as feature unavailability', async () => {
+  const child = fakeAppServer((message, server) => {
+    if (message.method === 'initialize') respond(server, message.id, {});
+    if (message.method === 'account/read') {
+      server.stdout.write(`${JSON.stringify({ id: message.id, error: { code: -32601, message: 'Method not found' } })}\n`);
+    }
+  });
+  await assert.rejects(
+    createCodexCapabilityProbe({ spawnImpl: () => child }).read(),
+    (error) => error.category === 'provider-configuration' && error.capabilityUnavailable === true
+  );
+});
+
 test('timeout and abort terminate the app server with stable taxonomy', async () => {
   const timeoutChild = fakeAppServer();
   await assert.rejects(
@@ -120,4 +134,38 @@ test('timeout and abort terminate the app server with stable taxonomy', async ()
   controller.abort();
   await assert.rejects(pending, (error) => error.category === 'provider-transport' && /cancelled/i.test(error.message));
   assert.equal(abortChild.kills[0], 'SIGTERM');
+});
+
+test('selects an explicit account-visible model and rejects unavailable explicit models', () => {
+  const models = [
+    { id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', isDefault: true },
+    { id: 'gpt-5.5', model: 'gpt-5.5', isDefault: false }
+  ];
+  assert.equal(selectCodexModel(models, 'gpt-5.6-sol'), 'gpt-5.6-sol');
+  assert.throws(
+    () => selectCodexModel(models, 'gpt-5.6-missing'),
+    (error) => error.category === 'provider-configuration' && /not available/i.test(error.message)
+  );
+});
+
+test('automatic selection uses one verified GPT-5.6 default and fails on ambiguity or absence', () => {
+  assert.equal(selectCodexModel([
+    { id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', isDefault: true },
+    { id: 'gpt-5.6-terra', model: 'gpt-5.6-terra', isDefault: false },
+    { id: 'gpt-5.5', model: 'gpt-5.5', isDefault: false }
+  ]), 'gpt-5.6-sol');
+
+  assert.throws(
+    () => selectCodexModel([
+      { id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', isDefault: false },
+      { id: 'gpt-5.6-terra', model: 'gpt-5.6-terra', isDefault: false }
+    ]),
+    (error) => error.category === 'provider-configuration'
+      && /choose an explicit model/i.test(error.message)
+      && /gpt-5\.6-sol, gpt-5\.6-terra/.test(error.message)
+  );
+  assert.throws(
+    () => selectCodexModel([{ id: 'gpt-5.5', model: 'gpt-5.5', isDefault: true }]),
+    (error) => error.category === 'provider-configuration' && /no compatible GPT-5\.6 model/i.test(error.message)
+  );
 });
