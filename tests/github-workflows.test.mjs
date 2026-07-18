@@ -96,6 +96,9 @@ test('provenance workflow uses subject-path attestation without custom predicate
 test('package metadata declares the hardened CI/runtime support floor', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
   assert.equal(pkg.engines.node, '>=24');
+  assert.match(pkg.scripts.coverage, /--test-coverage-lines=96/);
+  assert.match(pkg.scripts.coverage, /--test-coverage-branches=85/);
+  assert.match(pkg.scripts.coverage, /--test-coverage-functions=94/);
   assert.equal(fs.existsSync(path.join(rootDir, 'package-lock.json')), true);
 });
 
@@ -130,6 +133,7 @@ test('ci and release workflows use node 24 with npm ci and npm cache', () => {
   assert.match(ci, /node-version:\s*24/);
   assert.match(ci, /cache:\s*npm/);
   assert.match(ci, /npm ci/);
+  assert.match(ci, /npm run coverage/);
 
   assert.match(release, /node-version:\s*24/);
   assert.match(release, /cache:\s*npm/);
@@ -263,6 +267,5 @@ test('public repo baseline docs exist and README links the contributing guide', 
   assert.match(security, /response/i);
   assert.match(conduct, /Contributor Covenant/i);
 });
-
 
 
