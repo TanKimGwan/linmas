@@ -53,6 +53,12 @@ function build(overrides = {}) {
 test('fingerprints the exact reviewed bytes with stable SHA-256', () => {
   assert.equal(fingerprintReviewInput(Buffer.from('abc')), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   assert.notEqual(fingerprintReviewInput(Buffer.from('abc\n')), fingerprintReviewInput(Buffer.from('abc')));
+  assert.throws(() => fingerprintReviewInput('abc'), /review input bytes are required/);
+});
+
+test('accepts Uint8Array fingerprints and ISO-compatible generation times', () => {
+  assert.equal(fingerprintReviewInput(new Uint8Array([97, 98, 99])), fingerprintReviewInput(Buffer.from('abc')));
+  assert.equal(build({ now: '2026-07-18T15:00:00.000Z' }).execution.generatedAt, '2026-07-18T15:00:00.000Z');
 });
 
 test('distinguishes live and offline capsules without inventing policy decisions', () => {

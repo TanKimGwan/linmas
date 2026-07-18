@@ -123,6 +123,16 @@ test('formatDoctorReport identifies supported legacy and duplicate canonical ins
   assert.match(report, /duplicate canonical and legacy installations/i);
 });
 
+test('formatDoctorReport handles unwritable hosts and manifests without detection roots', () => {
+  const report = formatDoctorReport(
+    [{ host: 'codex', status: 'probably_detected', reason: 'read only', writable: false }],
+    [{ tool: 'linmas', version: '0.3.2', manifestVersion: 1, host: 'claude', installedAt: '2026-07-18T00:00:00.000Z', skills: [] }]
+  );
+  assert.match(report, /target root validity: not writable/);
+  assert.match(report, /manifest claude: 0 tracked skill/);
+  assert.doesNotMatch(report, /backup directory/);
+});
+
 test('formatOnboarding includes required user-facing details', () => {
   const detections = [{ host: 'claude', status: 'detected', installRoot: '/tmp/.claude/skills', manifestPath: '/tmp/.claude/linmas-manifest.json', rootPath: '/tmp/.claude', writable: true }];
   const skills = [{ name: 'secure-code-reviewer', description: 'Review code safely' }];

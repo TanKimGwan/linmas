@@ -62,7 +62,7 @@ test('backup defaults to ~/.claude/linmas-docs-backup when env is unset', () => 
       writeDocs(repo, {
         [DOCS[0]]: 'npm plan'
       });
-      runSync('backup', { cwd: repo, env: { HOME: home } });
+      runSync('backup', { cwd: repo, env: { HOME: home, USERPROFILE: home } });
       const backupRoot = path.join(home, '.claude', 'linmas-docs-backup');
       assert.equal(fs.readFileSync(path.join(backupRoot, DOCS[0]), 'utf8'), 'npm plan');
     } finally {

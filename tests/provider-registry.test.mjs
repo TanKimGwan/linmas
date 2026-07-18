@@ -73,10 +73,15 @@ test('defaultBinaryLookup finds POSIX executable and rejects a non-executable fi
   try {
     const executable = path.join(root, 'codex');
     fs.writeFileSync(executable, '#!/bin/sh\n');
-    fs.chmodSync(executable, 0o755);
-    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux' }), executable);
-    fs.chmodSync(executable, 0o644);
-    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux' }), null);
+    let executableAllowed = true;
+    const accessSync = (candidate, mode) => {
+      assert.equal(mode, fs.constants.X_OK);
+      if (candidate === executable && executableAllowed) return;
+      throw Object.assign(new Error('not executable'), { code: 'EACCES' });
+    };
+    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux', accessSync }), executable);
+    executableAllowed = false;
+    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux', accessSync }), null);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

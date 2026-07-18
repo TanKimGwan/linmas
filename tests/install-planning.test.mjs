@@ -1,13 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { selectSkills, selectTargets, planInstall, promptForInstallChoices, promptForInstallConfirmation, promptForInstallTarget } from '../src/core/install-skills.mjs';
 
 test('planInstall marks an unmanaged destination for backup before replace', () => {
+  const root = path.parse(process.cwd()).root;
+  const repo = path.join(root, 'repo');
+  const hostRoot = path.join(root, 'tmp', '.claude');
+  const installRoot = path.join(hostRoot, 'skills');
+  const destination = path.join(installRoot, 'secure-code-reviewer');
   const plan = planInstall({
-    skills: [{ name: 'secure-code-reviewer', description: 'desc', sourceDir: '/repo/skills/secure-code-reviewer', skillFile: '/repo/skills/secure-code-reviewer/SKILL.md' }],
-    targets: [{ host: 'claude', status: 'detected', reason: 'ok', rootPath: '/tmp/.claude', installRoot: '/tmp/.claude/skills', manifestPath: '/tmp/.claude/linmas-manifest.json', writable: true }],
+    skills: [{ name: 'secure-code-reviewer', description: 'desc', sourceDir: path.join(repo, 'skills', 'secure-code-reviewer'), skillFile: path.join(repo, 'skills', 'secure-code-reviewer', 'SKILL.md') }],
+    targets: [{ host: 'claude', status: 'detected', reason: 'ok', rootPath: hostRoot, installRoot, manifestPath: path.join(hostRoot, 'linmas-manifest.json'), writable: true }],
     manifests: [{ tool: 'linmas', version: '0.1.0', manifestVersion: 1, host: 'claude', installedAt: '2026-07-07T00:00:00.000Z', skills: [] }],
-    existingPaths: new Set(['/tmp/.claude/skills/secure-code-reviewer']),
+    existingPaths: new Set([destination]),
     timestamp: '20260707-120000',
     dryRun: true
   });

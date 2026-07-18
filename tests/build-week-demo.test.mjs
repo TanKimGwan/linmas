@@ -10,6 +10,13 @@ import { runBuildWeekDemo } from '../scripts/demo-build-week.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+function runNpm(args, options) {
+  const npmCli = process.env.npm_execpath;
+  return npmCli
+    ? execFileSync(process.execPath, [npmCli, ...args], options)
+    : execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, options);
+}
+
 function captureIo() {
   let stdout = '';
   let stderr = '';
@@ -102,7 +109,7 @@ test('live demo forwards an explicit account-visible model to Codex execution', 
 });
 
 test('Build Week synthetic fixture and demo are included by npm pack', () => {
-  const packed = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--cache', path.join(os.tmpdir(), 'linmas-npm-cache')], {
+  const packed = JSON.parse(runNpm(['pack', '--dry-run', '--json', '--cache', path.join(os.tmpdir(), 'linmas-npm-cache')], {
     cwd: rootDir,
     encoding: 'utf8',
     stdio: 'pipe'
@@ -117,13 +124,13 @@ test('Build Week synthetic fixture and demo are included by npm pack', () => {
 test('packed contents execute the offline judge demo from a neutral directory', async () => {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'linmas-packed-demo-'));
   try {
-    const packJson = JSON.parse(execFileSync('npm', ['pack', '--json', '--pack-destination', root, '--cache', path.join(os.tmpdir(), 'linmas-npm-cache')], {
+    const packJson = JSON.parse(runNpm(['pack', '--json', '--pack-destination', root, '--cache', path.join(os.tmpdir(), 'linmas-npm-cache')], {
       cwd: rootDir,
       encoding: 'utf8',
       stdio: 'pipe'
     }));
     const tarball = path.join(root, packJson[0].filename);
-    execFileSync('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', tarball], {
+    runNpm(['install', '--ignore-scripts', '--no-audit', '--no-fund', tarball], {
       cwd: root,
       encoding: 'utf8',
       stdio: 'pipe'
