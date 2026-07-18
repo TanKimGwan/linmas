@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { EXPECTED_SKILLS } from '../src/core/list-skills.mjs';
+import { PUBLIC_SKILL_IDS } from '../src/core/skill-catalog.mjs';
 
 const root = process.cwd();
 const skillsRoot = path.join(root, 'skills');
 
-const expectedSkills = EXPECTED_SKILLS;
+const expectedSkills = PUBLIC_SKILL_IDS;
 
 const requiredHeadings = [
   '## Best fit',
@@ -66,8 +66,10 @@ const publishedSurface = [
   'bin',
   'src',
   'README.md',
+  'OPENAI_BUILD_WEEK_2026.md',
   'package.json',
   'scripts',
+  'examples',
   'evaluations',
   'policies',
   'skills',

@@ -12,3 +12,30 @@ test('live evaluation caps cases and excludes raw response from report', async (
   assert.equal(JSON.stringify(report).includes('rawResponse'), false);
   assert.equal(report.results.length, 1);
 });
+
+test('live evaluation injects canonical identity and provider metadata before validation', async () => {
+  const caseData = { schemaVersion: 1, id: 'secure-code/minimal-001', specialist: 'secure-code-reviewer', expectations: { requiredFindings: [], forbiddenClaims: [], requiredChecks: [], requiredSafetyBoundary: true } };
+  const runner = {
+    id: 'codex',
+    model: 'codex-model',
+    async run() {
+      return {
+        provider: 'codex',
+        model: 'codex-model',
+        rawResponse: JSON.stringify({
+          schemaVersion: 1,
+          scopeAndAssumptions: ['Only supplied synthetic material was reviewed.'],
+          findings: [],
+          deterministicChecks: [],
+          safetyBoundary: { satisfied: true, humanReviewRequired: true, statement: 'Human review remains required.' }
+        }),
+        usage: null,
+        requestId: 'request-1'
+      };
+    }
+  };
+
+  const report = await runLiveEvaluation({ cases: [{ caseData, inputText: 'safe' }], runner });
+  assert.equal(report.results[0].caseId, caseData.id);
+  assert.equal(report.results[0].passed, true);
+});

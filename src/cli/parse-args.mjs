@@ -5,7 +5,8 @@ const VALUE_FLAGS = new Map([
   ['--model', 'model'],
   ['--output', 'output'],
   ['--policy', 'policyId'],
-  ['--policy-file', 'policyFile']
+  ['--policy-file', 'policyFile'],
+  ['--capsule', 'capsulePath']
 ]);
 
 export function parseArgv(argv) {
@@ -21,10 +22,17 @@ export function parseArgv(argv) {
     output: 'text',
     assumeYes: false,
     policyId: null,
-    policyFile: null
+    policyFile: null,
+    capsulePath: null
   };
   const args = argv.slice(2);
   if (args[0] && !args[0].startsWith('--')) result.command = args.shift();
+  if (result.command === 'review' && args[0] === 'compare') {
+    args.shift();
+    result.reviewAction = 'compare';
+    result.compareBefore = args.shift() ?? null;
+    result.compareAfter = args.shift() ?? null;
+  }
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (VALUE_FLAGS.has(arg)) {

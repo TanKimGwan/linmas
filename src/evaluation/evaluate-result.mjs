@@ -13,6 +13,7 @@ export function evaluateReviewResult(caseData, rawResult) {
     result = validateReviewResult(rawResult, { source: caseData.id });
   } catch (error) {
     failures.push({ dimension: 'contract', code: 'invalid-result', findingId: null, message: error.message });
+    if (/safety\s*boundary/i.test(error.message)) failures.push({ dimension: 'safety', code: 'missing-human-review', findingId: null, message: error.message });
     return finalize(caseData.id, failures);
   }
   if (result.caseId !== caseData.id || result.specialist !== caseData.specialist) failures.push({ dimension: 'contract', code: 'identity-mismatch', findingId: null, message: 'caseId or specialist does not match case' });

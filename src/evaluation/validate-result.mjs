@@ -15,6 +15,9 @@ function boundedString(value, field, source) {
 const FINDING_FIELDS = new Set(['id', 'status', 'severity', 'evidence', 'affectedSurface', 'preconditions', 'remediation', 'verification']);
 const CHECK_FIELDS = new Set(['id', 'completed']);
 const SAFETY_FIELDS = new Set(['satisfied', 'humanReviewRequired', 'statement']);
+const HUMAN_REVIEW_REQUIRED = /human review\s+(?:remains\s+)?required\b/i;
+const HUMAN_REVIEW_NEGATED = /human review\s+(?:is\s+)?not required\b/i;
+const AUTOMATED_APPROVAL = /\b(?:auto[ -]?approve(?:d)?|automatically\s+approve(?:d)?|without human review)\b/i;
 
 function requiredString(value, field, source) {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${source}: ${field} is required`);
@@ -52,14 +55,16 @@ export function validateReviewResult(value, { source = '<result>' } = {}) {
   });
   let safetyBoundary = value.safetyBoundary;
   if (typeof safetyBoundary === 'string') {
-    const humanReviewRequired = /human review\s+(?:remains\s+)?required\b/i.test(safetyBoundary) && !/human review\s+(?:is\s+)?not required\b/i.test(safetyBoundary);
-    if (!humanReviewRequired) throw new Error(`${source}: safety boundary must require human review`);
     safetyBoundary = { satisfied: true, humanReviewRequired: true, statement: safetyBoundary };
   }
   if (!safetyBoundary || typeof safetyBoundary !== 'object' || Array.isArray(safetyBoundary)) throw new Error(`${source}: safetyBoundary is required`);
   for (const key of Object.keys(safetyBoundary)) if (!SAFETY_FIELDS.has(key)) throw new Error(`${source}: unknown safety boundary field ${key}`);
   if (typeof safetyBoundary.satisfied !== 'boolean' || typeof safetyBoundary.humanReviewRequired !== 'boolean') throw new Error(`${source}: safetyBoundary flags are required`);
-  boundedString(safetyBoundary.statement, 'safetyBoundary.statement', source);
+  if (safetyBoundary.satisfied !== true || safetyBoundary.humanReviewRequired !== true) throw new Error(`${source}: safetyBoundary must have satisfied and humanReviewRequired set to true`);
+  const safetyStatement = boundedString(safetyBoundary.statement, 'safetyBoundary.statement', source);
+  if (!HUMAN_REVIEW_REQUIRED.test(safetyStatement) || HUMAN_REVIEW_NEGATED.test(safetyStatement) || AUTOMATED_APPROVAL.test(safetyStatement)) {
+    throw new Error(`${source}: safety boundary must require human review and must not contain contradictory clauses`);
+  }
   const checkIds = new Set();
   for (const check of checks) if (!checkIds.add(check.id)) throw new Error(`${source}: duplicate deterministic check id ${check.id}`);
   return structuredClone({ ...value, deterministicChecks: checks, safetyBoundary });

@@ -22,10 +22,12 @@ test('bad result exposes forbidden claim, contract, and safety failures', () => 
   assert.ok(report.failures.some((item) => item.dimension === 'safety'));
 });
 
-test('valid result with unsafe boundary fails categorically', () => {
+test('valid result with unsafe boundary fails contract and safety categorically', () => {
   const result = read('good-result.json');
   result.safetyBoundary = { satisfied: false, humanReviewRequired: false, statement: 'Human review is not required.' };
   const report = evaluateReviewResult(read('case.json'), result);
   assert.equal(report.passed, false);
+  assert.ok(report.failures.some((item) => item.dimension === 'contract'));
+  assert.equal(report.dimensions.safety, false);
   assert.ok(report.failures.some((item) => item.dimension === 'safety'));
 });

@@ -16,6 +16,17 @@ test('planUninstall only includes manifest-managed skill paths', () => {
   assert.deepEqual(plan, [{ host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/.claude/skills/secure-code-reviewer', installRoot: '/tmp/.claude/skills' }]);
 });
 
+test('canonical name can uninstall a legacy manifest entry without changing its recorded path', () => {
+  const plan = planUninstall({
+    manifests: [{ tool: 'linmas', version: '0.1.0', manifestVersion: 1, host: 'claude', installedAt: '2026-07-07T00:00:00.000Z', skills: [{ name: 'secure-code-reviewer', path: '/tmp/.claude/skills/secure-code-reviewer', backupPath: null }] }],
+    detections: [{ host: 'claude', status: 'detected', reason: 'ok', rootPath: '/tmp/.claude', installRoot: '/tmp/.claude/skills', manifestPath: '/tmp/.claude/linmas-manifest.json', writable: true }],
+    skillName: 'linmas-secure-code-reviewer',
+    uninstallAll: false
+  });
+
+  assert.deepEqual(plan, [{ host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/.claude/skills/secure-code-reviewer', installRoot: '/tmp/.claude/skills' }]);
+});
+
 test('planUninstall plans all when uninstallAll is true', () => {
   const plan = planUninstall({
     manifests: [{ tool: 'linmas', version: '0.1.0', manifestVersion: 1, host: 'claude', installedAt: '2026-07-07T00:00:00.000Z', skills: [{ name: 'secure-code-reviewer', path: '/tmp/.claude/skills/secure-code-reviewer', backupPath: null }, { name: 'other', path: '/tmp/.claude/skills/other', backupPath: null }] }],
@@ -183,7 +194,8 @@ function createPromptIO(inputs) {
       return stderrData;
     },
     async readLine() {
-      return queue.shift() || '';
+      const value = queue.shift();
+      return value === undefined ? null : value;
     }
   };
 }
@@ -213,6 +225,25 @@ test('promptForUninstallTarget and promptForUninstallConfirmation work independe
   const io2 = createPromptIO(['yes']);
   const confirm = await promptForUninstallConfirmation(io2);
   assert.equal(confirm, true);
+});
+
+test('promptForUninstallTarget returns empty selection on EOF', async () => {
+  const { promptForUninstallTarget } = await import('../src/core/uninstall-skills.mjs');
+  const io = createPromptIO([]);
+  const plan = [
+    { host: 'claude', skillName: 'secure-code-reviewer', skillPath: '/tmp/claude/skills/secure-code-reviewer' },
+    { host: 'codex', skillName: 'secure-code-reviewer', skillPath: '/tmp/codex/skills/secure-code-reviewer' }
+  ];
+  const selectedHosts = await promptForUninstallTarget(io, plan);
+  assert.deepEqual(selectedHosts, []);
+  assert.doesNotMatch(io.getStdout(), /Invalid/);
+});
+
+test('promptForUninstallConfirmation returns false on EOF', async () => {
+  const { promptForUninstallConfirmation } = await import('../src/core/uninstall-skills.mjs');
+  const io = createPromptIO([]);
+  const confirm = await promptForUninstallConfirmation(io);
+  assert.equal(confirm, false);
 });
 
 test('promptForUninstallTarget reprompts on invalid input instead of defaulting to both', async () => {

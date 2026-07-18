@@ -80,6 +80,120 @@ test('run list command prints available skills', async () => {
   assert.equal(io.getStderr(), '');
 });
 
+function fakeHostAdapter(tempHome) {
+  const rootPath = path.join(tempHome, '.fake');
+  const installRoot = path.join(rootPath, 'skills');
+  const manifestPath = path.join(rootPath, 'linmas-manifest.json');
+  return {
+    detect() {
+      return {
+        host: 'fake',
+        status: 'detected',
+        reason: 'injected host registry',
+        rootPath,
+        installRoot,
+        manifestPath,
+        writable: true
+      };
+    },
+    getInstallRoot() { return installRoot; },
+    getManifestPath() { return manifestPath; },
+    validateTarget() { return { status: 'detected', writable: true, reason: 'injected host registry' }; }
+  };
+}
+
+function injectedHostRegistry(tempHome) {
+  let reads = 0;
+  const registry = new Map([['fake', fakeHostAdapter(tempHome)]]);
+  return {
+    dependencies: {
+      get hostRegistry() {
+        reads += 1;
+        return registry;
+      }
+    },
+    reads() { return reads; }
+  };
+}
+
+test('detect, doctor, and onboard use an injected host registry', async (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-injected-host-'));
+  t.after(() => fs.rmSync(tempHome, { recursive: true, force: true }));
+  const { dependencies, reads } = injectedHostRegistry(tempHome);
+
+  for (const [command, pattern] of [
+    ['detect', /fake: detected/],
+    ['doctor', /fake/],
+    ['onboard', /fake/]
+  ]) {
+    const io = createMockIO();
+    assert.equal(await run(['node', 'bin/linmas.mjs', command], io, dependencies), 0);
+    assert.match(io.getStdout(), pattern);
+  }
+  assert.equal(reads(), 3);
+});
+
+test('install uses injected host registry paths and writes its manifest there', async (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-injected-install-'));
+  t.after(() => fs.rmSync(tempHome, { recursive: true, force: true }));
+  const adapter = fakeHostAdapter(tempHome);
+  const { dependencies, reads } = injectedHostRegistry(tempHome);
+  const installRoot = adapter.getInstallRoot();
+  const manifestPath = adapter.getManifestPath();
+  fs.mkdirSync(installRoot, { recursive: true });
+
+  const io = createPromptIO(['yes']);
+  assert.equal(await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], io, dependencies), 0);
+  assert.equal(reads(), 1);
+  assert.equal(fs.existsSync(path.join(installRoot, 'linmas-security-operations-lead', 'SKILL.md')), true);
+  assert.equal(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).host, 'fake');
+});
+
+test('uninstall uses injected host registry paths and removes its manifest entry', async (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-injected-uninstall-'));
+  t.after(() => fs.rmSync(tempHome, { recursive: true, force: true }));
+  const adapter = fakeHostAdapter(tempHome);
+  const { dependencies, reads } = injectedHostRegistry(tempHome);
+  const skillPath = path.join(adapter.getInstallRoot(), 'security-operations-lead');
+  const manifestPath = adapter.getManifestPath();
+  fs.mkdirSync(skillPath, { recursive: true });
+  fs.writeFileSync(path.join(skillPath, 'SKILL.md'), '# injected\n');
+  fs.writeFileSync(manifestPath, JSON.stringify({
+    tool: 'linmas',
+    version: '0.1.0',
+    manifestVersion: 1,
+    host: 'fake',
+    installedAt: '2026-07-13T00:00:00.000Z',
+    skills: [{ name: 'security-operations-lead', path: skillPath, backupPath: null }]
+  }));
+
+  const io = createPromptIO(['yes']);
+  assert.equal(await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], io, dependencies), 0);
+  assert.equal(reads(), 1);
+  assert.equal(fs.existsSync(skillPath), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills, []);
+});
+
+test('list and review do not read the injected host registry', async (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-injected-lazy-'));
+  t.after(() => fs.rmSync(tempHome, { recursive: true, force: true }));
+  const { dependencies, reads } = injectedHostRegistry(tempHome);
+
+  assert.equal(await run(['node', 'bin/linmas.mjs', 'list'], createMockIO(), dependencies), 0);
+  const inputPath = path.join(tempHome, 'review.txt');
+  fs.writeFileSync(inputPath, 'review input');
+  assert.equal(await run([
+    'node',
+    'bin/linmas.mjs',
+    'review',
+    '--skill',
+    'secure-code-reviewer',
+    '--input',
+    inputPath
+  ], createMockIO(), dependencies), 0);
+  assert.equal(reads(), 0);
+});
+
 test('run unknown command prints error and returns 1', async () => {
   const io = createMockIO();
   const code = await run(['node', 'bin/linmas.mjs', 'invalid-command'], io);
@@ -136,7 +250,7 @@ test('run install command perform dry-run preview or actual install', async () =
     assert.equal(dryRunCode, 0);
     assert.match(dryRunIo.getStdout(), /Linmas install preview:/);
     assert.match(dryRunIo.getStdout(), /security-operations-lead/);
-    assert.equal(fs.existsSync(path.join(installRoot, 'security-operations-lead')), false);
+    assert.equal(fs.existsSync(path.join(installRoot, 'linmas-security-operations-lead')), false);
 
     const installIo = createPromptIO(['1', 'yes']);
     const installCode = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], installIo);
@@ -145,10 +259,10 @@ test('run install command perform dry-run preview or actual install', async () =
     assert.match(installIo.getStdout(), /Choose target host: \[1\] Claude \[2\] Codex \[3\] Both/);
     assert.match(installIo.getStdout(), /Linmas install preview:/);
     assert.match(installIo.getStdout(), /Install completed\./);
-    assert.match(installIo.getStdout(), /Installed: security-operations-lead/);
+    assert.match(installIo.getStdout(), /Installed: linmas-security-operations-lead/);
     assert.match(installIo.getStdout(), /Next steps:/);
-    assert.equal(fs.existsSync(path.join(installRoot, 'security-operations-lead', 'SKILL.md')), true);
-    assert.equal(fs.existsSync(path.join(codexDir, 'skills', 'security-operations-lead')), false);
+    assert.equal(fs.existsSync(path.join(installRoot, 'linmas-security-operations-lead', 'SKILL.md')), true);
+    assert.equal(fs.existsSync(path.join(codexDir, 'skills', 'linmas-security-operations-lead')), false);
   } finally {
     os.homedir = originalHomedir;
     fs.rmSync(tempHome, { recursive: true, force: true });
@@ -231,7 +345,7 @@ test('run install command with multi-host conflict isolation and correct flow or
     fs.mkdirSync(path.join(claudeDir, 'skills'), { recursive: true });
     fs.mkdirSync(path.join(codexDir, 'skills'), { recursive: true });
 
-    const codexConflictPath = path.join(codexDir, 'skills', 'security-operations-lead');
+    const codexConflictPath = path.join(codexDir, 'skills', 'linmas-security-operations-lead');
     fs.mkdirSync(codexConflictPath, { recursive: true });
     fs.writeFileSync(path.join(codexConflictPath, 'SKILL.md'), 'unmanaged content');
 
@@ -241,7 +355,7 @@ test('run install command with multi-host conflict isolation and correct flow or
     assert.equal(code, 0);
     assert.match(installIo.getStdout(), /Linmas install preview:/);
     assert.match(installIo.getStdout(), /Install completed\./);
-    assert.equal(fs.existsSync(path.join(claudeDir, 'skills', 'security-operations-lead', 'SKILL.md')), true);
+    assert.equal(fs.existsSync(path.join(claudeDir, 'skills', 'linmas-security-operations-lead', 'SKILL.md')), true);
     assert.equal(fs.readFileSync(path.join(codexConflictPath, 'SKILL.md'), 'utf8'), 'unmanaged content');
   } finally {
     os.homedir = originalHomedir;
@@ -312,9 +426,9 @@ test('direct CLI install can prompt via process stdin/stdout', () => {
     assert.match(result.stdout, /Choose target host: \[1\] Claude \[2\] Codex \[3\] Both/);
     assert.match(result.stdout, /Confirm installation\? \[yes\/no\]/);
     assert.match(result.stdout, /Install completed\./);
-    assert.match(result.stdout, /Installed: security-operations-lead/);
-    assert.equal(fs.existsSync(path.join(tempHome, '.claude', 'skills', 'security-operations-lead', 'SKILL.md')), true);
-    assert.equal(fs.existsSync(path.join(tempHome, '.codex', 'skills', 'security-operations-lead')), false);
+    assert.match(result.stdout, /Installed: linmas-security-operations-lead/);
+    assert.equal(fs.existsSync(path.join(tempHome, '.claude', 'skills', 'linmas-security-operations-lead', 'SKILL.md')), true);
+    assert.equal(fs.existsSync(path.join(tempHome, '.codex', 'skills', 'linmas-security-operations-lead')), false);
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
@@ -336,10 +450,10 @@ test('install summary includes task 3 details without regressing task 2 flow', a
 
     assert.equal(code, 0);
     assert.match(io.getStdout(), /Installed skills:/);
-    assert.match(io.getStdout(), /Installed: security-operations-lead/);
+    assert.match(io.getStdout(), /Installed: linmas-security-operations-lead/);
     assert.match(io.getStdout(), /Next steps:/);
-    assert.equal(fs.existsSync(path.join(claudeDir, 'skills', 'security-operations-lead', 'SKILL.md')), true);
-    assert.equal(fs.existsSync(path.join(codexDir, 'skills', 'security-operations-lead')), false);
+    assert.equal(fs.existsSync(path.join(claudeDir, 'skills', 'linmas-security-operations-lead', 'SKILL.md')), true);
+    assert.equal(fs.existsSync(path.join(codexDir, 'skills', 'linmas-security-operations-lead')), false);
   } finally {
     os.homedir = originalHomedir;
     fs.rmSync(tempHome, { recursive: true, force: true });
@@ -352,7 +466,7 @@ test('direct CLI install aborts immediately when replacement is declined', () =>
 
   try {
     const installRoot = path.join(tempHome, '.claude', 'skills');
-    const skillPath = path.join(installRoot, 'security-operations-lead');
+    const skillPath = path.join(installRoot, 'linmas-security-operations-lead');
     fs.mkdirSync(skillPath, { recursive: true });
     fs.writeFileSync(path.join(skillPath, 'SKILL.md'), 'unmanaged content');
 
@@ -414,6 +528,87 @@ test('direct CLI uninstall reprompts on invalid target input', () => {
     assert.doesNotMatch(result.stdout, /- codex: remove security-operations-lead/);
     assert.equal(fs.existsSync(claudeSkillPath), false);
     assert.equal(fs.existsSync(codexSkillPath), true);
+  } finally {
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+});
+
+test('CLI install aborts on manifest host mismatch before copying skill', () => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-host-mismatch-'));
+
+  try {
+    const claudeRoot = path.join(tempHome, '.claude');
+    const codexRoot = path.join(tempHome, '.codex');
+    const claudeManifestPath = path.join(claudeRoot, 'linmas-manifest.json');
+
+    fs.mkdirSync(path.join(claudeRoot, 'skills'), { recursive: true });
+    fs.mkdirSync(path.join(codexRoot, 'skills'), { recursive: true });
+
+    fs.writeFileSync(claudeManifestPath, JSON.stringify({
+      tool: 'linmas',
+      version: '0.3.0',
+      manifestVersion: 1,
+      host: 'codex',
+      installedAt: '2026-07-14T00:00:00.000Z',
+      skills: []
+    }));
+
+    const result = spawnSync(process.execPath, [cliPath, 'install', 'security-operations-lead'], {
+      cwd: rootDir,
+      env: { ...process.env, HOME: tempHome },
+      input: '',
+      encoding: 'utf8'
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Manifest host mismatch/);
+    assert.equal(fs.existsSync(path.join(claudeRoot, 'skills', 'linmas-security-operations-lead')), false, 'skill must not be copied to claude');
+    assert.equal(fs.existsSync(path.join(codexRoot, 'skills', 'linmas-security-operations-lead')), false, 'skill must not be copied to codex');
+  } finally {
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  }
+});
+
+test('CLI uninstall with closed stdin exits as cancellation', () => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-uninstall-eof-'));
+
+  try {
+    const claudeSkillPath = path.join(tempHome, '.claude', 'skills', 'security-operations-lead');
+    const codexSkillPath = path.join(tempHome, '.codex', 'skills', 'security-operations-lead');
+
+    fs.mkdirSync(claudeSkillPath, { recursive: true });
+    fs.mkdirSync(codexSkillPath, { recursive: true });
+    fs.writeFileSync(path.join(claudeSkillPath, 'SKILL.md'), '# skill\n');
+    fs.writeFileSync(path.join(codexSkillPath, 'SKILL.md'), '# skill\n');
+
+    fs.writeFileSync(path.join(tempHome, '.claude', 'linmas-manifest.json'), JSON.stringify({
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'claude',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'security-operations-lead', path: claudeSkillPath, backupPath: null }]
+    }));
+    fs.writeFileSync(path.join(tempHome, '.codex', 'linmas-manifest.json'), JSON.stringify({
+      tool: 'linmas',
+      version: '0.1.0',
+      manifestVersion: 1,
+      host: 'codex',
+      installedAt: '2026-07-07T00:00:00.000Z',
+      skills: [{ name: 'security-operations-lead', path: codexSkillPath, backupPath: null }]
+    }));
+
+    const result = spawnSync(process.execPath, [cliPath, 'uninstall', 'security-operations-lead'], {
+      cwd: rootDir,
+      env: { ...process.env, HOME: tempHome },
+      input: '',
+      encoding: 'utf8'
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Uninstall cancelled/);
+    assert.equal(fs.existsSync(claudeSkillPath), true, 'claude skill must not be removed on EOF');
+    assert.equal(fs.existsSync(codexSkillPath), true, 'codex skill must not be removed on EOF');
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });
   }

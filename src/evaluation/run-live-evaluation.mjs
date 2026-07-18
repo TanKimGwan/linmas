@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
+import { normalizeProviderResponse } from '../review/normalize-response.mjs';
 import { validateReviewResult } from './validate-result.mjs';
+
+// Keep live evaluation on the same provider-normalization boundary as `linmas review`.
+// The validator remains here as a defensive second check for report generation.
 import { evaluateReviewResult } from './evaluate-result.mjs';
 
 export async function runLiveEvaluation({ cases, runner, now = new Date(), maxCases = 20, attempts = 2 }) {
@@ -9,7 +13,11 @@ export async function runLiveEvaluation({ cases, runner, now = new Date(), maxCa
   for (const item of selected) {
     try {
       const response = await withTransientRetry(() => runner.run({ system: buildSystem(item.caseData), user: item.inputText }), attempts);
-      const normalized = validateReviewResult(JSON.parse(response.rawResponse), { source: item.caseData.id });
+      const normalized = normalizeProviderResponse(response, {
+        caseId: item.caseData.id,
+        specialist: item.caseData.specialist
+      });
+      validateReviewResult(normalized, { source: item.caseData.id });
       results.push({ ...evaluateReviewResult(item.caseData, normalized), provider: response.provider, model: response.model, usage: response.usage, requestId: response.requestId });
     } catch (error) {
       results.push({ caseId: item.caseData.id, passed: false, dimensions: {}, failureClass: error.failureClass || 'normalization-failed', failures: [{ dimension: 'live', code: error.failureClass || 'normalization-failed', findingId: null, message: error.message }] });

@@ -6,5 +6,10 @@ const ROUTES = [
 ];
 
 export function recommendSpecialists(content) {
-  return ROUTES.filter(([, pattern]) => pattern.test(content)).map(([name]) => name).slice(0, 3);
+  return ROUTES
+    .filter(([, pattern]) => pattern.test(content))
+    .map(([name]) => resolveSkill(name)?.skillId)
+    .filter(Boolean)
+    .slice(0, 3);
 }
+import { resolveSkill } from '../core/skill-catalog.mjs';
