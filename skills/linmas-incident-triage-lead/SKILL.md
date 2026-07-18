@@ -1,5 +1,5 @@
 ---
-name: incident-triage-lead
+name: linmas-incident-triage-lead
 description: Incident triage skill for security-event classification, containment planning, evidence preservation, and response coordination.
 triggers:
   - incident response

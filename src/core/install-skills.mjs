@@ -7,7 +7,7 @@ export function selectSkills(skills, { skillName, installAll }) {
   if (installAll) return skills;
   if (!skillName) throw new Error('install requires a skill name or --all');
 
-  const match = skills.find((skill) => skill.name === skillName);
+  const match = skills.find((skill) => skill.name === skillName || skill.legacyAliases?.includes(skillName));
   if (!match) throw new Error(`unknown skill: ${skillName}`);
   return [match];
 }

@@ -1,5 +1,5 @@
 ---
-name: cloud-hardening-architect
+name: linmas-cloud-hardening-architect
 description: Cloud hardening architecture skill for IAM, network segmentation, service boundaries, workload protection, and platform control design.
 triggers:
   - cloud security architecture

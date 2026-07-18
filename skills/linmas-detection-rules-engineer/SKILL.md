@@ -1,5 +1,5 @@
 ---
-name: detection-rules-engineer
+name: linmas-detection-rules-engineer
 description: Detection rules engineering skill for SIEM logic, alert design, telemetry mapping, tuning, and false-positive reduction.
 triggers:
   - detection engineering

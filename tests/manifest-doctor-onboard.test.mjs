@@ -109,6 +109,20 @@ test('formatDoctorReport includes manifest mismatch details', () => {
   assert.match(report, /target root validity: writable/i);
 });
 
+test('formatDoctorReport identifies supported legacy and duplicate canonical installs without mutation', () => {
+  const report = formatDoctorReport(
+    [{ host: 'claude', status: 'detected', reason: 'ok', installRoot: '/tmp/.claude/skills', manifestPath: '/tmp/.claude/linmas-manifest.json', rootPath: '/tmp/.claude', writable: true }],
+    [{ tool: 'linmas', version: '0.3.0', manifestVersion: 1, host: 'claude', installedAt: '2026-07-18T00:00:00.000Z', skills: [
+      { name: 'secure-code-reviewer', path: '/tmp/.claude/skills/secure-code-reviewer', backupPath: null },
+      { name: 'linmas-secure-code-reviewer', path: '/tmp/.claude/skills/linmas-secure-code-reviewer', backupPath: null }
+    ] }],
+    new Set(['/tmp/.claude/skills/secure-code-reviewer', '/tmp/.claude/skills/linmas-secure-code-reviewer'])
+  );
+
+  assert.match(report, /legacy installation/i);
+  assert.match(report, /duplicate canonical and legacy installations/i);
+});
+
 test('formatOnboarding includes required user-facing details', () => {
   const detections = [{ host: 'claude', status: 'detected', installRoot: '/tmp/.claude/skills', manifestPath: '/tmp/.claude/linmas-manifest.json', rootPath: '/tmp/.claude', writable: true }];
   const skills = [{ name: 'secure-code-reviewer', description: 'Review code safely' }];

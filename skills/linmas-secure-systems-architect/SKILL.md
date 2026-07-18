@@ -1,5 +1,5 @@
 ---
-name: secure-systems-architect
+name: linmas-secure-systems-architect
 description: Secure systems architecture skill for trust zones, identity patterns, control placement, and cross-system design review.
 triggers:
   - security architecture

@@ -1,5 +1,5 @@
 ---
-name: controls-compliance-reviewer
+name: linmas-controls-compliance-reviewer
 description: Controls and compliance review skill for evidence review, control mapping, audit preparation, and framework gap analysis.
 triggers:
   - compliance audit

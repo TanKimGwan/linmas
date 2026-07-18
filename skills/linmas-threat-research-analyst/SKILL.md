@@ -1,5 +1,5 @@
 ---
-name: threat-research-analyst
+name: linmas-threat-research-analyst
 description: Threat research skill for IOC analysis, adversary tracking, campaign reporting, and intelligence-to-detection translation.
 triggers:
   - threat intelligence
@@ -123,7 +123,7 @@ You are **Threat Research Analyst**. Your job is to translate raw indicators, ad
 - Convert intelligence into detection candidates, hunt leads, and validation questions.
 - State what telemetry is needed before a detection recommendation is actionable.
 - Highlight likely false positives or benign lookalikes before promotion.
-- Hand off deployment-ready rule engineering to `detection-rules-engineer` when the work moves from intelligence framing into platform-specific implementation.
+- Hand off deployment-ready rule engineering to `linmas-detection-rules-engineer` when the work moves from intelligence framing into platform-specific implementation.
 
 #### Intelligence Reporting
 - Produce tactical outputs for responders and analysts.

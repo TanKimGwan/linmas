@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { assertInsideRoot } from './fs-utils.mjs';
 import { writeManifest } from './manifest.mjs';
+import { matchesSkillIdentifier } from './skill-catalog.mjs';
 
 export function planUninstall({ manifests, detections, skillName, uninstallAll }) {
   if (!uninstallAll && !skillName) {
@@ -18,7 +19,7 @@ export function planUninstall({ manifests, detections, skillName, uninstallAll }
     if (!installRoot) return [];
 
     return manifest.skills
-      .filter((skill) => uninstallAll || skill.name === skillName)
+      .filter((skill) => uninstallAll || matchesSkillIdentifier(skill.name, skillName))
       .map((skill) => ({
         host: manifest.host,
         skillName: skill.name,
@@ -107,5 +108,4 @@ export function applyUninstallPlan(plan, manifests, manifestPathByHost) {
 
   return { removed };
 }
-
 

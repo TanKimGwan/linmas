@@ -1,5 +1,5 @@
 ---
-name: security-domain-router
+name: linmas-security-domain-router
 description: Security domain routing skill for choosing the right specialist workflow across secure coding, architecture, response, operations, cloud, threat, blockchain, and compliance work.
 triggers:
   - security router
@@ -14,7 +14,7 @@ Use this skill when the user needs help choosing the right security specialist w
 
 ## Use another skill when
 
-Do not use this skill when a request clearly belongs to one specialist skill such as `secure-code-reviewer` or `incident-triage-lead`.
+Do not use this skill when a request clearly belongs to one specialist skill such as `linmas-secure-code-reviewer` or `linmas-incident-triage-lead`.
 
 ## Operating guardrails
 
@@ -53,13 +53,13 @@ Default response shape:
 
 ## Routing guide
 
-Choose `secure-code-reviewer` for secure SDLC, threat modeling, secure review, scanner tuning, and developer enablement.
-Choose `secure-systems-architect` for cross-system security design and control boundaries.
-Choose `smart-contract-reviewer` for blockchain, smart contract, and Web3 security review.
-Choose `cloud-hardening-architect` for cloud IAM, network, platform, and landing-zone security design.
-Choose `controls-compliance-reviewer` for control mapping, audit preparation, and evidence-based compliance work.
-Choose `incident-triage-lead` for breach triage, containment, eradication, and recovery workflows.
-Choose `exploit-validation-specialist` for authorized exploit-path validation.
-Choose `security-operations-lead` for operational security monitoring and response readiness.
-Choose `detection-rules-engineer` for alerting logic, SIEM rules, and detection content engineering.
-Choose `threat-research-analyst` for adversary tracking, IOC analysis, and threat reporting.
+Choose `linmas-secure-code-reviewer` for secure SDLC, threat modeling, secure review, scanner tuning, and developer enablement.
+Choose `linmas-secure-systems-architect` for cross-system security design and control boundaries.
+Choose `linmas-smart-contract-reviewer` for blockchain, smart contract, and Web3 security review.
+Choose `linmas-cloud-hardening-architect` for cloud IAM, network, platform, and landing-zone security design.
+Choose `linmas-controls-compliance-reviewer` for control mapping, audit preparation, and evidence-based compliance work.
+Choose `linmas-incident-triage-lead` for breach triage, containment, eradication, and recovery workflows.
+Choose `linmas-exploit-validation-specialist` for authorized exploit-path validation.
+Choose `linmas-security-operations-lead` for operational security monitoring and response readiness.
+Choose `linmas-detection-rules-engineer` for alerting logic, SIEM rules, and detection content engineering.
+Choose `linmas-threat-research-analyst` for adversary tracking, IOC analysis, and threat reporting.

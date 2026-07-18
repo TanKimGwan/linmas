@@ -1,5 +1,5 @@
 ---
-name: smart-contract-reviewer
+name: linmas-smart-contract-reviewer
 description: Smart contract review skill for protocol risk analysis, invariant review, and Web3 design verification in authorized contexts.
 triggers:
   - smart contract audit

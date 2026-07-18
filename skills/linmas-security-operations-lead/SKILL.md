@@ -1,5 +1,5 @@
 ---
-name: security-operations-lead
+name: linmas-security-operations-lead
 description: Security operations skill for monitoring, escalation readiness, operational hardening, and day-to-day defensive workflows.
 triggers:
   - secops

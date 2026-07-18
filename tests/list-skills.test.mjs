@@ -23,6 +23,8 @@ const CONTRACT_SKILLS = [
   'security-domain-router'
 ];
 
+const PUBLIC_SKILLS = CONTRACT_SKILLS.map((name) => `linmas-${name}`);
+
 function writeFixtureSkill(rootDir, name) {
   const skillDir = path.join(rootDir, 'skills', name);
   fs.mkdirSync(skillDir, { recursive: true });
@@ -48,19 +50,20 @@ test('EXPECTED_SKILLS exports the shared explicit inventory contract', () => {
 
 test('listSkills returns repo skills in shared contract order', () => {
   const skills = listSkills(rootDir);
-  assert.deepEqual(skills.map((skill) => skill.name), CONTRACT_SKILLS);
+  assert.deepEqual(skills.map((skill) => skill.name), PUBLIC_SKILLS);
+  assert.deepEqual(skills.map((skill) => skill.specialistId), CONTRACT_SKILLS);
   assert.match(skills[0].description, /security|review|incident|cloud/i);
 });
 
 test('listSkills ignores unexpected skill directories in controlled fixtures', () => {
-  const fixtureRoot = createFixtureRoot([...CONTRACT_SKILLS, 'unexpected-skill']);
+  const fixtureRoot = createFixtureRoot([...PUBLIC_SKILLS, 'unexpected-skill']);
   const skills = listSkills(fixtureRoot);
 
-  assert.deepEqual(skills.map((skill) => skill.name), CONTRACT_SKILLS);
+  assert.deepEqual(skills.map((skill) => skill.name), PUBLIC_SKILLS);
 });
 
 test('listSkills fails when an expected skill is missing in controlled fixtures', () => {
-  const fixtureRoot = createFixtureRoot(CONTRACT_SKILLS.slice(0, -1));
+  const fixtureRoot = createFixtureRoot(PUBLIC_SKILLS.slice(0, -1));
 
   assert.throws(() => listSkills(fixtureRoot), /ENOENT/);
 });

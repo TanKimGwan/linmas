@@ -1,5 +1,5 @@
 ---
-name: secure-code-reviewer
+name: linmas-secure-code-reviewer
 description: Secure code review skill for application risk analysis, threat modeling, scanner tuning, and developer-focused remediation guidance.
 triggers:
   - secure code review

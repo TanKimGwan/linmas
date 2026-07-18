@@ -19,11 +19,12 @@ test('planInstall marks an unmanaged destination for backup before replace', () 
 
 test('selectSkills filters correct skills', () => {
   const skills = [
-    { name: 'skill-a' },
-    { name: 'skill-b' }
+    { name: 'linmas-secure-code-reviewer', legacyAliases: ['secure-code-reviewer'] },
+    { name: 'linmas-cloud-hardening-architect', legacyAliases: ['cloud-hardening-architect'] }
   ];
   assert.deepEqual(selectSkills(skills, { skillName: null, installAll: true }), skills);
-  assert.deepEqual(selectSkills(skills, { skillName: 'skill-a', installAll: false }), [{ name: 'skill-a' }]);
+  assert.deepEqual(selectSkills(skills, { skillName: 'linmas-secure-code-reviewer', installAll: false }), [skills[0]]);
+  assert.deepEqual(selectSkills(skills, { skillName: 'secure-code-reviewer', installAll: false }), [skills[0]]);
   assert.throws(() => selectSkills(skills, { skillName: null, installAll: false }), /install requires a skill name or --all/);
   assert.throws(() => selectSkills(skills, { skillName: 'invalid', installAll: false }), /unknown skill: invalid/);
 });
