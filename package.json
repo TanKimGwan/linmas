@@ -1,7 +1,7 @@
 {
   "name": "linmas",
   "version": "0.3.1",
-  "description": "Proof-carrying defensive security reviews for Codex and compatible AI coding agents.",
+  "description": "Proof-carrying defensive security reviews for AI-assisted software, with deterministic policy, portable evidence, and human review required.",
   "homepage": "https://github.com/TanKimGwan/linmas#readme",
   "bugs": {
     "url": "https://github.com/TanKimGwan/linmas/issues"

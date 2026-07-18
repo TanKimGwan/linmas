@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -115,6 +116,7 @@ test('package metadata declares the hardened CI/runtime support floor', () => {
 
 test('package metadata includes public repository provenance fields', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+  assert.equal(pkg.description, 'Proof-carrying defensive security reviews for AI-assisted software, with deterministic policy, portable evidence, and human review required.');
   assert.deepEqual(pkg.repository, {
     type: 'git',
     url: 'https://github.com/TanKimGwan/linmas'
@@ -130,6 +132,7 @@ test('readme uses tracked public logo asset for GitHub and npm rendering', () =>
   assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/TanKimGwan\/linmas\/main\/assets\/linmas\.jpg/);
   assert.match(readme, /alt="Linmas logo"/);
   assert.equal(fs.existsSync(path.join(rootDir, 'assets/linmas.jpg')), true);
+  assert.equal(createHash('sha256').update(fs.readFileSync(path.join(rootDir, 'assets/linmas.jpg'))).digest('hex'), '7d9b02fd6a78b2bee70e21bdf8b334ce5536d0b111328cb1bd88e256bbce83a7');
   assert.equal(execFileSync('git', ['ls-files', 'assets/linmas.jpg'], {
     cwd: rootDir,
     encoding: 'utf8'
@@ -272,6 +275,11 @@ test('branch policy docs state main is public-facing and dev is the normal PR ta
   assert.match(contributing, /pull requests go to `dev`/i);
   const setup = read('.github/REPOSITORY_SETUP.md');
   assert.match(setup, /main-to-dev ancestry sync PR/i);
+  assert.match(setup, /CODEX_API_KEY/);
+  assert.match(setup, /LINMAS_EVAL_MODEL/);
+  assert.match(setup, /trusted publishing/i);
+  assert.doesNotMatch(setup, /NPM_TOKEN/);
+  assert.match(setup, /Proof-carrying defensive security reviews for AI-assisted software/);
   // ponytail: PUBLIC_RELEASE_CHECKLIST.md and QUALITY_GATES.md are internal-only docs
   // removed from remote; branch policy assertions retained via CONTRIBUTING.md
 });
