@@ -1,6 +1,6 @@
 {
   "name": "linmas",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Proof-carrying defensive security reviews for Codex and compatible AI coding agents.",
   "homepage": "https://github.com/TanKimGwan/linmas#readme",
   "bugs": {
