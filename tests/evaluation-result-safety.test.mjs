@@ -17,10 +17,6 @@ test('rejects a string with auto-approve contradiction (also contains without hu
   );
 });
 
-// ── RED tests: patterns the current regex MISSES ──
-// These strings have a valid "Human review remains required" statement
-// but also contain contradictory clauses that should be rejected.
-
 test('rejects "automatically approved" when combined with a valid statement', () => {
   assert.throws(
     () => validateReviewResult(makeResult('Human review remains required for all findings. Non-critical findings are automatically approved.')),
@@ -74,6 +70,24 @@ test('rejects a safety object where satisfied is false even when humanReviewRequ
   assert.throws(
     () => validateReviewResult(makeResult({ satisfied: false, humanReviewRequired: true, statement: 'Human review remains required.' })),
     /must have satisfied and humanReviewRequired set to true/
+  );
+});
+
+test('rejects a canonical object whose statement contradicts the human-review flags', () => {
+  assert.throws(
+    () => validateReviewResult(makeResult({
+      satisfied: true,
+      humanReviewRequired: true,
+      statement: 'Human review remains required for critical findings; all others are automatically approved without human review.'
+    })),
+    /contradictory clauses/
+  );
+});
+
+test('rejects a canonical object whose statement does not require human review', () => {
+  assert.throws(
+    () => validateReviewResult(makeResult({ satisfied: true, humanReviewRequired: true, statement: 'Automated processing completed.' })),
+    /must require human review/
   );
 });
 

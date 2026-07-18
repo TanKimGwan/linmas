@@ -68,7 +68,7 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
       additionalProperties: false,
       required: ['satisfied', 'humanReviewRequired', 'statement'],
       properties: {
-        satisfied: { type: 'boolean' },
+        satisfied: { const: true },
         humanReviewRequired: { const: true },
         statement: { type: 'string', minLength: 1 }
       }

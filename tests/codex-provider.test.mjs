@@ -72,7 +72,7 @@ test('safetyBoundary schema enforces canonical object contract only', () => {
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required, ['satisfied', 'humanReviewRequired', 'statement']);
   assert.equal(schema.properties.humanReviewRequired.const, true);
-  assert.equal(schema.properties.satisfied.type, 'boolean');
+  assert.equal(schema.properties.satisfied.const, true);
   assert.equal(schema.properties.statement.type, 'string');
   assert.equal(schema.properties.statement.minLength, 1);
   assert.equal(schema.anyOf, undefined, 'string variant must be removed');
