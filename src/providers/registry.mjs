@@ -46,11 +46,18 @@ export function createProviderRegistry({ env = process.env, fetchImpl = fetch, s
 
 export function resolveProvider(registry, providerId, options) {
   if (!providerId) throw new ReviewError('provider is required for execution', 'provider-configuration', EXIT_CODES.PROVIDER);
+  if (!registry || typeof registry.get !== 'function') throw providerConfiguration('provider registry is invalid');
   const provider = registry.get(providerId);
   if (!provider) throw new ReviewError(`unsupported provider: ${providerId}`, 'provider-configuration', EXIT_CODES.PROVIDER);
+  if (typeof provider !== 'object' || Array.isArray(provider) || typeof provider.create !== 'function') {
+    throw providerConfiguration(`provider ${providerId} has an invalid descriptor`);
+  }
   let runner;
   try { runner = provider.create(options); }
   catch (error) { throw translateProviderError(error); }
+  if (!runner || (typeof runner !== 'object' && typeof runner !== 'function') || typeof runner.run !== 'function') {
+    throw providerConfiguration(`provider ${providerId} created an invalid runner`);
+  }
   return {
     ...runner,
     async run(request) {
@@ -60,8 +67,14 @@ export function resolveProvider(registry, providerId, options) {
   };
 }
 
+function providerConfiguration(message) {
+  return new ReviewError(message, 'provider-configuration', EXIT_CODES.PROVIDER);
+}
+
 function translateProviderError(error) {
   if (error instanceof ReviewError) return error;
-  const normalization = error.failureClass === 'normalization-failed';
-  return new ReviewError(error.message, normalization ? 'normalization' : error.failureClass ?? 'provider-transport', normalization ? EXIT_CODES.CONTRACT : EXIT_CODES.PROVIDER);
+  const failureClass = error && typeof error === 'object' ? error.failureClass : undefined;
+  const normalization = failureClass === 'normalization-failed';
+  const message = error instanceof Error && error.message ? error.message : String(error ?? 'provider execution failed');
+  return new ReviewError(message, normalization ? 'normalization' : failureClass ?? 'provider-transport', normalization ? EXIT_CODES.CONTRACT : EXIT_CODES.PROVIDER);
 }
