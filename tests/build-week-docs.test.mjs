@@ -21,6 +21,18 @@ test('README leads with Proof Review and a runnable offline judge demo', () => {
   assert.match(text, /Human review remains required/);
 });
 
+test('README preserves the Linmas identity story without displacing the judge path', () => {
+  const text = read('README.md');
+  assert.match(text, /## Why the name [“\"]Linmas[”\"]\?/);
+  assert.match(text, /Perlindungan Masyarakat/);
+  assert.match(text, /first layer of defense closest to everyday builders/i);
+  assert.match(text, /not (?:the )?[“\"]police[”\"], [“\"]military[”\"], or final authority/i);
+  assert.match(text, /not affiliated with any government institution/i);
+  assert.match(text, /solo developers and indie hackers/i);
+  assert.match(text, /vibe coders/i);
+  assert.ok(text.indexOf('npm run demo:judge') < text.indexOf('## Why the name'), 'judge demo must remain ahead of the origin story');
+});
+
 test('README commands use canonical skills and match parser contracts', () => {
   const text = read('README.md');
   for (const skill of PUBLIC_SKILL_IDS) assert.match(text, new RegExp(`\\b${skill}\\b`));
