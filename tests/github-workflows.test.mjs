@@ -46,6 +46,7 @@ test('release workflow supports tag push and explicit dispatch and verifies main
 test('ci workflow triggers on PR and pushes to dev/main', () => {
   const text = read('.github/workflows/ci.yml');
   assert.match(text, /pull_request:/);
+  assert.match(text, /workflow_dispatch:/);
   assert.match(text, /branches:\s*\[dev,\s*main\]/);
   assert.match(text, /contents:\s*read/);
   assert.match(text, /npm test/);
@@ -261,11 +262,14 @@ test('main pushes propose a no-force ancestry sync PR back to dev', () => {
   assert.match(text, /push:\s*\n\s*branches:\s*\[main\]/);
   assert.match(text, /contents:\s*write/);
   assert.match(text, /pull-requests:\s*write/);
+  assert.match(text, /actions:\s*write/);
   assert.match(text, /group:\s*main-to-dev-sync/);
   assert.match(text, /\.ahead_by/);
   assert.match(text, /automation\/sync-main-to-dev-\$\{GITHUB_RUN_ID\}/);
   assert.match(text, /gh api --method POST/);
+  assert.match(text, /gh workflow run ci\.yml --repo "\$REPO" --ref "\$BRANCH"/);
   assert.match(text, /gh pr create[\s\S]*--base dev/);
+  assert.ok(text.indexOf('gh workflow run ci.yml') < text.indexOf('gh pr create'), 'bot CI dispatch must happen before PR creation');
   assert.match(text, /--head "\$BRANCH"/);
   assert.doesNotMatch(text, /force|gh pr merge|auto-merge/i);
 });

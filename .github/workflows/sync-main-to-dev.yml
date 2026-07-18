@@ -5,6 +5,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -48,6 +49,7 @@ jobs:
 
           gh api --method POST "repos/$REPO/git/refs" -f ref="refs/heads/$BRANCH" -f sha="$MAIN_SHA" >/dev/null
           CREATED_REF=1
+          gh workflow run ci.yml --repo "$REPO" --ref "$BRANCH"
           gh pr create \
             --repo "$REPO" \
             --base dev \
