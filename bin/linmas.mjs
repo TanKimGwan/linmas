@@ -17,6 +17,7 @@ import { ReviewError } from '../src/review/errors.mjs';
 import { createProviderRegistry } from '../src/providers/registry.mjs';
 import { createHostRegistry } from '../src/hosts/registry.mjs';
 import { loadPolicyPack } from '../src/policy/load-pack.mjs';
+import { formatSecurityDelta, loadAndCompareCapsules } from '../src/review/compare-capsules.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -63,6 +64,11 @@ export async function run(argv, io = process, dependencies = {}) {
 
   if (args.command === 'review') {
     try {
+      if (args.reviewAction === 'compare') {
+        const delta = await loadAndCompareCapsules(args.compareBefore, args.compareAfter);
+        io.stdout.write(formatSecurityDelta(delta, { output: args.output }));
+        return 0;
+      }
       const result = await runReview(args, {
         io,
         rootDir,

@@ -55,3 +55,19 @@ test('review confirmation EOF returns input exit code without creating provider 
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('review compare runs entirely offline and keeps human review visible', async () => {
+  const capsule = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../examples/build-week/expected-offline-capsule.json');
+  const capture = io();
+  let providerCreated = false;
+  const code = await run([
+    'node', 'linmas.mjs', 'review', 'compare', capsule, capsule
+  ], capture, {
+    providerRegistry: new Map([['codex', { create() { providerCreated = true; } }]])
+  });
+  assert.equal(code, 0);
+  assert.equal(providerCreated, false);
+  assert.match(capture.stdoutText, /LINMAS REVIEW DELTA/);
+  assert.match(capture.stdoutText, /Human review remains required/);
+  assert.equal(capture.stderrText, '');
+});

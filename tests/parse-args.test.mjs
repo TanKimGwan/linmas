@@ -59,3 +59,12 @@ test('parses review stdin without treating flag values as positional skills', ()
   assert.equal(args.skillName, 'cloud-hardening-architect');
   assert.equal(args.provider, null);
 });
+
+test('parses offline review capsule comparison', () => {
+  const args = parseArgv(['node', 'linmas', 'review', 'compare', 'before.json', 'after.json', '--output', 'json']);
+  assert.equal(args.reviewAction, 'compare');
+  assert.equal(args.compareBefore, 'before.json');
+  assert.equal(args.compareAfter, 'after.json');
+  assert.equal(args.output, 'json');
+  assert.equal(args.provider, null);
+});

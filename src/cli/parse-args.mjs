@@ -27,6 +27,12 @@ export function parseArgv(argv) {
   };
   const args = argv.slice(2);
   if (args[0] && !args[0].startsWith('--')) result.command = args.shift();
+  if (result.command === 'review' && args[0] === 'compare') {
+    args.shift();
+    result.reviewAction = 'compare';
+    result.compareBefore = args.shift() ?? null;
+    result.compareAfter = args.shift() ?? null;
+  }
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (VALUE_FLAGS.has(arg)) {
