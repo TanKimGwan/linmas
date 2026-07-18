@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "scopeAndAssumptions": [
+    "This is a defensive review of the supplied synthetic diff only."
+  ],
+  "findings": [
+    {
+      "id": "SQLI-001",
+      "status": "Confirmed finding",
+      "severity": "High",
+      "evidence": "The added line interpolates request.query.name directly into a SELECT statement.",
+      "affectedSurface": "findUsers database query",
+      "preconditions": "An untrusted caller controls request.query.name.",
+      "remediation": "Restore the parameterized query and pass the name as a separate bound value.",
+      "verification": "Run a security regression test proving quote characters remain data rather than SQL syntax."
+    }
+  ],
+  "deterministicChecks": [
+    {
+      "id": "security regression test",
+      "completed": true
+    }
+  ],
+  "safetyBoundary": {
+    "satisfied": true,
+    "humanReviewRequired": true,
+    "statement": "Human review remains required."
+  }
+}

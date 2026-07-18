@@ -20,6 +20,7 @@
     "src/",
     "skills/",
     "scripts/",
+    "examples/",
     "evaluations/",
     "policies/",
     "README.md",
@@ -33,6 +34,7 @@
     "validate": "node scripts/validate-skills.mjs",
     "eval:offline": "node scripts/evaluate-offline.mjs",
     "eval:live": "node scripts/evaluate-live.mjs",
+    "demo:judge": "node scripts/demo-build-week.mjs",
     "pack:dry-run": "npm pack --dry-run"
   },
   "keywords": [

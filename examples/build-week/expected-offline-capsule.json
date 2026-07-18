@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "kind": "linmas-review-capsule",
+  "input": {
+    "source": "examples/build-week/insecure-query.diff",
+    "bytes": 340,
+    "sha256": "0fec2d0a7edfa70a3edebfbbdf346c3931021b62bfe931014eebb192c068b3f2"
+  },
+  "execution": {
+    "mode": "offline-fixture",
+    "provider": "fixture",
+    "authMode": "unavailable",
+    "model": "offline-review-fixture",
+    "modelVerified": false,
+    "generatedAt": "2026-07-18T15:00:00.000Z"
+  },
+  "review": {
+    "schemaVersion": 1,
+    "scopeAndAssumptions": [
+      "This is a defensive review of the supplied synthetic diff only."
+    ],
+    "findings": [
+      {
+        "id": "SQLI-001",
+        "status": "Confirmed finding",
+        "severity": "High",
+        "evidence": "The added line interpolates request.query.name directly into a SELECT statement.",
+        "affectedSurface": "findUsers database query",
+        "preconditions": "An untrusted caller controls request.query.name.",
+        "remediation": "Restore the parameterized query and pass the name as a separate bound value.",
+        "verification": "Run a security regression test proving quote characters remain data rather than SQL syntax."
+      }
+    ],
+    "deterministicChecks": [
+      {
+        "id": "security regression test",
+        "completed": true
+      }
+    ],
+    "safetyBoundary": {
+      "satisfied": true,
+      "humanReviewRequired": true,
+      "statement": "Human review remains required."
+    },
+    "caseId": "build-week/insecure-query",
+    "specialist": "secure-code-reviewer",
+    "modelMetadata": {
+      "provider": "fixture",
+      "model": "offline-review-fixture",
+      "usage": null,
+      "requestId": null
+    }
+  },
+  "policy": {
+    "status": "evaluated",
+    "result": {
+      "schemaVersion": 1,
+      "policy": {
+        "id": "baseline-appsec",
+        "version": "1.0.0"
+      },
+      "review": {
+        "caseId": "build-week/insecure-query",
+        "specialist": "secure-code-reviewer"
+      },
+      "decision": "blocked",
+      "rules": [
+        {
+          "id": "checks",
+          "outcome": "met",
+          "decision": "pass",
+          "reason": "All declared checks completed."
+        },
+        {
+          "id": "high",
+          "outcome": "failed",
+          "decision": "blocked",
+          "reason": "Matched findings: SQLI-001"
+        }
+      ],
+      "completedChecks": [
+        "security regression test"
+      ],
+      "outstandingChecks": [],
+      "humanReviewRequired": true,
+      "disclaimer": "This decision only evaluates declared conditions and does not prove security or compliance."
+    }
+  },
+  "safetyBoundary": {
+    "satisfied": true,
+    "humanReviewRequired": true,
+    "statement": "Human review remains required."
+  }
+}
