@@ -64,23 +64,14 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
       }
     },
     safetyBoundary: {
-      anyOf: [
-        {
-          type: 'string',
-          minLength: 1,
-          pattern: '[hH]uman [rR]eview(?: [rR]emains)? [rR]equired'
-        },
-        {
-          type: 'object',
-          additionalProperties: false,
-          required: ['satisfied', 'humanReviewRequired', 'statement'],
-          properties: {
-            satisfied: { type: 'boolean' },
-            humanReviewRequired: { const: true },
-            statement: { type: 'string', minLength: 1 }
-          }
-        }
-      ]
+      type: 'object',
+      additionalProperties: false,
+      required: ['satisfied', 'humanReviewRequired', 'statement'],
+      properties: {
+        satisfied: { type: 'boolean' },
+        humanReviewRequired: { const: true },
+        statement: { type: 'string', minLength: 1 }
+      }
     }
   }
 });

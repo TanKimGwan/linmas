@@ -66,20 +66,16 @@ test('runs Codex read-only with supported pinned flags and reads the final messa
   });
 });
 
-test('safetyBoundary schema accepts canonical case variations', () => {
-  const stringSchema = REVIEW_RESULT_SCHEMA.properties.safetyBoundary.anyOf[0];
-  const objectSchema = REVIEW_RESULT_SCHEMA.properties.safetyBoundary.anyOf[1];
-  assert.equal(stringSchema.type, 'string');
-  const pattern = new RegExp(stringSchema.pattern);
-  assert.ok(pattern.test('Human review remains required.'), 'capitalized form must match');
-  assert.ok(pattern.test('human review remains required.'), 'lowercase form must match');
-  assert.ok(pattern.test('Human review required.'), 'short capitalized form must match');
-  assert.ok(pattern.test('human review required.'), 'short lowercase form must match');
-  assert.ok(!pattern.test('Human review is optional.'), 'different term must not match');
-  assert.ok(!pattern.test('human review optional'), 'missing required must not match');
-  assert.equal(objectSchema.type, 'object');
-  assert.equal(objectSchema.required[1], 'humanReviewRequired');
-  assert.equal(objectSchema.properties.humanReviewRequired.const, true);
+test('safetyBoundary schema enforces canonical object contract only', () => {
+  const schema = REVIEW_RESULT_SCHEMA.properties.safetyBoundary;
+  assert.equal(schema.type, 'object');
+  assert.equal(schema.additionalProperties, false);
+  assert.deepEqual(schema.required, ['satisfied', 'humanReviewRequired', 'statement']);
+  assert.equal(schema.properties.humanReviewRequired.const, true);
+  assert.equal(schema.properties.satisfied.type, 'boolean');
+  assert.equal(schema.properties.statement.type, 'string');
+  assert.equal(schema.properties.statement.minLength, 1);
+  assert.equal(schema.anyOf, undefined, 'string variant must be removed');
 });
 
 test('safetyBoundary schema accepts GitHub fine-grained PAT in redaction', async () => {
@@ -344,7 +340,7 @@ test('Codex output schema enforces contract boundary without requiring caller-in
   assert.deepEqual(props.modelMetadata.properties.requestId.type, ['string', 'null'], 'requestId must be nullable (string | null)');
   assert.equal(props.findings.items.additionalProperties, false, 'finding items must have additionalProperties: false');
   assert.equal(props.deterministicChecks.items.anyOf[1].additionalProperties, false, 'object deterministicCheck must have additionalProperties: false');
-  assert.equal(props.safetyBoundary.anyOf[1].additionalProperties, false, 'object safetyBoundary must have additionalProperties: false');
+  assert.equal(props.safetyBoundary.additionalProperties, false, 'safetyBoundary must have additionalProperties: false');
 });
 
 test('bounded output read accepts response exactly at limit', async () => {

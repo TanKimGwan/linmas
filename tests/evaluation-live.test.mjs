@@ -27,7 +27,7 @@ test('live evaluation injects canonical identity and provider metadata before va
           scopeAndAssumptions: ['Only supplied synthetic material was reviewed.'],
           findings: [],
           deterministicChecks: [],
-          safetyBoundary: 'Human review remains required.'
+          safetyBoundary: { satisfied: true, humanReviewRequired: true, statement: 'Human review remains required.' }
         }),
         usage: null,
         requestId: 'request-1'

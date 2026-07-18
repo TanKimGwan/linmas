@@ -52,13 +52,16 @@ export function validateReviewResult(value, { source = '<result>' } = {}) {
   });
   let safetyBoundary = value.safetyBoundary;
   if (typeof safetyBoundary === 'string') {
-    const humanReviewRequired = /human review\s+(?:remains\s+)?required\b/i.test(safetyBoundary) && !/human review\s+(?:is\s+)?not required\b/i.test(safetyBoundary);
-    if (!humanReviewRequired) throw new Error(`${source}: safety boundary must require human review`);
+    const hasRequired = /human review\s+(?:remains\s+)?required\b/i.test(safetyBoundary);
+    const hasNegation = /human review\s+(?:is\s+)?not required\b/i.test(safetyBoundary);
+    const hasContradiction = /\b(?:auto[ -]?approve(?:d)?|automatically\s+approve(?:d)?|without human review)\b/i.test(safetyBoundary);
+    if (!hasRequired || hasNegation || hasContradiction) throw new Error(`${source}: safety boundary must require human review and must not contain contradictory clauses`);
     safetyBoundary = { satisfied: true, humanReviewRequired: true, statement: safetyBoundary };
   }
   if (!safetyBoundary || typeof safetyBoundary !== 'object' || Array.isArray(safetyBoundary)) throw new Error(`${source}: safetyBoundary is required`);
   for (const key of Object.keys(safetyBoundary)) if (!SAFETY_FIELDS.has(key)) throw new Error(`${source}: unknown safety boundary field ${key}`);
   if (typeof safetyBoundary.satisfied !== 'boolean' || typeof safetyBoundary.humanReviewRequired !== 'boolean') throw new Error(`${source}: safetyBoundary flags are required`);
+  if (safetyBoundary.satisfied !== true || safetyBoundary.humanReviewRequired !== true) throw new Error(`${source}: safetyBoundary must have satisfied and humanReviewRequired set to true`);
   boundedString(safetyBoundary.statement, 'safetyBoundary.statement', source);
   const checkIds = new Set();
   for (const check of checks) if (!checkIds.add(check.id)) throw new Error(`${source}: duplicate deterministic check id ${check.id}`);
