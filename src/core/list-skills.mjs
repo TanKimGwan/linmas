@@ -1,19 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { SKILL_CATALOG, SPECIALIST_IDS } from './skill-catalog.mjs';
 
-export const EXPECTED_SKILLS = [
-  'security-operations-lead',
-  'smart-contract-reviewer',
-  'exploit-validation-specialist',
-  'threat-research-analyst',
-  'detection-rules-engineer',
-  'incident-triage-lead',
-  'controls-compliance-reviewer',
-  'cloud-hardening-architect',
-  'secure-systems-architect',
-  'secure-code-reviewer',
-  'security-domain-router'
-];
+export const EXPECTED_SKILLS = SPECIALIST_IDS;
 
 function readDescription(skillFile) {
   const text = fs.readFileSync(skillFile, 'utf8');
@@ -22,11 +11,14 @@ function readDescription(skillFile) {
 }
 
 export function listSkills(rootDir) {
-  return EXPECTED_SKILLS.map((name) => {
-    const sourceDir = path.join(rootDir, 'skills', name);
+  return SKILL_CATALOG.map((entry) => {
+    const sourceDir = path.join(rootDir, 'skills', entry.skillId);
     const skillFile = path.join(sourceDir, 'SKILL.md');
     return {
-      name,
+      name: entry.skillId,
+      specialistId: entry.specialistId,
+      legacyAliases: entry.legacyAliases,
+      kind: entry.kind,
       description: readDescription(skillFile),
       sourceDir,
       skillFile

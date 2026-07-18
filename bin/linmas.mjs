@@ -12,13 +12,21 @@ import { formatOnboarding } from '../src/core/onboard.mjs';
 import { selectSkills, selectTargets, planInstall, formatInstallPreview, formatInstallSummary, applyInstallPlan, promptForInstallChoices, promptForInstallTarget, promptForInstallConfirmation } from '../src/core/install-skills.mjs';
 import { createTimestamp } from '../src/core/fs-utils.mjs';
 import { planUninstall, formatUninstallPreview, applyUninstallPlan, promptForUninstallChoices, promptForUninstallTarget, promptForUninstallConfirmation } from '../src/core/uninstall-skills.mjs';
+import { runReview } from '../src/review/run-review.mjs';
+import { ReviewError } from '../src/review/errors.mjs';
+import { createProviderRegistry } from '../src/providers/registry.mjs';
+import { createHostRegistry } from '../src/hosts/registry.mjs';
+import { loadPolicyPack } from '../src/policy/load-pack.mjs';
+import { formatSecurityDelta, loadAndCompareCapsules } from '../src/review/compare-capsules.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const modulePath = fileURLToPath(import.meta.url);
 
-export async function run(argv, io = process) {
+export async function run(argv, io = process, dependencies = {}) {
   const args = parseArgv(argv);
+  let hostRegistry;
+  const getDetections = () => detectHosts({ registry: hostRegistry ||= dependencies.hostRegistry || (dependencies.createHostRegistry ?? createHostRegistry)() });
 
   if (args.command === 'list') {
     const skills = listSkills(rootDir);
@@ -30,7 +38,7 @@ export async function run(argv, io = process) {
   }
 
   if (args.command === 'detect') {
-    const detections = detectHosts();
+    const detections = getDetections();
     for (const detection of detections) {
       io.stdout.write(`${detection.host}: ${detection.status}\n`);
       io.stdout.write(`  reason: ${detection.reason}\n`);
@@ -41,7 +49,7 @@ export async function run(argv, io = process) {
   }
 
   if (args.command === 'doctor' || args.command === 'onboard') {
-    const detections = detectHosts();
+    const detections = getDetections();
     const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
 
     if (args.command === 'doctor') {
@@ -54,9 +62,30 @@ export async function run(argv, io = process) {
     return 0;
   }
 
+  if (args.command === 'review') {
+    try {
+      if (args.reviewAction === 'compare') {
+        const delta = await loadAndCompareCapsules(args.compareBefore, args.compareAfter);
+        io.stdout.write(formatSecurityDelta(delta, { output: args.output }));
+        return 0;
+      }
+      const result = await runReview(args, {
+        io,
+        rootDir,
+        providerRegistry: dependencies.providerRegistry || createProviderRegistry(),
+        loadPolicy: loadPolicyPack
+      });
+      io.stdout.write(result.output);
+      return result.exitCode;
+    } catch (error) {
+      io.stderr.write(`Error: ${error.message}\n`);
+      return error instanceof ReviewError ? error.exitCode : 1;
+    }
+  }
+
   if (args.command === 'install') {
     try {
-      const detections = detectHosts();
+      const detections = getDetections();
       const skills = listSkills(rootDir);
       const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
 
@@ -120,7 +149,7 @@ export async function run(argv, io = process) {
 
   if (args.command === 'uninstall') {
     try {
-      const detections = detectHosts();
+      const detections = getDetections();
       const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
       const fullPlan = planUninstall({
         manifests,
@@ -178,7 +207,7 @@ function createProcessIO(proc) {
     ...proc,
     async readLine() {
       const { value, done } = await lines.next();
-      return done ? '' : value;
+      return done ? null : value;
     },
     close() {
       rl.close();

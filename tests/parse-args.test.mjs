@@ -33,3 +33,38 @@ test('parseArgv parses flags and positional skill names independently', () => {
   assert.equal(result.installAll, false);
   assert.equal(result.dryRun, true);
 });
+
+test('parses explicit review file and provider options', () => {
+  assert.deepEqual(parseArgv([
+    'node', 'linmas', 'review', '--skill', 'secure-code-reviewer',
+    '--input', 'patch.diff', '--provider', 'claude', '--model', 'model-id',
+    '--output', 'json', '--capsule', 'review-capsule.json', '--yes'
+  ]), {
+    command: 'review', skillName: 'secure-code-reviewer', installAll: false,
+    dryRun: false, inputPath: 'patch.diff', useStdin: false,
+    provider: 'claude', model: 'model-id', output: 'json', assumeYes: true,
+    policyId: null, policyFile: null, capsulePath: 'review-capsule.json'
+  });
+});
+
+test('parses exactly one policy source', () => {
+  const args = parseArgv(['node', 'linmas', 'review', '--policy', 'baseline-appsec']);
+  assert.equal(args.policyId, 'baseline-appsec');
+  assert.equal(args.policyFile, null);
+});
+
+test('parses review stdin without treating flag values as positional skills', () => {
+  const args = parseArgv(['node', 'linmas', 'review', '--stdin', '--skill', 'cloud-hardening-architect']);
+  assert.equal(args.useStdin, true);
+  assert.equal(args.skillName, 'cloud-hardening-architect');
+  assert.equal(args.provider, null);
+});
+
+test('parses offline review capsule comparison', () => {
+  const args = parseArgv(['node', 'linmas', 'review', 'compare', 'before.json', 'after.json', '--output', 'json']);
+  assert.equal(args.reviewAction, 'compare');
+  assert.equal(args.compareBefore, 'before.json');
+  assert.equal(args.compareAfter, 'after.json');
+  assert.equal(args.output, 'json');
+  assert.equal(args.provider, null);
+});

@@ -1,10 +1,6 @@
 import os from 'node:os';
-import { createClaudeAdapter } from '../hosts/claude.mjs';
-import { createCodexAdapter } from '../hosts/codex.mjs';
+import { createHostRegistry } from '../hosts/registry.mjs';
 
-export function detectHosts({ env = process.env, homedir = os.homedir(), platform = process.platform } = {}) {
-  return [
-    createClaudeAdapter({ homedir }).detect({ env, platform }),
-    createCodexAdapter({ homedir }).detect({ env, platform })
-  ];
+export function detectHosts({ env = process.env, homedir = os.homedir(), platform = process.platform, registry = createHostRegistry({ homedir }) } = {}) {
+  return [...registry.values()].map((adapter) => adapter.detect({ env, platform }));
 }

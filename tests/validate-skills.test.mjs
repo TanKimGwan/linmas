@@ -25,16 +25,16 @@ test('validate-skills secret scan surface includes all published files entries',
   }
 });
 
-test('validate-skills reuses the shared expected skill inventory contract', async () => {
+test('validate-skills reuses the canonical public skill inventory contract', async () => {
   const validatorSource = await readFile(path.join(rootDir, 'scripts', 'validate-skills.mjs'), 'utf8');
 
-  assert.match(validatorSource, /import \{ EXPECTED_SKILLS \} from '\.\.\/src\/core\/list-skills\.mjs';/);
-  assert.match(validatorSource, /const expectedSkills = EXPECTED_SKILLS;/);
+  assert.match(validatorSource, /import \{ PUBLIC_SKILL_IDS \} from '\.\.\/src\/core\/skill-catalog\.mjs';/);
+  assert.match(validatorSource, /const expectedSkills = PUBLIC_SKILL_IDS;/);
   assert.doesNotMatch(validatorSource, /const expectedSkills = \[/);
 });
 
 test('threat-research-analyst documents intelligence advisor focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'threat-research-analyst', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-threat-research-analyst', 'SKILL.md'), 'utf8');
 
   const orderedItems = [
     '## Advisor review protocol',
@@ -62,7 +62,7 @@ test('threat-research-analyst documents intelligence advisor focus', async () =>
 });
 
 test('secure-systems-architect documents systems advisor focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'secure-systems-architect', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-secure-systems-architect', 'SKILL.md'), 'utf8');
   let lastIndex = -1;
 
   for (const item of [
@@ -105,7 +105,7 @@ test('secure-systems-architect documents systems advisor focus', async () => {
 });
 
 test('secure-code-reviewer documents the bounded advisor review contract', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'secure-code-reviewer', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-secure-code-reviewer', 'SKILL.md'), 'utf8');
   const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
 
   for (const requiredText of [
@@ -135,6 +135,35 @@ test('secure-code-reviewer documents the bounded advisor review contract', async
   assert.match(readme, /npm run validate/);
 });
 
+test('README separates installation hosts and execution providers', async () => {
+  const text = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+
+  assert.match(text, /installation hosts/i);
+  assert.match(text, /execution providers/i);
+  assert.match(text, /Claude Code.*Codex|Codex.*Claude Code/is);
+  assert.match(text, /credentials.*(?:not|never).*manifest|manifest.*never.*credentials/is);
+  assert.match(text, /live execution.*opt-in|execution.*explicitly enabled/is);
+  assert.match(text, /additional (?:installation )?hosts.*demand|demand.*additional (?:installation )?hosts/is);
+  assert.match(text, /human review/i);
+});
+
+test('README defines policy decision limits', async () => {
+  const text = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+  assert.match(text, /--policy baseline-appsec/);
+  assert.match(text, /pass.*does not.*secure|does not.*prove.*security/is);
+  assert.match(text, /human review.*required/i);
+  assert.doesNotMatch(text, /certified by Linmas/i);
+});
+
+test('README documents safe review boundaries', async () => {
+  const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+  assert.match(readme, /linmas review --skill secure-code-reviewer --input patch\.diff/);
+  assert.match(readme, /prepare mode/i);
+  assert.match(readme, /no network call/i);
+  assert.match(readme, /data leaves (your|the) machine/i);
+  assert.match(readme, /human review/i);
+});
+
 test('README documents the specialist advisor rollout', async () => {
   const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
 
@@ -152,7 +181,7 @@ test('README documents the specialist advisor rollout', async () => {
 });
 
 test('security-operations-lead documents operational advisor focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'security-operations-lead', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-security-operations-lead', 'SKILL.md'), 'utf8');
 
   for (const text of [
     '## Advisor review protocol',
@@ -170,7 +199,7 @@ test('security-operations-lead documents operational advisor focus', async () =>
 });
 
 test('controls-compliance-reviewer documents controls advisor focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'controls-compliance-reviewer', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-controls-compliance-reviewer', 'SKILL.md'), 'utf8');
 
   // Verify all headers are present and in order
   const headings = [
@@ -244,7 +273,7 @@ test('controls-compliance-reviewer documents controls advisor focus', async () =
 });
 
 test('cloud-hardening-architect documents the cloud advisor contract in order', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'cloud-hardening-architect', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-cloud-hardening-architect', 'SKILL.md'), 'utf8');
   let lastIndex = -1;
 
   for (const item of [
@@ -297,7 +326,7 @@ test('validate-skills rejects a missing secure-code-reviewer advisor requirement
       }
     });
 
-    const skillPath = path.join(tempDir, 'skills', 'secure-code-reviewer', 'SKILL.md');
+    const skillPath = path.join(tempDir, 'skills', 'linmas-secure-code-reviewer', 'SKILL.md');
     const skill = await readFile(skillPath, 'utf8');
     await writeFile(skillPath, skill.replace('### Advisor review mode', '### Removed advisor review mode'));
 
@@ -315,7 +344,7 @@ test('validate-skills rejects a missing secure-code-reviewer advisor requirement
 });
 
 test('smart-contract-reviewer documents contract advisor focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'smart-contract-reviewer', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-smart-contract-reviewer', 'SKILL.md'), 'utf8');
 
   for (const text of ['## Advisor review protocol', '### Advisor review mode', '### Design review mode', '## Quality rubric', '## Recommended deterministic checks', 'asset flow', 'authorization', 'external calls', 'arithmetic/invariants', 'upgrade and admin controls']) {
     assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -323,7 +352,7 @@ test('smart-contract-reviewer documents contract advisor focus', async () => {
 });
 
 test('exploit-validation-specialist documents bounded validation focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'exploit-validation-specialist', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-exploit-validation-specialist', 'SKILL.md'), 'utf8');
 
   for (const text of [
     '## Advisor review protocol',
@@ -350,7 +379,7 @@ test('exploit-validation-specialist documents bounded validation focus', async (
 });
 
 test('detection-rules-engineer documents detection advisor focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'detection-rules-engineer', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-detection-rules-engineer', 'SKILL.md'), 'utf8');
 
   for (const text of ['## Advisor review protocol', 'telemetry prerequisites', 'detection logic', 'false positives', 'tuning', 'test data', 'response path']) {
     assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -376,7 +405,7 @@ test('detection-rules-engineer documents detection advisor focus', async () => {
 });
 
 test('incident-triage-lead documents triage advisor focus', async () => {
-  const skill = await readFile(path.join(rootDir, 'skills', 'incident-triage-lead', 'SKILL.md'), 'utf8');
+  const skill = await readFile(path.join(rootDir, 'skills', 'linmas-incident-triage-lead', 'SKILL.md'), 'utf8');
 
   for (const text of ['## Advisor review protocol', 'evidence integrity', 'incident scope', 'containment/recovery trade-offs', 'ownership', 'rollback']) {
     assert.match(skill, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));

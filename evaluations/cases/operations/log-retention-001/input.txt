@@ -1,0 +1,1 @@
+Logs expire after one day without an archive policy.

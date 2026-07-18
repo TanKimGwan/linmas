@@ -1,0 +1,44 @@
+name: Live advisor evaluation
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-advisor-evaluation
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) # github.event.name == 'schedule' is equivalent in older docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run advisory Claude evaluation
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LINMAS_EVAL_MODEL: ${{ vars.LINMAS_EVAL_MODEL }}
+          LINMAS_EVAL_MAX_CASES: '20'
+          LINMAS_EVAL_REPORT: tmp/live-evaluation.json
+        run: |
+          rm -f "$LINMAS_EVAL_REPORT"
+          npm run eval:live
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: linmas-live-evaluation
+          path: tmp/live-evaluation.json
+          retention-days: 14
+          if-no-files-found: warn

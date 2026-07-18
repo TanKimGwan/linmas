@@ -1,0 +1,1 @@
+A system component is described without deployment details.

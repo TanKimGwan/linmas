@@ -1,295 +1,240 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/linmas.jpg" alt="Linmas logo" width="180">
 
-  <h1>Linmas</h1>
+  <h1>Linmas Proof Review</h1>
 
-  <p><strong>First-line defensive security skills for Claude Code and compatible AI coding agents.</strong></p>
+  <p><strong>Proof-carrying defensive security reviews for AI-assisted software.</strong></p>
 
-  <p>
-    Practical, reviewable, and safety-bounded security guidance for builders, vibe coders, and teams shipping software with AI assistance.
-  </p>
+  <p>Turn one explicit change into a normalized finding, deterministic policy decision, and portable Review Capsule—with human review always required.</p>
 
   <p>
     <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm version" src="https://img.shields.io/npm/v/linmas.svg"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm downloads" src="https://img.shields.io/npm/dm/linmas.svg"></a>
+    <img alt="Node.js 24+" src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white">
     <img alt="Security: defensive only" src="https://img.shields.io/badge/security-defensive_only-16A34A.svg">
-    <img alt="Skills: 11" src="https://img.shields.io/badge/skills-11-0F172A.svg">
-  </p>
-
-  <p>
-    <img alt="Node.js" src="https://img.shields.io/badge/Node.js-339933?logo=node.js&logoColor=white">
-    <img alt="Markdown" src="https://img.shields.io/badge/Markdown-000000?logo=markdown&logoColor=white">
-    <img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-compatible-5B21B6">
-    <img alt="AI Coding Agents" src="https://img.shields.io/badge/AI_Coding_Agents-compatible-2563EB">
   </p>
 </div>
 
----
+## See it in 60 seconds
 
-## What is Linmas?
+From a clone of this repository, with Node.js 24 or newer:
 
-Linmas is an open-source defensive security skill collection for Claude Code and compatible AI coding agents.
-
-Linmas is an open-source security assistant inspired by Indonesia’s community protection concept, Perlindungan Masyarakat. It is not affiliated with any government institution.
-
-It provides reusable security-specialist instructions under `skills/<skill-name>/SKILL.md`, so AI coding agents can help with practical security review, secure architecture, cloud hardening, incident triage, detection engineering, compliance review, and authorized validation work.
-
-Linmas is designed to be:
-
-- **Practical** — focused on concrete checks, remediation guidance, and reviewable outputs.
-- **Defensive** — scoped for authorized security work only.
-- **Reusable** — packaged as installable skills that can be shared across projects.
-- **Beginner-friendly** — useful for builders who may not yet know what security controls to ask for.
-- **Reviewable** — structured so humans can inspect, validate, and reject unsafe or incorrect recommendations.
-
-## Why the name “Linmas”?
-
-**Linmas** stands for **Perlindungan Masyarakat**, an Indonesian community-protection organization formed at the village or urban-neighborhood level to help maintain public safety, order, and community resilience.
-
-Previously known as **Pertahanan Sipil** or **Hansip**, Linmas members often act as a first layer of protection in public activities, disaster response, elections, and local community safety.
-
-This project uses the name Linmas because security should not only be accessible after a team becomes mature enough to hire dedicated security specialists. Many beginner builders and vibe coders ship code before they fully understand authentication risks, authorization flaws, secret exposure, insecure file upload, cloud misconfiguration, logging gaps, dependency risk, or incident response basics.
-
-Linmas is not meant to be the “police”, “military”, or final authority of application security. It is meant to be the **first layer of defense closest to everyday builders**: a practical guardrail that helps people notice risks earlier, ask better security questions, and improve their code before problems reach production.
-
-## Who Linmas is for
-
-Linmas is intended for:
-
-- solo developers and indie hackers building with AI coding agents;
-- vibe coders who need security guidance without becoming security specialists first;
-- engineering teams that want reusable defensive security prompts and checklists;
-- maintainers who want safer review workflows for open-source projects;
-- teams preparing for secure architecture review, cloud hardening, detection engineering, incident triage, or compliance readiness.
-
-## What Linmas includes
-
-The current public package includes:
-
-```text
-skills/       Security skill definitions
-scripts/      Validation and package helper scripts
-README.md     Project documentation
-package.json  npm package metadata and commands
-LICENSE       Apache-2.0 license text
-NOTICE        Attribution guidance
-TRADEMARK.md  Name and branding restrictions
+```bash
+npm install
+npm run demo:judge
 ```
 
-Installable skills are first-class entries under:
+The default judge demo is an **OFFLINE FIXTURE REPLAY — NO MODEL CALL**. It needs no provider credentials and makes no network call. It validates a synthetic SQL-injection change, replays a checked-in normalized result, evaluates the `baseline-appsec` policy, and validates the generated capsule in memory.
+
+What a judge sees:
 
 ```text
-skills/<skill-name>/SKILL.md
+LINMAS PROOF REVIEW
+Execution   OFFLINE FIXTURE REPLAY — NO MODEL CALL
+Finding     Confirmed · High · SQL injection
+Policy      BLOCKED
+Safety      Human review remains required.
+Capsule     Validated in memory
 ```
 
-## Skill catalog
+This is a reproducible demonstration of the review pipeline, not a claim that a model was called during offline replay.
 
-| Skill | Primary use | Typical output |
-|---|---|---|
-| `secure-code-reviewer` | Secure code review, threat modeling, remediation guidance | Vulnerability findings, impact, fixes, review notes |
-| `smart-contract-reviewer` | Authorized Web3, smart contract, and protocol risk review | Contract risk notes, exploitability assessment, safer patterns |
-| `cloud-hardening-architect` | Cloud IAM, segmentation, hardening, platform guardrails | Hardening plan, IAM review, control placement |
-| `controls-compliance-reviewer` | Control mapping, evidence review, audit readiness | Control gaps, evidence checklist, audit notes |
-| `incident-triage-lead` | Incident triage, containment planning, response coordination | Triage plan, containment steps, evidence handling |
-| `exploit-validation-specialist` | Authorized exploit-path validation and proof-of-impact review | Bounded validation plan, proof notes, remediation priority |
-| `secure-systems-architect` | Trust-boundary analysis and secure system design | Architecture risks, control map, safer design options |
-| `security-domain-router` | Selecting the right Linmas specialist for a task | Recommended skill routing and scope clarification |
-| `security-operations-lead` | Monitoring workflows, operational hardening, escalation readiness | Runbooks, alert workflow, operational gaps |
-| `detection-rules-engineer` | SIEM rules, telemetry mapping, alert tuning | Detection logic, rule tuning, telemetry requirements |
-| `threat-research-analyst` | IOC analysis, adversary tracking, defensive intelligence | Threat summary, IOC notes, defensive recommendations |
+## Run a live Codex review
 
-## Installation
+If Codex is already usable on the machine, run the same synthetic case live:
 
-Use `npx` to inspect and install Linmas skills:
+```bash
+npm run demo:judge -- --live --yes
+```
+
+The live demo is intentionally opt-in. `--yes` acknowledges that the named input leaves the machine. To preserve an atomic evidence artifact:
+
+```bash
+npm run demo:judge -- --live --yes --capsule review-capsule.json
+```
+
+Or review your own explicit input:
+
+```bash
+npx linmas review \
+  --skill linmas-secure-code-reviewer \
+  --input patch.diff \
+  --provider codex \
+  --model gpt-5.6-sol \
+  --policy baseline-appsec \
+  --capsule review-capsule.json \
+  --yes
+```
+
+On 2026-07-18, one authorized synthetic run was verified with Codex CLI `0.144.5`, ChatGPT subscription authentication, and the account-visible `gpt-5.6-sol` model. It returned a schema-valid high-severity SQL-injection finding and a blocked policy decision. This is evidence for that tested configuration, not a guarantee that the model is available to every account.
+
+## The Review Capsule
+
+A Review Capsule is a versioned JSON evidence object that connects:
+
+- the SHA-256 digest and byte length of the exact input;
+- the selected Linmas skill and policy;
+- offline fixture or live execution mode;
+- the normalized finding and deterministic policy result;
+- a small allowlisted provider metadata set; and
+- the canonical safety boundary: **Human review remains required.**
+
+Capsules are written with destination preflight and atomic no-overwrite behavior. They deliberately exclude raw provider responses, credentials, email addresses, session identifiers, and request identifiers.
+
+A capsule is not a digital signature, remote attestation, certification, or proof that software is secure. It is a reviewable evidence envelope for a bounded run.
+
+## Compare before and after
+
+Compare two capsules locally, without a provider or network call:
+
+```bash
+linmas review compare before.json after.json
+```
+
+The comparison validates both complete capsules, then reports added, resolved, persistent, and changed findings plus the policy transition. It does not claim that an empty delta proves security.
+
+## Deterministic policy, never automatic approval
+
+Apply a built-in declarative policy after normalization:
+
+```bash
+linmas review --skill linmas-secure-code-reviewer --input patch.diff --provider codex --policy baseline-appsec
+```
+
+Built-in packs are `baseline-appsec`, `cloud-change`, and `release-security`. Local policy files are bounded, schema-validated JSON with no commands, code, expressions, templates, plugins, remote imports, or provider hooks.
+
+Decisions are `pass`, `needs-review`, or `blocked`. A policy `pass` does not prove the change is secure, compliant, certified, or approved. Safety failures fail closed, and **human review is required** for every result.
+
+## Authentication and privacy boundaries
+
+Linmas is subscription-first for Codex. It supports accounts whose Codex installation reports either:
+
+- **ChatGPT subscription** authentication; or
+- a **Codex-managed API key** authentication class.
+
+Linmas does not log you in, ask for an OpenAI API key, or store credentials. Codex owns authentication. Linmas uses the Codex app-server capability surface to classify the current auth mode and list account-visible models, then verifies the explicitly selected model before live execution.
+
+Prepare mode reads only the named input file or explicit stdin, never invokes Git, never scans the repository, and makes no network call:
+
+```bash
+linmas review --skill linmas-secure-code-reviewer --input patch.diff
+```
+
+For compatibility, the legacy alias also resolves:
+
+```bash
+linmas review --skill secure-code-reviewer --input patch.diff
+```
+
+Live execution is separately enabled and visibly confirms that data leaves the machine. Linmas constructs the request from the named input and runs Codex in a managed temporary working directory with a read-only sandbox request, approvals disabled, an ephemeral session, and user config and repository rules ignored.
+
+Those controls reduce ambient influence, but this does not guarantee that Codex cannot read other filesystem paths permitted by the host and Codex sandbox.
+
+Linmas makes no claim of filesystem isolation to the named input. Use live review only with content you are authorized to transmit.
+
+## Linmas-branded security skills
+
+Every public skill is namespaced for discoverability and attribution:
+
+| Skill | Focus |
+|---|---|
+| `linmas-secure-code-reviewer` | Application security findings, threat modeling, and remediation. |
+| `linmas-smart-contract-reviewer` | Authorized smart-contract and protocol risk review. |
+| `linmas-cloud-hardening-architect` | IAM, segmentation, workload, and platform hardening. |
+| `linmas-controls-compliance-reviewer` | Control mapping, evidence, and audit-readiness gaps. |
+| `linmas-incident-triage-lead` | Classification, containment planning, and evidence preservation. |
+| `linmas-exploit-validation-specialist` | Bounded proof-of-impact in authorized environments. |
+| `linmas-secure-systems-architect` | Trust zones, identity, and secure system design. |
+| `linmas-security-domain-router` | Route a request to the appropriate Linmas specialist. |
+| `linmas-security-operations-lead` | Monitoring, escalation, and operational hardening. |
+| `linmas-detection-rules-engineer` | SIEM logic, telemetry mapping, tuning, and false-positive reduction. |
+| `linmas-threat-research-analyst` | IOC analysis and intelligence-to-detection translation. |
+
+Legacy unprefixed names remain aliases for migration, but new documentation and installations use canonical `linmas-*` identities.
+
+### Installation hosts and execution providers
+
+Installation hosts and execution providers are independent:
+
+| Capability | Supported surface |
+|---|---|
+| Installation hosts | Claude Code and Codex managed skill directories |
+| Execution providers | Claude and Codex provider-native configuration |
+
+Credentials are never stored in an installation manifest. Live execution is opt-in. Additional installation hosts remain demand-driven and require testable install/uninstall behavior and a maintenance owner.
 
 ```bash
 npx linmas list
 npx linmas detect
-npx linmas install secure-code-reviewer --dry-run
-```
-
-Install a specific skill:
-
-```bash
-npx linmas install secure-code-reviewer
-```
-
-Install all first-class Linmas skills:
-
-```bash
-npx linmas install --all
-```
-
-Inspect the host and managed-install health:
-
-```bash
+npx linmas onboard
+npx linmas install linmas-secure-code-reviewer --dry-run
+npx linmas install linmas-secure-code-reviewer
 npx linmas doctor
+npx linmas uninstall linmas-secure-code-reviewer
 ```
-
-Remove a Linmas-managed skill:
-
-```bash
-npx linmas uninstall secure-code-reviewer
-```
-
-## CLI command reference
-
-| Command | Purpose |
-|---|---|
-| `npx linmas list` | List available Linmas skills |
-| `npx linmas detect` | Detect compatible AI coding-agent hosts |
-| `npx linmas install <skill>` | Install one skill to a detected host |
-| `npx linmas install --all` | Install all first-class Linmas skills |
-| `npx linmas onboard` | Explain what the skills are for and where they are installed |
-| `npx linmas doctor` | Inspect host detection and managed-install health |
-| `npx linmas uninstall <skill>` | Remove one Linmas-managed skill |
-
-## Suggested workflow
-
-```text
-1. Detect the host environment
-2. Choose the security domain or ask the router skill
-3. Install the relevant Linmas skill
-4. Ask the AI coding agent for a scoped defensive review
-5. Review the output manually
-6. Apply fixes in small commits
-7. Re-run tests, validation, and security checks
-```
-
-## Secure code advisor review
-
-Invoke `secure-code-reviewer` after an agent produces a sensitive diff, code change, configuration, or response. It reviews supplied material; installing Linmas does not automatically filter every agent response.
-
-```text
-Use the Linmas secure-code-reviewer skill in advisor review mode.
-Review the supplied diff for authentication, authorization, input validation,
-secret exposure, insecure file handling, logging gaps, and dependency risks.
-For each item, return Status, Severity, Evidence, Affected surface,
-Preconditions, Remediation, and Verification. Mark missing context as
-Needs validation. Stay within authorized defensive review scope.
-```
-
-Run the relevant project checks after review, such as tests, secret scanning, and `npm run validate`. The advisor complements these deterministic checks; it does not prove that a change is secure. Human review is required before shipping.
 
 ## Security advisor skills
 
-All ten specialist skills support **advisor review mode** for supplied diffs, code, configuration, evidence, or operational proposals, and **design review mode** for defensive plans before implementation. Choose the specialist that fits the task:
+The skill files remain useful directly inside compatible coding agents. Each specialist defines an **advisor review mode**, a **design review mode**, and a stable finding vocabulary:
 
-- `secure-code-reviewer` — application code and secure SDLC;
-- `secure-systems-architect` — cross-system trust boundaries and security design;
-- `cloud-hardening-architect` — cloud IAM, network exposure, and platform controls;
-- `incident-triage-lead` — incident classification, containment, and recovery;
-- `security-operations-lead` — monitoring, alert ownership, and response readiness;
-- `detection-rules-engineer` — telemetry and detection logic;
-- `threat-research-analyst` — adversary research and indicators;
-- `controls-compliance-reviewer` — control evidence and compliance review;
-- `smart-contract-reviewer` — blockchain and smart-contract security; and
-- `exploit-validation-specialist` — authorized, bounded exploit-path validation.
+- **Confirmed finding** — supported by concrete evidence;
+- **Needs validation** — plausible but missing proof;
+- **Recommendation** — preventive improvement rather than a demonstrated defect.
 
-Use `security-domain-router` to choose a specialist when the domain is unclear or the task spans more than one area. The router selects the next workflow; it does not replace specialist assessment.
+`linmas-security-domain-router` selects a specialist while preserving scope and authorization. Optional repository policy can shape agent behavior, but it does not automatically filter every agent response. Human review is required.
 
-Specialist responses distinguish `Confirmed finding`, `Needs validation`, and `Recommendation`. Each finding includes severity, evidence, affected surface, preconditions, remediation, verification, and relevant deterministic checks. Advisors review only supplied material in authorized scope, never approve a change, and do not automatically filter every agent response. Human review is required before shipping.
+## Secure code advisor review
 
-### Optional repository policy
+`linmas-secure-code-reviewer` emphasizes affected surface, preconditions, impact, remediation, and verification. Its deterministic checks are recommendations that run only when invoked. Optional repository policy can strengthen local review conventions but does not automatically filter every agent response or replace human review.
 
-Maintainers may copy this guidance into repository instructions when their host supports repository-local policy:
+## What changed for Build Week
 
-```text
-For defensive security changes, after generating the proposed diff, response, or
-plan, invoke the relevant Linmas specialist in advisor review mode or design review
-mode. Use security-domain-router when the appropriate specialist is unclear. Address
-or explicitly track Confirmed findings, investigate Needs validation items, then run
-applicable tests and validation commands. This policy is optional, does not replace
-human review or deterministic checks, and does not automatically filter every agent response.
-```
+| Before the Build Week implementation | Linmas Proof Review |
+|---|---|
+| A collection of defensive skill instructions | A bounded review workflow plus branded installable skills |
+| Provider output without portable evidence | Strict normalized result and exact-input Review Capsule |
+| Provider-specific credential assumptions | Codex-native ChatGPT subscription or Codex-managed API key discovery |
+| Individual review result | Deterministic policy and offline before/after comparison |
+| Manual product walkthrough | 60-second offline judge demo plus explicit live path |
 
-## Intended use
+Codex contributed as the provider-native review engine, implementation collaborator, and verification surface. Humans chose the scope, authorization boundaries, model, policy thresholds, safety contract, privacy language, publication scope, and final commits. See the [public Build Week evidence](OPENAI_BUILD_WEEK_2026.md) for the verifiable history and reproduction commands.
 
-Linmas is intended for defensive, authorized, and legitimate security work, including:
+## Platform and runtime
 
-- application security review;
-- secure architecture review;
-- cloud security review;
-- incident response support;
-- detection engineering;
-- compliance review;
-- threat intelligence analysis;
-- authorized penetration testing planning and reporting.
+- Node.js `>=24` is required.
+- The offline workflow is provider-independent and deterministic.
+- The verified live evidence was collected on Linux.
+- Codex executable discovery covers native POSIX and Windows layouts; unsafe Windows `.cmd` and `.bat` shims are rejected.
+- A successful live Windows provider run is not currently claimed.
 
-## Safety boundary
+## Command reference
 
-Do not use Linmas for unauthorized access, credential theft, destructive attacks, stealth, persistence, evasion, or harm.
+| Command | Purpose |
+|---|---|
+| `linmas list` | List canonical Linmas skills. |
+| `linmas detect` | Detect supported installation hosts. |
+| `linmas onboard` | Inspect host and Codex account capabilities. |
+| `linmas doctor` | Diagnose managed installations and duplicates. |
+| `linmas install <skill>` | Install one canonical skill; add `--dry-run` to preflight. |
+| `linmas uninstall <skill>` | Remove a Linmas-managed skill. |
+| `linmas review ...` | Prepare locally or execute an explicit provider review. |
+| `linmas review compare before.json after.json` | Compare two capsules offline. |
+| `npm run demo:judge` | Run the deterministic judge demo. |
+| `npm run validate` | Validate package structure, skills, examples, and secrets. |
+| `npm run eval:offline` | Run checked-in evaluation cases without model calls. |
 
-Linmas skills should be used to improve systems you own, maintain, are explicitly authorized to assess, or are helping defend. For dual-use areas such as exploit validation, incident response, Web3 review, and threat intelligence, keep the work bounded, documented, and defensive.
+## Limitations and safety
 
-## Validation
+- Linmas is defensive-only and intended for authorized environments.
+- Model findings can be wrong or incomplete; human review remains required.
+- Linmas never approves, merges, releases, or automatically fixes a change.
+- A policy `pass` or an empty comparison does not prove security.
+- Offline replay is not a fresh model inference.
+- Live review transmits the explicit input to the selected provider after confirmation.
+- No claim is made that a read-only sandbox limits provider reads to the Linmas input.
 
-Run the package validation before publishing or opening a release pull request:
+## Contributing, security, and license
 
-```bash
-npm run validate
-npm run pack:dry-run
-```
+Contributions are welcome through [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities according to the [security policy](.github/SECURITY.md). Community conduct is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-Recommended release sanity checks:
-
-```bash
-npm run validate
-git diff --check
-npm pack --dry-run
-```
-
-Published-package smoke tests must run from a neutral temporary directory, not from inside the Linmas source checkout. Running `npx linmas@<version>` inside the package checkout can produce false negatives due npm/npx same-package resolution behavior.
-
-Use:
-
-```bash
-npm view linmas version
-node scripts/smoke-published-package.mjs 0.1.6
-```
-
-## Design principles
-
-- **Defense first** — every skill should improve legitimate security outcomes.
-- **Human review required** — AI output is guidance, not automatic approval.
-- **Small, inspectable changes** — prefer narrow findings and concrete remediation over broad claims.
-- **Clear safety boundaries** — reject harmful or unauthorized use cases.
-- **Operational usefulness** — recommendations should map to code, configuration, logs, controls, or runbooks.
-- **Public-good orientation** — make baseline security guidance more accessible to everyday builders.
-
-## Roadmap
-
-Planned directions:
-
-- improve installer compatibility across AI coding-agent hosts;
-- expand host detection and doctor checks;
-- add more examples for real-world secure review workflows;
-- improve documentation for beginner security users;
-- maintain stronger validation for skill structure, package contents, and safety boundaries.
-
-## Contributing
-
-Contributions are welcome when they improve defensive security quality, clarity, safety, or usability.
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full contributing guide.
-
-Before contributing:
-
-1. Keep skill behavior defensive and authorization-bounded.
-2. Keep instructions concrete and reviewable.
-3. Avoid vague security claims that cannot be tested.
-4. Run validation before submitting changes.
-5. Preserve licensing, attribution, and trademark boundaries.
-
-## Licensing and attribution
-
-Linmas is licensed under the **Apache License 2.0**.
-
-See:
-
-- [`LICENSE`](LICENSE) for the full license text;
-- [`NOTICE`](NOTICE) for attribution guidance;
-- [`TRADEMARK.md`](TRADEMARK.md) for name and branding restrictions.
-
-Apache-2.0 allows commercial and noncommercial use, redistribution, and modification. Linmas branding is not part of the software license. If you redistribute or adapt Linmas, keep attribution intact and use distinct branding for derivative projects.
+Linmas is licensed under [Apache-2.0](LICENSE). See [NOTICE](NOTICE) and [TRADEMARK.md](TRADEMARK.md) for attribution and name-use guidance. Linmas is inspired by Indonesia's community-protection concept, *Perlindungan Masyarakat*, and is not affiliated with a government institution or endorsed by OpenAI.

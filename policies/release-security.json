@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "release-security",
+  "version": "1.0.0",
+  "description": "Release change security review conditions",
+  "specialists": [
+    "secure-code-reviewer",
+    "cloud-hardening-architect",
+    "smart-contract-reviewer",
+    "detection-rules-engineer",
+    "incident-triage-lead",
+    "security-operations-lead",
+    "controls-compliance-reviewer",
+    "exploit-validation-specialist",
+    "secure-systems-architect",
+    "threat-research-analyst"
+  ],
+  "modes": [
+    "advisor-review"
+  ],
+  "acceptedInputs": [
+    "text",
+    "diff",
+    "code"
+  ],
+  "rules": [
+    {
+      "id": "release-checks",
+      "type": "minimum-checks",
+      "checks": [
+        "security regression test",
+        "human release review"
+      ]
+    },
+    {
+      "id": "critical-release-findings",
+      "type": "finding-threshold",
+      "severities": [
+        "Critical"
+      ],
+      "statuses": [
+        "Confirmed finding"
+      ],
+      "status": "blocked"
+    },
+    {
+      "id": "high-release-findings",
+      "type": "finding-threshold",
+      "severities": [
+        "High"
+      ],
+      "statuses": [
+        "Confirmed finding"
+      ],
+      "status": "needs-review"
+    }
+  ],
+  "humanReview": {
+    "required": true,
+    "statement": "A human reviewer must approve the decision."
+  }
+}

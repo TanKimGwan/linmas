@@ -1,7 +1,7 @@
 {
   "name": "linmas",
-  "version": "0.1.8",
-  "description": "Defensive security skill collection for Claude Code and compatible AI coding agents.",
+  "version": "0.3.0",
+  "description": "Proof-carrying defensive security reviews for Codex and compatible AI coding agents.",
   "homepage": "https://github.com/TanKimGwan/linmas#readme",
   "bugs": {
     "url": "https://github.com/TanKimGwan/linmas/issues"
@@ -20,7 +20,11 @@
     "src/",
     "skills/",
     "scripts/",
+    "examples/",
+    "evaluations/",
+    "policies/",
     "README.md",
+    "OPENAI_BUILD_WEEK_2026.md",
     "package.json",
     "LICENSE",
     "NOTICE",
@@ -29,8 +33,10 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "validate": "node scripts/validate-skills.mjs",
-    "pack:dry-run": "npm pack --dry-run",
-    "smoke:published": "node scripts/smoke-published-package.mjs"
+    "eval:offline": "node scripts/evaluate-offline.mjs",
+    "eval:live": "node scripts/evaluate-live.mjs",
+    "demo:judge": "node scripts/demo-build-week.mjs",
+    "pack:dry-run": "npm pack --dry-run"
   },
   "keywords": [
     "claude",
@@ -41,7 +47,9 @@
     "secops",
     "incident-response",
     "threat-detection",
-    "compliance"
+    "compliance",
+    "codex",
+    "security-review"
   ],
   "engines": {
     "node": ">=24"
