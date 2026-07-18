@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createClaudeRunner } from './claude-api.mjs';
+import { createCodexCapabilityProbe } from './codex-capabilities.mjs';
 import { createManagedCodexRunner } from './codex-cli.mjs';
 import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
 
@@ -27,7 +28,14 @@ function isDirectExecutable(binary, platform) {
   return typeof binary === 'string' && (platform !== 'win32' || !/\.(?:cmd|bat)$/i.test(binary));
 }
 
-export function createProviderRegistry({ env = process.env, platform = process.platform, fetchImpl = fetch, spawnImpl, binaryLookup = defaultBinaryLookup } = {}) {
+export function createProviderRegistry({
+  env = process.env,
+  platform = process.platform,
+  fetchImpl = fetch,
+  spawnImpl,
+  binaryLookup = defaultBinaryLookup,
+  createCodexCapabilityProbeImpl = createCodexCapabilityProbe
+} = {}) {
   const claude = {
     id: 'claude',
     detectConfiguration({ env: source = env } = {}) {
@@ -54,6 +62,24 @@ export function createProviderRegistry({ env = process.env, platform = process.p
           ? 'codex .cmd/.bat shims are unsupported without a shell; install a direct executable'
           : !source.LINMAS_EVAL_MODEL ? 'LINMAS_EVAL_MODEL is not set' : 'codex binary and LINMAS_EVAL_MODEL are configured';
       return { provider: 'codex', status: binaryAvailable && source.LINMAS_EVAL_MODEL ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
+    },
+    async discoverCapabilities({ includeModels = false, signal, timeoutMs } = {}) {
+      const binary = binaryLookup('codex', { env, platform });
+      if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
+      if (!isDirectExecutable(binary, platform) && binary !== true) {
+        throw new ReviewError('Codex .cmd/.bat shims are unsupported without a shell; install a direct executable', 'provider-configuration', EXIT_CODES.PROVIDER);
+      }
+      try {
+        const probe = createCodexCapabilityProbeImpl({
+          command: typeof binary === 'string' ? binary : 'codex',
+          spawnImpl,
+          ...(timeoutMs === undefined ? {} : { timeoutMs })
+        });
+        if (!probe || typeof probe.read !== 'function') throw providerConfiguration('Codex capability probe is invalid');
+        return await probe.read({ includeModels, signal });
+      } catch (error) {
+        throw translateProviderError(error);
+      }
     },
     create({ model, timeoutMs, cwd } = {}) {
       const resolvedModel = model ?? env.LINMAS_EVAL_MODEL;

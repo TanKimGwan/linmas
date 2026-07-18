@@ -145,3 +145,65 @@ test('Codex reports a Windows CMD shim as unsupported instead of failing at runt
     (error) => error instanceof ReviewError && error.category === 'provider-configuration' && /shims are unsupported/.test(error.message)
   );
 });
+
+test('Codex capability discovery uses the same direct executable and returns sanitized capabilities', async () => {
+  const binary = path.join('/tmp', 'Codex Tools', 'codex');
+  const factoryCalls = [];
+  const readCalls = [];
+  const registry = createProviderRegistry({
+    env: { PATH: '/tmp/Codex Tools' },
+    platform: 'linux',
+    binaryLookup() { return binary; },
+    createCodexCapabilityProbeImpl(options) {
+      factoryCalls.push(options);
+      return {
+        async read(options) {
+          readCalls.push(options);
+          return {
+            authMode: 'chatgpt',
+            requiresOpenaiAuth: true,
+            models: [{ id: 'model-id', model: 'model-id', isDefault: true }]
+          };
+        }
+      };
+    }
+  });
+
+  const signal = new AbortController().signal;
+  const result = await registry.get('codex').discoverCapabilities({ includeModels: true, signal, timeoutMs: 1234 });
+
+  assert.equal(factoryCalls.length, 1);
+  assert.equal(factoryCalls[0].command, binary);
+  assert.equal(factoryCalls[0].timeoutMs, 1234);
+  assert.deepEqual(readCalls, [{ includeModels: true, signal }]);
+  assert.deepEqual(result, {
+    authMode: 'chatgpt',
+    requiresOpenaiAuth: true,
+    models: [{ id: 'model-id', model: 'model-id', isDefault: true }]
+  });
+});
+
+test('Codex capability discovery fails before spawning for missing or unsupported binaries', async () => {
+  let factoryCalled = false;
+  const missing = createProviderRegistry({
+    env: {},
+    binaryLookup() { return null; },
+    createCodexCapabilityProbeImpl() { factoryCalled = true; }
+  });
+  await assert.rejects(
+    missing.get('codex').discoverCapabilities(),
+    (error) => error instanceof ReviewError && error.category === 'provider-configuration' && /not configured/.test(error.message)
+  );
+
+  const unsupported = createProviderRegistry({
+    env: { PATH: 'C:\\tools' },
+    platform: 'win32',
+    binaryLookup() { return 'C:\\tools\\codex.CMD'; },
+    createCodexCapabilityProbeImpl() { factoryCalled = true; }
+  });
+  await assert.rejects(
+    unsupported.get('codex').discoverCapabilities(),
+    (error) => error instanceof ReviewError && error.category === 'provider-configuration' && /shims are unsupported/.test(error.message)
+  );
+  assert.equal(factoryCalled, false);
+});
