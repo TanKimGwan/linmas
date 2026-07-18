@@ -35,3 +35,23 @@ test('review missing input returns input exit code', async () => {
   assert.equal(await run(['node', 'linmas.mjs', 'review'], capture), 2);
   assert.match(capture.stderrText, /exactly one of --input or --stdin/);
 });
+
+test('review confirmation EOF returns input exit code without creating provider runner', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-review-'));
+  try {
+    fs.writeFileSync(path.join(root, 'input.txt'), 'safe review input');
+    const capture = io();
+    capture.isTTY = true;
+    capture.readLine = async () => null;
+    let created = false;
+    const providerRegistry = new Map([['fake', { create() { created = true; return { run() {} }; } }]]);
+    const code = await run([
+      'node', 'linmas.mjs', 'review', '--skill', 'secure-code-reviewer', '--input', path.join(root, 'input.txt'), '--provider', 'fake'
+    ], capture, { providerRegistry });
+    assert.equal(code, 2);
+    assert.match(capture.stderrText, /outbound transmission not confirmed/);
+    assert.equal(created, false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

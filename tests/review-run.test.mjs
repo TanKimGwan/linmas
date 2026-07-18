@@ -63,6 +63,29 @@ test('execution reports outbound boundary and requires confirmation', async () =
   assert.match(io.written(), /source: input\.txt[\s\S]*bytes:[\s\S]*provider: fake[\s\S]*data leaves this machine: yes/i);
 });
 
+test('execution fails closed on EOF, undefined, blank, and whitespace confirmation', async () => {
+  for (const confirmation of [null, undefined, '', '   ']) {
+    let created = false;
+    const io = fakeIo([], { isTTY: true });
+    io.readLine = async () => confirmation;
+    const providerRegistry = new Map([['fake', { create() { created = true; return { run() {} }; } }]]);
+    await assert.rejects(
+      runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'text' }, { cwd: fixtureDir, io, providerRegistry }),
+      (error) => error instanceof ReviewError && error.category === 'input' && error.exitCode === EXIT_CODES.INPUT && /not confirmed/.test(error.message)
+    );
+    assert.equal(created, false, `provider must not be created for confirmation ${String(confirmation)}`);
+  }
+});
+
+test('execution accepts mixed-case yes confirmation', async () => {
+  let called = false;
+  const io = fakeIo([' YeS '], { isTTY: true });
+  const providerRegistry = new Map([['fake', { create() { return { async run() { called = true; return { provider: 'fake', model: 'fake-model', rawResponse: validResult }; } }; } }]]);
+  const result = await runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json' }, { cwd: fixtureDir, io, providerRegistry });
+  assert.equal(result.exitCode, EXIT_CODES.OK);
+  assert.equal(called, true);
+});
+
 test('execution invokes the fake provider only after --yes', async () => {
   let called = false;
   const io = fakeIo();

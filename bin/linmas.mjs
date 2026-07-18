@@ -66,7 +66,7 @@ export async function run(argv, io = process, dependencies = {}) {
       const result = await runReview(args, {
         io,
         rootDir,
-        providerRegistry: createProviderRegistry(),
+        providerRegistry: dependencies.providerRegistry || createProviderRegistry(),
         loadPolicy: loadPolicyPack
       });
       io.stdout.write(result.output);

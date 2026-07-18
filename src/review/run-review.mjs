@@ -38,7 +38,8 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   io.stdout.write(summary);
   if (!args.assumeYes) {
     if (!io.isTTY) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);
-    if ((await io.readLine()).trim().toLowerCase() !== 'yes') {
+    const confirmation = await io.readLine();
+    if (typeof confirmation !== 'string' || confirmation.trim().toLowerCase() !== 'yes') {
       throw new ReviewError('outbound transmission not confirmed', 'input', EXIT_CODES.INPUT);
     }
   }
