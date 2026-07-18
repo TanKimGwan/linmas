@@ -1,0 +1,57 @@
+name: Propose main to dev ancestry sync
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: main-to-dev-sync
+  cancel-in-progress: false
+
+jobs:
+  propose-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create ancestry sync pull request when needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          REPO="$GITHUB_REPOSITORY"
+          MAIN_SHA="$GITHUB_SHA"
+          DEV_SHA="$(gh api "repos/$REPO/git/ref/heads/dev" --jq '.object.sha')"
+          AHEAD_BY="$(gh api "repos/$REPO/compare/$DEV_SHA...$MAIN_SHA" --jq '.ahead_by')"
+
+          if [ "$AHEAD_BY" -eq 0 ]; then
+            echo "dev already contains main"
+            exit 0
+          fi
+
+          OPEN_COUNT="$(gh pr list --repo "$REPO" --base dev --state open --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/sync-main-to-dev-"))] | length')"
+          if [ "$OPEN_COUNT" -gt 0 ]; then
+            echo "an ancestry sync pull request is already open"
+            exit 0
+          fi
+
+          BRANCH="automation/sync-main-to-dev-${GITHUB_RUN_ID}"
+          CREATED_REF=0
+          cleanup() {
+            if [ "$CREATED_REF" -eq 1 ]; then
+              gh api --method DELETE "repos/$REPO/git/refs/heads/$BRANCH" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup ERR
+
+          gh api --method POST "repos/$REPO/git/refs" -f ref="refs/heads/$BRANCH" -f sha="$MAIN_SHA" >/dev/null
+          CREATED_REF=1
+          gh pr create \
+            --repo "$REPO" \
+            --base dev \
+            --head "$BRANCH" \
+            --title "chore: sync main ancestry back to dev" \
+            --body "Main contains promotion commits that are not yet in dev. Merge this PR to keep the protected branch histories aligned."
+          CREATED_REF=0

@@ -253,9 +253,25 @@ test('pr target guard workflow enforces dev-first promotion to main', () => {
   assert.match(text, /head.*dev|dev.*head/s);
 });
 
+test('main pushes propose a no-force ancestry sync PR back to dev', () => {
+  const text = read('.github/workflows/sync-main-to-dev.yml');
+  assert.match(text, /push:\s*\n\s*branches:\s*\[main\]/);
+  assert.match(text, /contents:\s*write/);
+  assert.match(text, /pull-requests:\s*write/);
+  assert.match(text, /group:\s*main-to-dev-sync/);
+  assert.match(text, /\.ahead_by/);
+  assert.match(text, /automation\/sync-main-to-dev-\$\{GITHUB_RUN_ID\}/);
+  assert.match(text, /gh api --method POST/);
+  assert.match(text, /gh pr create[\s\S]*--base dev/);
+  assert.match(text, /--head "\$BRANCH"/);
+  assert.doesNotMatch(text, /force|gh pr merge|auto-merge/i);
+});
+
 test('branch policy docs state main is public-facing and dev is the normal PR target', () => {
   const contributing = read('CONTRIBUTING.md');
   assert.match(contributing, /pull requests go to `dev`/i);
+  const setup = read('.github/REPOSITORY_SETUP.md');
+  assert.match(setup, /main-to-dev ancestry sync PR/i);
   // ponytail: PUBLIC_RELEASE_CHECKLIST.md and QUALITY_GATES.md are internal-only docs
   // removed from remote; branch policy assertions retained via CONTRIBUTING.md
 });
@@ -278,4 +294,3 @@ test('public repo baseline docs exist and README links the contributing guide', 
   assert.match(security, /response/i);
   assert.match(conduct, /Contributor Covenant/i);
 });
-

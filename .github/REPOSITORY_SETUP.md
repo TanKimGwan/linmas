@@ -51,6 +51,12 @@ gh api repos/$REPO/branches/dev/protection \
 
 > **Note:** Branch protection via API may require a GitHub plan that supports it. If the API returns an error, configure manually in the GitHub UI.
 
+### Promotion ancestry sync
+
+After a `dev` to `main` promotion is merged, `sync-main-to-dev.yml` checks whether the promotion commit is absent from `dev`. When needed, it creates a main-to-dev ancestry sync PR from a uniquely named automation branch. The workflow never merges the PR itself; normal protection and required checks still apply.
+
+Enable **Allow GitHub Actions to create and approve pull requests** under repository Actions settings so the workflow can create the synchronization PR.
+
 ## 4. Secrets
 
 - `NPM_TOKEN` — required only for the release workflow (`npm publish --access public`).
@@ -67,6 +73,7 @@ gh api repos/$REPO/branches/dev/protection \
 - Enable Actions in the new repo (Settings → Actions → Allow all actions).
 - After first push, confirm `ci.yml` runs on push/PR.
 - The `verify` status check is required by branch protection — it is the job name in `ci.yml`.
+- Confirm a promotion push can create a main-to-dev ancestry sync PR.
 
 ## 6. Repo Metadata
 
