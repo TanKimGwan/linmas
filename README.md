@@ -39,6 +39,24 @@ Capsule     Validated in memory
 
 This is a reproducible demonstration of the review pipeline, not a claim that a model was called during offline replay.
 
+## Why the name “Linmas”?
+
+**Linmas** stands for **Perlindungan Masyarakat**—an Indonesian phrase for community protection. The name reflects the idea that useful protection should be close to the people doing the work, available before a problem becomes an incident, and understandable enough to support better human decisions.
+
+That idea matters for AI-assisted software. Solo developers, indie hackers, vibe coders, maintainers, and engineering teams can ship quickly without always having a dedicated security specialist nearby. Linmas gives them a practical first checkpoint: focused security skills, a bounded review workflow, deterministic policy, and portable evidence that can be inspected rather than blindly trusted.
+
+Linmas is not the “police”, “military”, or final authority of application security. It is intended to be the **first layer of defense closest to everyday builders**—helping people notice risks earlier, ask better questions, and bring stronger evidence to the humans responsible for the final decision.
+
+This open-source project is independently developed. It is not affiliated with any government institution, and its name does not imply government authority, certification, or endorsement. It is also not endorsed by OpenAI.
+
+### Who Linmas is for
+
+- solo developers and indie hackers building with AI coding agents;
+- vibe coders who need security guidance without becoming security specialists first;
+- engineering teams that want repeatable defensive review and evidence;
+- maintainers who want safer review workflows for open-source projects; and
+- security practitioners who need bounded specialist instructions for authorized work.
+
 ## Run a live Codex review
 
 If Codex is already usable on the machine, run the same synthetic case live:
