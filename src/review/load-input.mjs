@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fingerprintReviewInput } from './build-capsule.mjs';
 import { EXIT_CODES, ReviewError } from './errors.mjs';
 
 export async function loadReviewInput({ inputPath = null, useStdin = false, stdin, cwd = process.cwd(), maxBytes = 65536 } = {}) {
@@ -42,5 +43,5 @@ export async function loadReviewInput({ inputPath = null, useStdin = false, stdi
   }
 
   if (buffer.includes(0)) throw new ReviewError('binary input is not supported', 'input', EXIT_CODES.INPUT);
-  return { source, content: buffer.toString('utf8'), bytes: buffer.length };
+  return { source, content: buffer.toString('utf8'), bytes: buffer.length, sha256: fingerprintReviewInput(buffer) };
 }

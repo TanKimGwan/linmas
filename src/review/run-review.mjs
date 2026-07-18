@@ -7,17 +7,25 @@ import { prepareProviderExecution } from '../providers/registry.mjs';
 import { loadPolicyPack } from '../policy/load-pack.mjs';
 import { evaluatePolicy } from '../policy/evaluate-policy.mjs';
 import { formatPolicyResult } from '../policy/format-policy.mjs';
+import { buildReviewCapsule } from './build-capsule.mjs';
+import { preflightCapsuleDestination, writeReviewCapsule } from './write-capsule.mjs';
 
-export async function runReview(args, { io, cwd = process.cwd(), rootDir, providerRegistry, loadPolicy = loadPolicyPack }) {
+export async function runReview(args, { io, cwd = process.cwd(), rootDir, providerRegistry, loadPolicy = loadPolicyPack, now = () => new Date() }) {
   if (args.policyId && args.policyFile) {
     throw new ReviewError('provide exactly one policy id or policy file', 'input', EXIT_CODES.INPUT);
   }
   if ((args.policyId || args.policyFile) && !args.provider) {
     throw new ReviewError('policy evaluation requires --provider', 'input', EXIT_CODES.INPUT);
   }
+  if (args.capsulePath && !args.provider) {
+    throw new ReviewError('capsule generation requires --provider', 'input', EXIT_CODES.INPUT);
+  }
 
   const input = await loadReviewInput({ inputPath: args.inputPath, useStdin: args.useStdin, stdin: io.stdin, cwd });
   const request = prepareReview({ input, skillName: args.skillName });
+  const capsuleTarget = args.capsulePath
+    ? await preflightCapsuleDestination(args.capsulePath, { cwd })
+    : null;
 
   if (!args.provider) {
     return {
@@ -55,29 +63,43 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     specialist: request.specialist
   });
 
-  if (!args.policyId && !args.policyFile) {
-    return { exitCode: EXIT_CODES.OK, output: formatReviewResult(reviewResult, { output: args.output }) };
+  let policyResult = null;
+  if (args.policyId || args.policyFile) {
+    const policy = loadPolicy({
+      id: args.policyId,
+      filePath: args.policyFile,
+      rootDir,
+      cwd
+    });
+    if (!policy.specialists.includes(reviewResult.specialist)) {
+      throw new ReviewError(`policy does not accept specialist: ${reviewResult.specialist}`, 'input', EXIT_CODES.INPUT);
+    }
+    if (!policy.modes.includes(request.mode)) {
+      throw new ReviewError(`policy does not accept mode: ${request.mode}`, 'input', EXIT_CODES.INPUT);
+    }
+    policyResult = evaluatePolicy(policy, reviewResult);
   }
 
-  const policy = loadPolicy({
-    id: args.policyId,
-    filePath: args.policyFile,
-    rootDir,
-    cwd
-  });
-  if (!policy.specialists.includes(reviewResult.specialist)) {
-    throw new ReviewError(`policy does not accept specialist: ${reviewResult.specialist}`, 'input', EXIT_CODES.INPUT);
+  if (capsuleTarget) {
+    const capsule = buildReviewCapsule({
+      input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
+      execution: {
+        mode: 'live',
+        provider: reviewResult.modelMetadata.provider,
+        authMode: execution.metadata.authMode,
+        model: reviewResult.modelMetadata.model,
+        modelVerified: execution.metadata.modelVerified === true
+          && execution.metadata.model === reviewResult.modelMetadata.model
+      },
+      review: reviewResult,
+      policyResult,
+      now: now()
+    });
+    await writeReviewCapsule(capsuleTarget, capsule);
   }
-  if (!policy.modes.includes(request.mode)) {
-    throw new ReviewError(`policy does not accept mode: ${request.mode}`, 'input', EXIT_CODES.INPUT);
-  }
-  const policyResult = evaluatePolicy(policy, reviewResult);
-  if (args.output === 'json') {
-    return {
-      exitCode: EXIT_CODES.OK,
-      output: `${JSON.stringify({ review: reviewResult, policy: policyResult }, null, 2)}\n`
-    };
-  }
+
+  if (!policyResult) return { exitCode: EXIT_CODES.OK, output: formatReviewResult(reviewResult, { output: args.output }) };
+  if (args.output === 'json') return { exitCode: EXIT_CODES.OK, output: `${JSON.stringify({ review: reviewResult, policy: policyResult }, null, 2)}\n` };
   return {
     exitCode: EXIT_CODES.OK,
     output: `${formatReviewResult(reviewResult)}\n${formatPolicyResult(policyResult)}`

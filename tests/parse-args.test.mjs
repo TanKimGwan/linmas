@@ -38,12 +38,12 @@ test('parses explicit review file and provider options', () => {
   assert.deepEqual(parseArgv([
     'node', 'linmas', 'review', '--skill', 'secure-code-reviewer',
     '--input', 'patch.diff', '--provider', 'claude', '--model', 'model-id',
-    '--output', 'json', '--yes'
+    '--output', 'json', '--capsule', 'review-capsule.json', '--yes'
   ]), {
     command: 'review', skillName: 'secure-code-reviewer', installAll: false,
     dryRun: false, inputPath: 'patch.diff', useStdin: false,
     provider: 'claude', model: 'model-id', output: 'json', assumeYes: true,
-    policyId: null, policyFile: null
+    policyId: null, policyFile: null, capsulePath: 'review-capsule.json'
   });
 });
 
