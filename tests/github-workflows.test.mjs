@@ -62,7 +62,8 @@ test('live evaluation workflow is trusted, scheduled, and bounded', () => {
   assert.match(text, /persist-credentials:\s*false/);
   assert.match(text, /timeout-minutes:/);
   assert.match(text, /github\.event(?:_name|\.name) == 'schedule'/);
-  assert.match(text, /ANTHROPIC_API_KEY:\s*\$\{\{ secrets\.ANTHROPIC_API_KEY \}\}/);
+  assert.match(text, /CODEX_API_KEY:\s*\$\{\{ secrets\.CODEX_API_KEY \}\}/);
+  assert.match(text, /LINMAS_EVAL_PROVIDER:\s*codex/);
   assert.match(text, /LINMAS_EVAL_MODEL:\s*\$\{\{ vars\.LINMAS_EVAL_MODEL \}\}/);
   assert.match(text, /retention-days:\s*14/);
 });
@@ -159,22 +160,28 @@ test('internal planning docs stay out of the shared repo surface', () => {
 test('workflows use modern action major versions', () => {
   const ci = fs.readFileSync(path.resolve('.github/workflows/ci.yml'), 'utf8');
   const release = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  const tagRelease = fs.readFileSync(path.resolve('.github/workflows/tag-release.yml'), 'utf8');
+  const liveEvaluation = fs.readFileSync(path.resolve('.github/workflows/evaluation-live.yml'), 'utf8');
   const provenance = fs.readFileSync(path.resolve('.github/workflows/generator-generic-ossf-slsa3-publish.yml'), 'utf8');
+  const maintained = ci + release + tagRelease + liveEvaluation;
 
   assert.match(ci, /actions\/checkout@v7/);
-  assert.match(ci, /actions\/setup-node@v6/);
+  assert.match(ci, /actions\/setup-node@v7/);
 
   assert.match(release, /actions\/checkout@v7/);
-  assert.match(release, /actions\/setup-node@v6/);
+  assert.match(release, /actions\/setup-node@v7/);
   assert.match(release, /actions\/upload-artifact@v7/);
+  assert.match(tagRelease, /actions\/checkout@v7/);
+  assert.match(tagRelease, /actions\/setup-node@v7/);
+  assert.match(liveEvaluation, /actions\/checkout@v7/);
+  assert.match(liveEvaluation, /actions\/setup-node@v7/);
+  assert.match(liveEvaluation, /actions\/upload-artifact@v7/);
   assert.match(release, /npm install -g npm@11/);
   assert.match(release, /softprops\/action-gh-release@v3/);
 
   assert.match(provenance, /actions\/download-artifact@v8/);
 
-  assert.doesNotMatch(ci + release + provenance, /actions\/checkout@v6/);
-  assert.doesNotMatch(ci + release, /actions\/setup-node@v5/);
-  assert.doesNotMatch(release, /actions\/upload-artifact@v5/);
+  assert.doesNotMatch(maintained, /actions\/(?:checkout|setup-node|upload-artifact)@v[1-6]\b/);
   assert.doesNotMatch(release, /softprops\/action-gh-release@v2/);
   assert.doesNotMatch(provenance, /actions\/download-artifact@v5/);
 });
@@ -256,8 +263,6 @@ test('public repo baseline docs exist and README links the contributing guide', 
   assert.match(security, /response/i);
   assert.match(conduct, /Contributor Covenant/i);
 });
-
-
 
 
 
