@@ -83,6 +83,24 @@ test('live demo requires explicit confirmation and never falls back after provid
   assert.doesNotMatch(failedIo.stdoutText, /OFFLINE FIXTURE REPLAY/);
 });
 
+test('live demo forwards an explicit account-visible model to Codex execution', async () => {
+  const io = captureIo();
+  let received;
+  const code = await runBuildWeekDemo(['--live', '--yes', '--model', 'gpt-5.6-sol'], {
+    rootDir,
+    io,
+    async runReviewImpl(options) {
+      received = options;
+      return { output: 'live result\n', exitCode: 0 };
+    },
+    createProviderRegistryImpl() { return new Map(); }
+  });
+  assert.equal(code, 0);
+  assert.equal(received.model, 'gpt-5.6-sol');
+  assert.equal(received.provider, 'codex');
+  assert.equal(io.stdoutText, 'live result\n');
+});
+
 test('Build Week synthetic fixture and demo are included by npm pack', () => {
   const packed = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--cache', path.join(os.tmpdir(), 'linmas-npm-cache')], {
     cwd: rootDir,

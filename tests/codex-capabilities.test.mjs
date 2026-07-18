@@ -148,12 +148,15 @@ test('selects an explicit account-visible model and rejects unavailable explicit
   );
 });
 
-test('automatic selection uses one verified GPT-5.6 default and fails on ambiguity or absence', () => {
+test('automatic selection follows one account-visible default without pinning a model generation', () => {
   assert.equal(selectCodexModel([
-    { id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', isDefault: true },
-    { id: 'gpt-5.6-terra', model: 'gpt-5.6-terra', isDefault: false },
-    { id: 'gpt-5.5', model: 'gpt-5.5', isDefault: false }
-  ]), 'gpt-5.6-sol');
+    { id: 'future-default', model: 'future-default', isDefault: true },
+    { id: 'gpt-5.6-sol', model: 'gpt-5.6-sol', isDefault: false }
+  ]), 'future-default');
+
+  assert.equal(selectCodexModel([
+    { id: 'only-visible-model', model: 'only-visible-model', isDefault: false }
+  ]), 'only-visible-model');
 
   assert.throws(
     () => selectCodexModel([
@@ -165,7 +168,14 @@ test('automatic selection uses one verified GPT-5.6 default and fails on ambigui
       && /gpt-5\.6-sol, gpt-5\.6-terra/.test(error.message)
   );
   assert.throws(
-    () => selectCodexModel([{ id: 'gpt-5.5', model: 'gpt-5.5', isDefault: true }]),
-    (error) => error.category === 'provider-configuration' && /no compatible GPT-5\.6 model/i.test(error.message)
+    () => selectCodexModel([
+      { id: 'default-one', model: 'default-one', isDefault: true },
+      { id: 'default-two', model: 'default-two', isDefault: true }
+    ]),
+    (error) => error.category === 'provider-configuration' && /multiple default models/i.test(error.message)
+  );
+  assert.throws(
+    () => selectCodexModel([]),
+    (error) => error.category === 'provider-configuration' && /no account-visible models/i.test(error.message)
   );
 });

@@ -14,7 +14,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = path.resolve(SCRIPT_DIR, '..');
 const INPUT_SOURCE = 'examples/build-week/insecure-query.diff';
 const RESULT_SOURCE = 'examples/build-week/offline-review-result.json';
-const USAGE = 'usage: npm run demo:judge -- [--live --yes] [--capsule <path>]';
+const USAGE = 'usage: npm run demo:judge -- [--live --yes] [--model <account-visible-model>] [--capsule <path>]';
 
 export async function runBuildWeekDemo(argv = [], {
   rootDir = DEFAULT_ROOT,
@@ -39,7 +39,7 @@ export async function runBuildWeekDemo(argv = [], {
         useStdin: false,
         skillName: 'linmas-secure-code-reviewer',
         provider: 'codex',
-        model: null,
+        model: options.model,
         output: 'text',
         assumeYes: true,
         policyId: 'baseline-appsec',
@@ -101,12 +101,16 @@ export async function runBuildWeekDemo(argv = [], {
 }
 
 function parseOptions(argv) {
-  const options = { live: false, yes: false, capsulePath: null, help: false };
+  const options = { live: false, yes: false, model: null, capsulePath: null, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--live') options.live = true;
     else if (arg === '--yes') options.yes = true;
     else if (arg === '--help' || arg === '-h') options.help = true;
+    else if (arg === '--model') {
+      options.model = argv[++index];
+      if (!options.model) throw new Error('--model requires an account-visible model');
+    }
     else if (arg === '--capsule') {
       options.capsulePath = argv[++index];
       if (!options.capsulePath) throw new Error('--capsule requires a path');
