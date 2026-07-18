@@ -66,6 +66,7 @@ const publishedSurface = [
   'bin',
   'src',
   'README.md',
+  'OPENAI_BUILD_WEEK_2026.md',
   'package.json',
   'scripts',
   'examples',

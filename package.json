@@ -1,7 +1,7 @@
 {
   "name": "linmas",
   "version": "0.3.0",
-  "description": "Defensive security skill collection for Claude Code and compatible AI coding agents.",
+  "description": "Proof-carrying defensive security reviews for Codex and compatible AI coding agents.",
   "homepage": "https://github.com/TanKimGwan/linmas#readme",
   "bugs": {
     "url": "https://github.com/TanKimGwan/linmas/issues"
@@ -24,6 +24,7 @@
     "evaluations/",
     "policies/",
     "README.md",
+    "OPENAI_BUILD_WEEK_2026.md",
     "package.json",
     "LICENSE",
     "NOTICE",
@@ -46,7 +47,9 @@
     "secops",
     "incident-response",
     "threat-detection",
-    "compliance"
+    "compliance",
+    "codex",
+    "security-review"
   ],
   "engines": {
     "node": ">=24"
