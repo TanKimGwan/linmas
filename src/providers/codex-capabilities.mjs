@@ -15,14 +15,14 @@ export function selectCodexModel(models, requestedModel) {
     return match.model;
   }
 
-  const eligible = models.filter((item) => /^gpt-5\.6(?:[-.]|$)/i.test(item?.model ?? ''));
-  if (eligible.length === 0) throw classified('provider-configuration', 'No compatible GPT-5.6 model is available to this Codex account');
-  const defaults = eligible.filter((item) => item.isDefault === true);
+  if (models.length === 0) throw classified('provider-configuration', 'No account-visible models are available to this Codex account');
+  const defaults = models.filter((item) => item?.isDefault === true);
   if (defaults.length === 1) return defaults[0].model;
-  if (eligible.length === 1) return eligible[0].model;
+  if (defaults.length > 1) throw classified('provider-configuration', 'Codex reported multiple default models; choose an explicit model');
+  if (models.length === 1) return models[0].model;
 
-  const choices = [...new Set(eligible.map((item) => item.model))].slice(0, 10);
-  throw classified('provider-configuration', `Multiple compatible GPT-5.6 models are available; choose an explicit model: ${choices.join(', ')}`);
+  const choices = [...new Set(models.map((item) => item?.model).filter(Boolean))].slice(0, 10);
+  throw classified('provider-configuration', `Multiple account-visible models are available; choose an explicit model: ${choices.join(', ')}`);
 }
 
 export function createCodexCapabilityProbe({

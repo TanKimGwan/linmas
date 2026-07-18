@@ -11,6 +11,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const cliPath = path.join(rootDir, 'bin', 'linmas.mjs');
 
+function homeEnv(home) {
+  return { ...process.env, HOME: home, USERPROFILE: home };
+}
+
 function createMockIO() {
   let stdoutData = '';
   let stderrData = '';
@@ -417,7 +421,7 @@ test('direct CLI install can prompt via process stdin/stdout', () => {
 
     const result = spawnSync(process.execPath, [cliPath, 'install', 'security-operations-lead'], {
       cwd: rootDir,
-      env: { ...process.env, HOME: tempHome },
+      env: homeEnv(tempHome),
       input: '1\nyes\n',
       encoding: 'utf8'
     });
@@ -472,7 +476,7 @@ test('direct CLI install aborts immediately when replacement is declined', () =>
 
     const result = spawnSync(process.execPath, [cliPath, 'install', 'security-operations-lead'], {
       cwd: rootDir,
-      env: { ...process.env, HOME: tempHome },
+      env: homeEnv(tempHome),
       input: 'cancel\n',
       encoding: 'utf8'
     });
@@ -516,7 +520,7 @@ test('direct CLI uninstall reprompts on invalid target input', () => {
 
     const result = spawnSync(process.execPath, [cliPath, 'uninstall', 'security-operations-lead'], {
       cwd: rootDir,
-      env: { ...process.env, HOME: tempHome },
+      env: homeEnv(tempHome),
       input: 'wrong\nclaude\nyes\n',
       encoding: 'utf8'
     });
@@ -555,7 +559,7 @@ test('CLI install aborts on manifest host mismatch before copying skill', () => 
 
     const result = spawnSync(process.execPath, [cliPath, 'install', 'security-operations-lead'], {
       cwd: rootDir,
-      env: { ...process.env, HOME: tempHome },
+      env: homeEnv(tempHome),
       input: '',
       encoding: 'utf8'
     });
@@ -600,7 +604,7 @@ test('CLI uninstall with closed stdin exits as cancellation', () => {
 
     const result = spawnSync(process.execPath, [cliPath, 'uninstall', 'security-operations-lead'], {
       cwd: rootDir,
-      env: { ...process.env, HOME: tempHome },
+      env: homeEnv(tempHome),
       input: '',
       encoding: 'utf8'
     });

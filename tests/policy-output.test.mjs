@@ -25,3 +25,7 @@ test('renders decision, reasons, disclaimer, and human review', () => {
 test('renders parseable schema-versioned JSON', () => {
   assert.deepEqual(JSON.parse(formatPolicyResult(result, { output: 'json' })), result);
 });
+
+test('renders an explicit negative human-review flag without implying approval', () => {
+  assert.match(formatPolicyResult({ ...result, humanReviewRequired: false }), /Human review required: no/);
+});

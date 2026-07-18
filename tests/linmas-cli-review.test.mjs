@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { run } from '../bin/linmas.mjs';
 
 function io() {
@@ -57,7 +58,7 @@ test('review confirmation EOF returns input exit code without creating provider 
 });
 
 test('review compare runs entirely offline and keeps human review visible', async () => {
-  const capsule = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../examples/build-week/expected-offline-capsule.json');
+  const capsule = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../examples/build-week/expected-offline-capsule.json');
   const capture = io();
   let providerCreated = false;
   const code = await run([

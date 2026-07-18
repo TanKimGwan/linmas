@@ -16,6 +16,7 @@ test('README leads with Proof Review and a runnable offline judge demo', () => {
   assert.match(firstScreen, /npm run demo:judge/);
   assert.match(firstScreen, /OFFLINE FIXTURE REPLAY/);
   assert.match(text, /npm run demo:judge -- --live --yes/);
+  assert.match(text, /npm run demo:judge -- --live --yes --model gpt-5\.6-sol/);
   assert.match(text, /gpt-5\.6-sol/);
   assert.match(text, /Review Capsule/);
   assert.match(text, /Human review remains required/);
@@ -62,6 +63,9 @@ test('public Build Week evidence records only verified facts without private ide
   assert.match(text, /gpt-5\.6-sol/);
   assert.match(text, /ChatGPT subscription/);
   assert.match(text, /private.*feedback.*not published/i);
+  assert.match(text, /LINMAS_EVAL_PROVIDER/);
+  assert.match(text, /tmp\/windows-live-evaluation\.json/);
+  assert.match(text, /no equivalent live Windows run is claimed/i);
   assert.doesNotMatch(text, /\/home\/|\/run\/media\/|019f[0-9a-f-]{20,}|@(?:gmail|outlook|yahoo)\./i);
 });
 

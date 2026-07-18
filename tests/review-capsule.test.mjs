@@ -53,6 +53,12 @@ function build(overrides = {}) {
 test('fingerprints the exact reviewed bytes with stable SHA-256', () => {
   assert.equal(fingerprintReviewInput(Buffer.from('abc')), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   assert.notEqual(fingerprintReviewInput(Buffer.from('abc\n')), fingerprintReviewInput(Buffer.from('abc')));
+  assert.throws(() => fingerprintReviewInput('abc'), /review input bytes are required/);
+});
+
+test('accepts Uint8Array fingerprints and ISO-compatible generation times', () => {
+  assert.equal(fingerprintReviewInput(new Uint8Array([97, 98, 99])), fingerprintReviewInput(Buffer.from('abc')));
+  assert.equal(build({ now: '2026-07-18T15:00:00.000Z' }).execution.generatedAt, '2026-07-18T15:00:00.000Z');
 });
 
 test('distinguishes live and offline capsules without inventing policy decisions', () => {
@@ -102,6 +108,56 @@ test('contradictory safety boundary prevents capsule validation', () => {
   const capsule = build();
   capsule.review.safetyBoundary.statement = 'Automatically approve without human review.';
   assert.throws(() => validateReviewCapsule(capsule), /safety|human review/i);
+});
+
+test('capsule validation fails closed across input, execution, policy, and privacy branches', () => {
+  const valid = build({ policyResult });
+  const mutations = [
+    [(capsule) => { capsule.schemaVersion = 2; }, /schemaVersion/],
+    [(capsule) => { capsule.kind = 'other'; }, /kind/],
+    [(capsule) => { capsule.input.bytes = -1; }, /input\.bytes/],
+    [(capsule) => { capsule.input.sha256 = 'invalid'; }, /input\.sha256/],
+    [(capsule) => { capsule.execution.mode = 'unknown'; }, /execution\.mode/],
+    [(capsule) => { capsule.execution.authMode = 'unknown'; }, /authMode/],
+    [(capsule) => { capsule.execution.modelVerified = 'yes'; }, /modelVerified/],
+    [(capsule) => { capsule.execution.generatedAt = 'not-a-date'; }, /generatedAt/],
+    [(capsule) => { capsule.execution.mode = 'offline-fixture'; }, /offline-fixture/],
+    [(capsule) => { capsule.execution.authMode = 'unavailable'; }, /live execution/],
+    [(capsule) => { capsule.review.modelMetadata.requestId = 'private'; }, /request identifiers/],
+    [(capsule) => { capsule.policy.status = 'unknown'; }, /policy\.status/],
+    [(capsule) => { capsule.policy.status = 'not-evaluated'; }, /must be null/],
+    [(capsule) => { capsule.policy.result.schemaVersion = 2; }, /policy\.result schemaVersion/],
+    [(capsule) => { capsule.policy.result.decision = 'approve'; }, /decision is invalid/],
+    [(capsule) => { capsule.policy.result.rules = 'none'; }, /rules must be an array/],
+    [(capsule) => { capsule.policy.result.rules[0].outcome = 'unknown'; }, /outcome is invalid/],
+    [(capsule) => { capsule.policy.result.rules[0].decision = 'approve'; }, /decision is invalid/],
+    [(capsule) => { capsule.policy.result.completedChecks.push('security regression test'); }, /duplicates/],
+    [(capsule) => { capsule.policy.result.humanReviewRequired = false; }, /require human review/],
+    [(capsule) => { capsule.safetyBoundary = { ...capsule.safetyBoundary, statement: 'Review optional.' }; }, /canonical human review/],
+    [(capsule) => { capsule.safetyBoundary = { ...capsule.safetyBoundary, secret: 'private' }; }, /canonical human review|private field/]
+  ];
+
+  for (const [mutate, expected] of mutations) {
+    const capsule = structuredClone(valid);
+    mutate(capsule);
+    assert.throws(() => validateReviewCapsule(capsule), expected);
+  }
+});
+
+test('capsule write requires an unchanged preflight target', async () => {
+  await assert.rejects(writeReviewCapsule(null, build()), /preflight is required/);
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'linmas-capsule-'));
+  try {
+    const destination = path.join(root, 'capsule.json');
+    const target = await preflightCapsuleDestination(destination);
+    await assert.rejects(
+      writeReviewCapsule({ ...target, parent: path.dirname(root) }, build()),
+      /changed after preflight/
+    );
+    assert.equal(fs.existsSync(destination), false);
+  } finally {
+    await fsp.rm(root, { recursive: true, force: true });
+  }
 });
 
 test('preflight rejects existing destinations and symlinked parents', async () => {

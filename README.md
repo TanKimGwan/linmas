@@ -65,6 +65,12 @@ If Codex is already usable on the machine, run the same synthetic case live:
 npm run demo:judge -- --live --yes
 ```
 
+Without `--model`, Linmas uses the single default reported by the current Codex account and fails closed if selection is ambiguous. To reproduce the verified Build Week model explicitly:
+
+```bash
+npm run demo:judge -- --live --yes --model gpt-5.6-sol
+```
+
 The live demo is intentionally opt-in. `--yes` acknowledges that the named input leaves the machine. To preserve an atomic evidence artifact:
 
 ```bash
@@ -240,6 +246,7 @@ Codex contributed as the provider-native review engine, implementation collabora
 | `npm run demo:judge` | Run the deterministic judge demo. |
 | `npm run validate` | Validate package structure, skills, examples, and secrets. |
 | `npm run eval:offline` | Run checked-in evaluation cases without model calls. |
+| `npm run coverage` | Run tests with enforced source coverage thresholds. |
 
 ## Limitations and safety
 

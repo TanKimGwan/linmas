@@ -95,8 +95,22 @@ node bin/linmas.mjs review --skill linmas-secure-code-reviewer --input examples/
 Run live only when Codex is already usable and transmission is intended:
 
 ```bash
-npm run demo:judge -- --live --yes
+npm run demo:judge -- --live --yes --model gpt-5.6-sol
 ```
+
+### Trusted Windows live-evidence gate
+
+The deterministic suite runs on Windows in CI. A native live Windows claim additionally requires a trusted Windows machine where Codex is already authenticated. After confirming that the synthetic evaluation cases may be transmitted, run in PowerShell with an account-visible model:
+
+```powershell
+$env:LINMAS_EVAL_PROVIDER = "codex"
+$env:LINMAS_EVAL_MODEL = "<account-visible-model>"
+$env:LINMAS_EVAL_MAX_CASES = "20"
+$env:LINMAS_EVAL_REPORT = "tmp/windows-live-evaluation.json"
+npm run eval:live
+```
+
+The generated report excludes raw provider responses and request identifiers. Before publishing evidence, record only the OS and architecture, Node and Codex versions, Codex-reported authentication class, selected model, case count, pass/fail result, and report SHA-256. At the time of this document, no equivalent live Windows run is claimed.
 
 Compare two capsules without a provider call:
 

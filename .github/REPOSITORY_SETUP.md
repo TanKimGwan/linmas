@@ -51,14 +51,22 @@ gh api repos/$REPO/branches/dev/protection \
 
 > **Note:** Branch protection via API may require a GitHub plan that supports it. If the API returns an error, configure manually in the GitHub UI.
 
+### Promotion ancestry sync
+
+After a `dev` to `main` promotion is merged, `sync-main-to-dev.yml` checks whether the promotion commit is absent from `dev`. When needed, it creates a main-to-dev ancestry sync PR from a uniquely named automation branch. The workflow never merges the PR itself; normal protection and required checks still apply.
+
+Enable **Allow GitHub Actions to create and approve pull requests** under repository Actions settings so the workflow can create the synchronization PR.
+
 ## 4. Secrets
 
-- `NPM_TOKEN` — required only for the release workflow (`npm publish --access public`).
-- Do not store secret values in the repository.
-- Set manually with:
+- npm publishing uses npm trusted publishing with GitHub Actions OIDC; no long-lived npm token is required.
+- `CODEX_API_KEY` is required only by the advisory live-evaluation workflow. Local Linmas users continue to authenticate through Codex.
+- Set the live model as repository variable `LINMAS_EVAL_MODEL`.
+- Never store secret values in the repository. Configure the CI credential and model with:
 
   ```bash
-  gh secret set NPM_TOKEN --repo TanKimGwan/linmas
+  gh secret set CODEX_API_KEY --repo TanKimGwan/linmas
+  gh variable set LINMAS_EVAL_MODEL --repo TanKimGwan/linmas --body "<account-visible-model>"
   ```
 
 ## 5. GitHub Actions
@@ -67,6 +75,7 @@ gh api repos/$REPO/branches/dev/protection \
 - Enable Actions in the new repo (Settings → Actions → Allow all actions).
 - After first push, confirm `ci.yml` runs on push/PR.
 - The `verify` status check is required by branch protection — it is the job name in `ci.yml`.
+- Confirm a promotion push can create a main-to-dev ancestry sync PR.
 
 ## 6. Repo Metadata
 
@@ -74,11 +83,12 @@ Set via GitHub UI or:
 
 ```bash
 gh repo edit TanKimGwan/linmas \
-  --description "First-line defensive security skills for Claude Code and compatible AI coding agents." \
+  --description "Proof-carrying defensive security reviews for AI-assisted software, with deterministic policy, portable evidence, and human review required." \
   --homepage "https://www.npmjs.com/package/linmas" \
   --add-topic "security" \
   --add-topic "defensive-security" \
-  --add-topic "claude-code" \
+  --add-topic "codex" \
+  --add-topic "openai" \
   --add-topic "ai-security"
 ```
 
@@ -88,7 +98,8 @@ gh repo edit TanKimGwan/linmas \
 - [ ] `dev` branch exists and is pushed.
 - [ ] `main` branch protection is configured (PR required, `verify` check, no force-push).
 - [ ] `dev` branch protection is configured (PR required, `verify` check, no force-push).
-- [ ] `NPM_TOKEN` secret is set.
+- [ ] npm trusted publishing is connected to the release workflow.
+- [ ] `CODEX_API_KEY` secret and `LINMAS_EVAL_MODEL` variable are set for live evaluation.
 - [ ] GitHub Actions are enabled.
 - [ ] First CI run passes on `main`.
 - [ ] Repo visibility is set correctly (public / private per maintainer decision).

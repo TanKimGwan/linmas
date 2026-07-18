@@ -73,10 +73,15 @@ test('defaultBinaryLookup finds POSIX executable and rejects a non-executable fi
   try {
     const executable = path.join(root, 'codex');
     fs.writeFileSync(executable, '#!/bin/sh\n');
-    fs.chmodSync(executable, 0o755);
-    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux' }), executable);
-    fs.chmodSync(executable, 0o644);
-    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux' }), null);
+    let executableAllowed = true;
+    const accessSync = (candidate, mode) => {
+      assert.equal(mode, fs.constants.X_OK);
+      if (candidate === executable && executableAllowed) return;
+      throw Object.assign(new Error('not executable'), { code: 'EACCES' });
+    };
+    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux', accessSync }), executable);
+    executableAllowed = false;
+    assert.equal(defaultBinaryLookup('codex', { env: { PATH: root }, platform: 'linux', accessSync }), null);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -91,6 +96,22 @@ test('defaultBinaryLookup honors Windows PATHEXT including CMD and paths with sp
       env: { PATH: root, PATHEXT: '.EXE;.CMD' },
       platform: 'win32'
     }), command);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('defaultBinaryLookup prefers a native Windows executable over unsafe command shims', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas native binary '));
+  try {
+    const executable = path.join(root, 'codex.EXE');
+    const shim = path.join(root, 'codex.CMD');
+    fs.writeFileSync(executable, 'native fixture');
+    fs.writeFileSync(shim, '@echo off\r\n');
+    assert.equal(defaultBinaryLookup('codex', {
+      env: { PATH: root, PATHEXT: '.EXE;.CMD' },
+      platform: 'win32'
+    }), executable);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
