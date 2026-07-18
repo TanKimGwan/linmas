@@ -27,6 +27,18 @@ const review = {
   safetyBoundary
 };
 
+const policyResult = {
+  schemaVersion: 1,
+  policy: { id: 'baseline-appsec', version: '1.0.0' },
+  review: { caseId: 'review/local', specialist: 'secure-code-reviewer' },
+  decision: 'pass',
+  rules: [{ id: 'high-severity', outcome: 'met', decision: 'pass', reason: 'No finding crossed this threshold.' }],
+  completedChecks: ['security regression test'],
+  outstandingChecks: [],
+  humanReviewRequired: true,
+  disclaimer: 'This decision only evaluates declared conditions and does not prove security or compliance.'
+};
+
 function build(overrides = {}) {
   return buildReviewCapsule({
     input: { source: 'fixture.diff', bytes: 3, sha256: fingerprintReviewInput(Buffer.from('abc')) },
@@ -66,6 +78,24 @@ test('capsule whitelists execution metadata and removes private request identifi
   const serialized = JSON.stringify(capsule);
   assert.doesNotMatch(serialized, /private@example|token=secret|private-session|private-request-id/);
   assert.equal(capsule.review.modelMetadata.requestId, null);
+});
+
+test('evaluated capsule rejects unknown fields throughout the policy result contract', () => {
+  const valid = build({ policyResult });
+  assert.equal(validateReviewCapsule(valid).policy.result.decision, 'pass');
+
+  const mutations = [
+    (capsule) => { capsule.policy.result.rawResponse = 'private provider output'; },
+    (capsule) => { capsule.policy.result.policy.providerDiagnostics = 'private'; },
+    (capsule) => { capsule.policy.result.review.accountEmail = 'private@example.test'; },
+    (capsule) => { capsule.policy.result.rules[0].providerDiagnostics = 'private'; }
+  ];
+
+  for (const mutate of mutations) {
+    const capsule = structuredClone(valid);
+    mutate(capsule);
+    assert.throws(() => validateReviewCapsule(capsule), /unknown field/);
+  }
 });
 
 test('contradictory safety boundary prevents capsule validation', () => {
