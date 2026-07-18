@@ -96,6 +96,22 @@ test('defaultBinaryLookup honors Windows PATHEXT including CMD and paths with sp
   }
 });
 
+test('defaultBinaryLookup prefers a native Windows executable over unsafe command shims', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas native binary '));
+  try {
+    const executable = path.join(root, 'codex.EXE');
+    const shim = path.join(root, 'codex.CMD');
+    fs.writeFileSync(executable, 'native fixture');
+    fs.writeFileSync(shim, '@echo off\r\n');
+    assert.equal(defaultBinaryLookup('codex', {
+      env: { PATH: root, PATHEXT: '.EXE;.CMD' },
+      platform: 'win32'
+    }), executable);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('defaultBinaryLookup uses safe Windows defaults and fails cleanly for empty PATH', () => {
   assert.equal(defaultBinaryLookup('codex', { env: { PATH: '', PATHEXT: '' }, platform: 'win32' }), null);
   const seen = [];

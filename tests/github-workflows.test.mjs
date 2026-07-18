@@ -54,6 +54,17 @@ test('ci workflow triggers on PR and pushes to dev/main', () => {
   assert.doesNotMatch(text, /npm publish/);
 });
 
+test('ci keeps the required Linux verify check and adds deterministic Windows verification', () => {
+  const text = read('.github/workflows/ci.yml');
+  assert.match(text, /verify:\s*\n\s*runs-on:\s*ubuntu-latest/);
+  assert.match(text, /verify-windows:\s*\n\s*runs-on:\s*windows-latest/);
+  const windows = text.slice(text.indexOf('verify-windows:'));
+  for (const command of ['npm ci', 'npm test', 'npm run validate', 'npm run eval:offline', 'npm run pack:dry-run']) {
+    assert.match(windows, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+  assert.doesNotMatch(windows, /npm run coverage/);
+});
+
 test('live evaluation workflow is trusted, scheduled, and bounded', () => {
   const text = read('.github/workflows/evaluation-live.yml');
   assert.match(text, /schedule:/);
@@ -267,5 +278,4 @@ test('public repo baseline docs exist and README links the contributing guide', 
   assert.match(security, /response/i);
   assert.match(conduct, /Contributor Covenant/i);
 });
-
 
