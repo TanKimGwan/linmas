@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -45,6 +46,7 @@ test('release workflow supports tag push and explicit dispatch and verifies main
 test('ci workflow triggers on PR and pushes to dev/main', () => {
   const text = read('.github/workflows/ci.yml');
   assert.match(text, /pull_request:/);
+  assert.match(text, /workflow_dispatch:/);
   assert.match(text, /branches:\s*\[dev,\s*main\]/);
   assert.match(text, /contents:\s*read/);
   assert.match(text, /npm test/);
@@ -52,6 +54,17 @@ test('ci workflow triggers on PR and pushes to dev/main', () => {
   assert.match(text, /npm run eval:offline/);
   assert.match(text, /npm run pack:dry-run/);
   assert.doesNotMatch(text, /npm publish/);
+});
+
+test('ci keeps the required Linux verify check and adds deterministic Windows verification', () => {
+  const text = read('.github/workflows/ci.yml');
+  assert.match(text, /verify:\s*\n\s*runs-on:\s*ubuntu-latest/);
+  assert.match(text, /verify-windows:\s*\n\s*runs-on:\s*windows-latest/);
+  const windows = text.slice(text.indexOf('verify-windows:'));
+  for (const command of ['npm ci', 'npm test', 'npm run validate', 'npm run eval:offline', 'npm run pack:dry-run']) {
+    assert.match(windows, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+  assert.doesNotMatch(windows, /npm run coverage/);
 });
 
 test('live evaluation workflow is trusted, scheduled, and bounded', () => {
@@ -62,7 +75,8 @@ test('live evaluation workflow is trusted, scheduled, and bounded', () => {
   assert.match(text, /persist-credentials:\s*false/);
   assert.match(text, /timeout-minutes:/);
   assert.match(text, /github\.event(?:_name|\.name) == 'schedule'/);
-  assert.match(text, /ANTHROPIC_API_KEY:\s*\$\{\{ secrets\.ANTHROPIC_API_KEY \}\}/);
+  assert.match(text, /CODEX_API_KEY:\s*\$\{\{ secrets\.CODEX_API_KEY \}\}/);
+  assert.match(text, /LINMAS_EVAL_PROVIDER:\s*codex/);
   assert.match(text, /LINMAS_EVAL_MODEL:\s*\$\{\{ vars\.LINMAS_EVAL_MODEL \}\}/);
   assert.match(text, /retention-days:\s*14/);
 });
@@ -95,11 +109,15 @@ test('provenance workflow uses subject-path attestation without custom predicate
 test('package metadata declares the hardened CI/runtime support floor', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
   assert.equal(pkg.engines.node, '>=24');
+  assert.match(pkg.scripts.coverage, /--test-coverage-lines=96/);
+  assert.match(pkg.scripts.coverage, /--test-coverage-branches=85/);
+  assert.match(pkg.scripts.coverage, /--test-coverage-functions=94/);
   assert.equal(fs.existsSync(path.join(rootDir, 'package-lock.json')), true);
 });
 
 test('package metadata includes public repository provenance fields', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+  assert.equal(pkg.description, 'Proof-carrying defensive security reviews for AI-assisted software, with deterministic policy, portable evidence, and human review required.');
   assert.deepEqual(pkg.repository, {
     type: 'git',
     url: 'https://github.com/TanKimGwan/linmas'
@@ -115,6 +133,7 @@ test('readme uses tracked public logo asset for GitHub and npm rendering', () =>
   assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/TanKimGwan\/linmas\/main\/assets\/linmas\.jpg/);
   assert.match(readme, /alt="Linmas logo"/);
   assert.equal(fs.existsSync(path.join(rootDir, 'assets/linmas.jpg')), true);
+  assert.equal(createHash('sha256').update(fs.readFileSync(path.join(rootDir, 'assets/linmas.jpg'))).digest('hex'), '7d9b02fd6a78b2bee70e21bdf8b334ce5536d0b111328cb1bd88e256bbce83a7');
   assert.equal(execFileSync('git', ['ls-files', 'assets/linmas.jpg'], {
     cwd: rootDir,
     encoding: 'utf8'
@@ -129,6 +148,7 @@ test('ci and release workflows use node 24 with npm ci and npm cache', () => {
   assert.match(ci, /node-version:\s*24/);
   assert.match(ci, /cache:\s*npm/);
   assert.match(ci, /npm ci/);
+  assert.match(ci, /npm run coverage/);
 
   assert.match(release, /node-version:\s*24/);
   assert.match(release, /cache:\s*npm/);
@@ -159,22 +179,28 @@ test('internal planning docs stay out of the shared repo surface', () => {
 test('workflows use modern action major versions', () => {
   const ci = fs.readFileSync(path.resolve('.github/workflows/ci.yml'), 'utf8');
   const release = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  const tagRelease = fs.readFileSync(path.resolve('.github/workflows/tag-release.yml'), 'utf8');
+  const liveEvaluation = fs.readFileSync(path.resolve('.github/workflows/evaluation-live.yml'), 'utf8');
   const provenance = fs.readFileSync(path.resolve('.github/workflows/generator-generic-ossf-slsa3-publish.yml'), 'utf8');
+  const maintained = ci + release + tagRelease + liveEvaluation;
 
   assert.match(ci, /actions\/checkout@v7/);
-  assert.match(ci, /actions\/setup-node@v6/);
+  assert.match(ci, /actions\/setup-node@v7/);
 
   assert.match(release, /actions\/checkout@v7/);
-  assert.match(release, /actions\/setup-node@v6/);
+  assert.match(release, /actions\/setup-node@v7/);
   assert.match(release, /actions\/upload-artifact@v7/);
+  assert.match(tagRelease, /actions\/checkout@v7/);
+  assert.match(tagRelease, /actions\/setup-node@v7/);
+  assert.match(liveEvaluation, /actions\/checkout@v7/);
+  assert.match(liveEvaluation, /actions\/setup-node@v7/);
+  assert.match(liveEvaluation, /actions\/upload-artifact@v7/);
   assert.match(release, /npm install -g npm@11/);
   assert.match(release, /softprops\/action-gh-release@v3/);
 
   assert.match(provenance, /actions\/download-artifact@v8/);
 
-  assert.doesNotMatch(ci + release + provenance, /actions\/checkout@v6/);
-  assert.doesNotMatch(ci + release, /actions\/setup-node@v5/);
-  assert.doesNotMatch(release, /actions\/upload-artifact@v5/);
+  assert.doesNotMatch(maintained, /actions\/(?:checkout|setup-node|upload-artifact)@v[1-6]\b/);
   assert.doesNotMatch(release, /softprops\/action-gh-release@v2/);
   assert.doesNotMatch(provenance, /actions\/download-artifact@v5/);
 });
@@ -231,9 +257,33 @@ test('pr target guard workflow enforces dev-first promotion to main', () => {
   assert.match(text, /head.*dev|dev.*head/s);
 });
 
+test('main pushes propose a no-force ancestry sync PR back to dev', () => {
+  const text = read('.github/workflows/sync-main-to-dev.yml');
+  assert.match(text, /push:\s*\n\s*branches:\s*\[main\]/);
+  assert.match(text, /contents:\s*write/);
+  assert.match(text, /pull-requests:\s*write/);
+  assert.match(text, /actions:\s*write/);
+  assert.match(text, /group:\s*main-to-dev-sync/);
+  assert.match(text, /\.ahead_by/);
+  assert.match(text, /automation\/sync-main-to-dev-\$\{GITHUB_RUN_ID\}/);
+  assert.match(text, /gh api --method POST/);
+  assert.match(text, /gh workflow run ci\.yml --repo "\$REPO" --ref "\$BRANCH"/);
+  assert.match(text, /gh pr create[\s\S]*--base dev/);
+  assert.ok(text.indexOf('gh workflow run ci.yml') < text.indexOf('gh pr create'), 'bot CI dispatch must happen before PR creation');
+  assert.match(text, /--head "\$BRANCH"/);
+  assert.doesNotMatch(text, /force|gh pr merge|auto-merge/i);
+});
+
 test('branch policy docs state main is public-facing and dev is the normal PR target', () => {
   const contributing = read('CONTRIBUTING.md');
   assert.match(contributing, /pull requests go to `dev`/i);
+  const setup = read('.github/REPOSITORY_SETUP.md');
+  assert.match(setup, /main-to-dev ancestry sync PR/i);
+  assert.match(setup, /CODEX_API_KEY/);
+  assert.match(setup, /LINMAS_EVAL_MODEL/);
+  assert.match(setup, /trusted publishing/i);
+  assert.doesNotMatch(setup, /NPM_TOKEN/);
+  assert.match(setup, /Proof-carrying defensive security reviews for AI-assisted software/);
   // ponytail: PUBLIC_RELEASE_CHECKLIST.md and QUALITY_GATES.md are internal-only docs
   // removed from remote; branch policy assertions retained via CONTRIBUTING.md
 });
@@ -256,8 +306,3 @@ test('public repo baseline docs exist and README links the contributing guide', 
   assert.match(security, /response/i);
   assert.match(conduct, /Contributor Covenant/i);
 });
-
-
-
-
-

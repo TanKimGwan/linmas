@@ -10,6 +10,7 @@ test('live evaluation caps cases and excludes raw response from report', async (
   const report = await runLiveEvaluation({ cases: [{ caseData, inputText: 'safe' }, { caseData: { ...caseData, id: 'second' }, inputText: 'safe' }], runner, maxCases: 1, now: new Date('2026-07-12T00:00:00Z') });
   assert.equal(calls, 1);
   assert.equal(JSON.stringify(report).includes('rawResponse'), false);
+  assert.equal(JSON.stringify(report).includes('requestId'), false);
   assert.equal(report.results.length, 1);
 });
 

@@ -18,7 +18,7 @@ export async function runLiveEvaluation({ cases, runner, now = new Date(), maxCa
         specialist: item.caseData.specialist
       });
       validateReviewResult(normalized, { source: item.caseData.id });
-      results.push({ ...evaluateReviewResult(item.caseData, normalized), provider: response.provider, model: response.model, usage: response.usage, requestId: response.requestId });
+      results.push({ ...evaluateReviewResult(item.caseData, normalized), provider: response.provider, model: response.model, usage: response.usage });
     } catch (error) {
       results.push({ caseId: item.caseData.id, passed: false, dimensions: {}, failureClass: error.failureClass || 'normalization-failed', failures: [{ dimension: 'live', code: error.failureClass || 'normalization-failed', findingId: null, message: error.message }] });
     }

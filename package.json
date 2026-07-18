@@ -1,7 +1,7 @@
 {
   "name": "linmas",
-  "version": "0.3.1",
-  "description": "Proof-carrying defensive security reviews for Codex and compatible AI coding agents.",
+  "version": "0.3.2",
+  "description": "Proof-carrying defensive security reviews for AI-assisted software, with deterministic policy, portable evidence, and human review required.",
   "homepage": "https://github.com/TanKimGwan/linmas#readme",
   "bugs": {
     "url": "https://github.com/TanKimGwan/linmas/issues"
@@ -32,6 +32,7 @@
   ],
   "scripts": {
     "test": "node --test tests/*.test.mjs",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/**/*.mjs' --test-coverage-lines=96 --test-coverage-branches=85 --test-coverage-functions=94 tests/*.test.mjs",
     "validate": "node scripts/validate-skills.mjs",
     "eval:offline": "node scripts/evaluate-offline.mjs",
     "eval:live": "node scripts/evaluate-live.mjs",
