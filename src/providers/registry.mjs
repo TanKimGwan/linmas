@@ -23,6 +23,10 @@ export function defaultBinaryLookup(name, { env = process.env, platform = proces
   return null;
 }
 
+function isDirectExecutable(binary, platform) {
+  return typeof binary === 'string' && (platform !== 'win32' || !/\.(?:cmd|bat)$/i.test(binary));
+}
+
 export function createProviderRegistry({ env = process.env, platform = process.platform, fetchImpl = fetch, spawnImpl, binaryLookup = defaultBinaryLookup } = {}) {
   const claude = {
     id: 'claude',
@@ -42,14 +46,20 @@ export function createProviderRegistry({ env = process.env, platform = process.p
   const codex = {
     id: 'codex',
     detectConfiguration({ env: source = env } = {}) {
-      const binaryAvailable = binaryLookup('codex', { env: source, platform });
-      const reason = !binaryAvailable ? 'codex binary is not available' : !source.LINMAS_EVAL_MODEL ? 'LINMAS_EVAL_MODEL is not set' : 'codex binary and LINMAS_EVAL_MODEL are configured';
+      const binary = binaryLookup('codex', { env: source, platform });
+      const binaryAvailable = isDirectExecutable(binary, platform) || binary === true;
+      const reason = !binary
+        ? 'codex binary is not available'
+        : !binaryAvailable
+          ? 'codex .cmd/.bat shims are unsupported without a shell; install a direct executable'
+          : !source.LINMAS_EVAL_MODEL ? 'LINMAS_EVAL_MODEL is not set' : 'codex binary and LINMAS_EVAL_MODEL are configured';
       return { provider: 'codex', status: binaryAvailable && source.LINMAS_EVAL_MODEL ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
     },
     create({ model, timeoutMs, cwd } = {}) {
       const resolvedModel = model ?? env.LINMAS_EVAL_MODEL;
       const binary = binaryLookup('codex', { env, platform });
       if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
+      if (!isDirectExecutable(binary, platform) && binary !== true) throw new ReviewError('Codex .cmd/.bat shims are unsupported without a shell; install a direct executable', 'provider-configuration', EXIT_CODES.PROVIDER);
       if (!resolvedModel) throw new ReviewError('Codex model is required', 'provider-configuration', EXIT_CODES.PROVIDER);
       return createManagedCodexRunner({ model: resolvedModel, command: typeof binary === 'string' ? binary : 'codex', spawnImpl, timeoutMs, cwd });
     }

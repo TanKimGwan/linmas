@@ -112,11 +112,11 @@ test('defaultBinaryLookup uses safe Windows defaults and fails cleanly for empty
   assert.ok(seen.some((candidate) => candidate.endsWith('codex.CMD')) || seen.some((candidate) => candidate.endsWith('codex.EXE')));
 });
 
-test('Codex detection and creation use the same resolved executable', async () => {
+test('Codex detection and creation use the same resolved Windows executable', async () => {
   const calls = [];
-  const binary = path.join('/tmp', 'Codex Tools', 'codex.cmd');
+  const binary = path.join('/tmp', 'Codex Tools', 'codex.EXE');
   const registry = createProviderRegistry({
-    env: { PATH: '/tmp/Codex Tools', PATHEXT: '.CMD', LINMAS_EVAL_MODEL: 'model' },
+    env: { PATH: '/tmp/Codex Tools', PATHEXT: '.EXE;.CMD', LINMAS_EVAL_MODEL: 'model' },
     platform: 'win32',
     binaryLookup() { return binary; },
     spawnImpl(command) {
@@ -128,4 +128,20 @@ test('Codex detection and creation use the same resolved executable', async () =
   const runner = resolveProvider(registry, 'codex', {});
   await assert.rejects(runner.run({ system: 's', user: 'u' }), /failed to start/);
   assert.deepEqual(calls, [binary]);
+});
+
+test('Codex reports a Windows CMD shim as unsupported instead of failing at runtime', () => {
+  const binary = path.join('/tmp', 'Codex Tools', 'codex.CMD');
+  const registry = createProviderRegistry({
+    env: { PATH: '/tmp/Codex Tools', PATHEXT: '.CMD', LINMAS_EVAL_MODEL: 'model' },
+    platform: 'win32',
+    binaryLookup() { return binary; }
+  });
+  const status = registry.get('codex').detectConfiguration();
+  assert.equal(status.status, 'missing');
+  assert.match(status.reason, /shims are unsupported/);
+  assert.throws(
+    () => resolveProvider(registry, 'codex', {}),
+    (error) => error instanceof ReviewError && error.category === 'provider-configuration' && /shims are unsupported/.test(error.message)
+  );
 });
