@@ -5,11 +5,11 @@ export function createClaudeRunner({ apiKey, model, fetchImpl = fetch, timeoutMs
   if (!model) throw classified('runner-configuration', 'LINMAS_EVAL_MODEL is required');
   return {
     id: 'claude', model,
-    async run({ system, user }) {
+    async run({ system, user, signal }) {
       let response;
       try {
         response = await fetchImpl(ENDPOINT, {
-          method: 'POST', signal: AbortSignal.timeout(timeoutMs),
+          method: 'POST', signal: combineSignals(signal, timeoutMs),
           headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] })
         });
@@ -24,6 +24,12 @@ export function createClaudeRunner({ apiKey, model, fetchImpl = fetch, timeoutMs
       return { provider: 'claude', model: body.model || model, rawResponse: text, usage: { inputTokens: body.usage?.input_tokens ?? null, outputTokens: body.usage?.output_tokens ?? null }, requestId: response.headers.get('request-id') };
     }
   };
+}
+
+function combineSignals(signal, timeoutMs) {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  if (!signal) return timeoutSignal;
+  return AbortSignal.any([signal, timeoutSignal]);
 }
 
 function classified(failureClass, message, cause) {

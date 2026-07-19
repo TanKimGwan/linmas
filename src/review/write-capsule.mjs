@@ -21,30 +21,54 @@ export async function preflightCapsuleDestination(destination, { cwd = process.c
   return Object.freeze({ path: resolvedPath, parent });
 }
 
-export async function writeReviewCapsule(target, capsule, { fsApi = fs, randomId = randomUUID } = {}) {
+export async function writeReviewCapsule(target, capsule, { fsApi = fs, randomId = randomUUID, signal } = {}) {
   if (!target || typeof target.path !== 'string' || typeof target.parent !== 'string') throw capsuleInput('capsule destination preflight is required');
+  throwIfAborted(signal);
   const checked = await preflightCapsuleDestination(target.path, { fsApi });
+  throwIfAborted(signal);
   if (checked.parent !== target.parent) throw capsuleInput('capsule destination changed after preflight');
+  throwIfAborted(signal);
   const validated = validateReviewCapsule(capsule);
+  throwIfAborted(signal);
   const temporary = path.join(target.parent, `.${path.basename(target.path)}.${randomId()}.tmp`);
   let handle;
   let primary;
+  let linked = false;
   try {
     handle = await fsApi.open(temporary, 'wx', 0o600);
+    throwIfAborted(signal);
     await handle.writeFile(`${JSON.stringify(validated, null, 2)}\n`, 'utf8');
+    throwIfAborted(signal);
     await handle.sync();
+    throwIfAborted(signal);
     await handle.close();
     handle = null;
+    throwIfAborted(signal);
     await fsApi.link(temporary, target.path);
+    linked = true;
+    throwIfAborted(signal);
     await fsApi.rm(temporary, { force: true });
+    throwIfAborted(signal);
     return target.path;
   } catch (cause) {
-    primary = capsuleInput('capsule could not be written', cause);
+    primary = signal?.aborted ? cancellationError() : capsuleInput('capsule could not be written', cause);
     throw primary;
   } finally {
     try { await handle?.close(); } catch (cause) { if (primary) primary.cleanupCause = cause; }
+    if (linked && signal?.aborted) {
+      try { await fsApi.rm(target.path, { force: true }); } catch (cause) { if (primary && !primary.cleanupCause) primary.cleanupCause = cause; }
+    }
     try { await fsApi.rm(temporary, { force: true }); } catch (cause) { if (primary && !primary.cleanupCause) primary.cleanupCause = cause; }
   }
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw cancellationError();
+}
+
+function cancellationError() {
+  return Object.assign(new Error('capsule write cancelled'), { name: 'AbortError', code: 'ABORT_ERR' });
 }
 
 async function assertNoSymlinkPath(target, fsApi) {
