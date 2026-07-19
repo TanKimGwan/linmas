@@ -79,3 +79,14 @@ test('all local README links resolve and public evidence is intentionally packag
   assert.ok(pkg.files.includes('OPENAI_BUILD_WEEK_2026.md'));
   assert.equal(pkg.files.some((item) => item.startsWith('docs')), false);
 });
+
+test('bilingual usage guides are linked from README and excluded from npm packaging', () => {
+  const text = read('README.md');
+  assert.match(text, /USAGE\.md/);
+  assert.match(text, /PANDUAN-PENGGUNAAN\.md/);
+  assert.match(read('USAGE.md'), /codex plugin marketplace add TanKimGwan\/linmas/);
+  assert.match(read('PANDUAN-PENGGUNAAN.md'), /codex plugin marketplace add TanKimGwan\/linmas/);
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.files.includes('USAGE.md'), false);
+  assert.equal(pkg.files.includes('PANDUAN-PENGGUNAAN.md'), false);
+});

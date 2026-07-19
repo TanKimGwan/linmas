@@ -74,3 +74,13 @@ test('listSkills includes absolute source and skill file paths', () => {
   assert.ok(path.isAbsolute(skills[0].skillFile));
   assert.equal(path.basename(skills[0].skillFile), 'SKILL.md');
 });
+
+test('listSkills uses a safe fallback when a skill has no description metadata', () => {
+  const fixtureRoot = createFixtureRoot(PUBLIC_SKILLS);
+  const skillFile = path.join(fixtureRoot, 'skills', PUBLIC_SKILLS[0], 'SKILL.md');
+  fs.writeFileSync(skillFile, '---\ntitle: Fixture without description\n---\n', 'utf8');
+
+  const skills = listSkills(fixtureRoot);
+
+  assert.equal(skills[0].description, 'No description found');
+});
