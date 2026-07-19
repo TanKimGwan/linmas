@@ -17,8 +17,14 @@ import {
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_JSON = JSON.parse(await fs.readFile(path.join(REPOSITORY_ROOT, 'package.json'), 'utf8'));
-const NPM_COMMAND = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const DEFAULT_VALIDATE_PLUGIN = path.join(os.homedir(), '.codex', 'skills', '.system', 'plugin-creator', 'scripts', 'validate_plugin.py');
+
+async function runNpm(args, options) {
+  if (process.env.npm_execpath) {
+    return execFileAsync(process.execPath, [process.env.npm_execpath, ...args], options);
+  }
+  return execFileAsync('npm', args, options);
+}
 
 async function runExternalPluginValidatorIfAvailable(pluginPath) {
   const validator = process.env.LINMAS_VALIDATE_PLUGIN ?? DEFAULT_VALIDATE_PLUGIN;
@@ -105,7 +111,7 @@ test('npm packed artifact contains builder inputs and builds a validated plugin 
   await fs.mkdir(targetParent);
 
   try {
-    const { stdout } = await execFileAsync(NPM_COMMAND, ['pack', '--json', '--pack-destination', packDestination], { cwd: REPOSITORY_ROOT });
+    const { stdout } = await runNpm(['pack', '--json', '--pack-destination', packDestination], { cwd: REPOSITORY_ROOT });
     const packResult = JSON.parse(stdout)[0];
     const archive = path.join(packDestination, packResult.filename);
     const listing = (await execFileAsync('tar', ['-tzf', archive])).stdout.split('\n').filter(Boolean).map((entry) => entry.replace(/^package\//u, ''));
