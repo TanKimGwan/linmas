@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
+import { LINMAS_VERSION } from '../core/version.mjs';
 
 const MAX_STDOUT_BYTES = 1024 * 1024;
 const MAX_STDERR_BYTES = 64 * 1024;
@@ -46,7 +47,7 @@ export function createCodexCapabilityProbe({
       let primaryFailure;
       try {
         await session.request('initialize', {
-          clientInfo: { name: 'linmas', version: '0.3.0' },
+          clientInfo: { name: 'linmas', version: LINMAS_VERSION },
           capabilities: { experimentalApi: true }
         });
         session.notify('initialized');

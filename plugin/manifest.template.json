@@ -1,0 +1,37 @@
+{
+  "name": "linmas",
+  "description": "Proof-carrying defensive security reviews for AI-assisted software, with deterministic policy, portable evidence, and human review required.",
+  "author": {
+    "name": "TanKimGwan"
+  },
+  "homepage": "https://github.com/TanKimGwan/linmas",
+  "repository": "https://github.com/TanKimGwan/linmas",
+  "license": "Apache-2.0",
+  "keywords": [
+    "security",
+    "appsec",
+    "secops",
+    "codex",
+    "security-review",
+    "proof-chain"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Linmas",
+    "shortDescription": "Defensive security review specialists for Codex.",
+    "longDescription": "Linmas provides bounded defensive security review specialists with deterministic policy, portable evidence, and human review required.",
+    "developerName": "TanKimGwan",
+    "category": "Security",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Choose the right Linmas security specialist.",
+      "Review this code for security risks.",
+      "Plan a defensible security review."
+    ]
+  }
+}

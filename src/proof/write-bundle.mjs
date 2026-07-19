@@ -7,8 +7,10 @@ import { sha256 } from './load-evidence.mjs';
 import { ProofError } from './errors.mjs';
 import { derivePublicKey, signManifest } from './ssh-signature.mjs';
 
-export async function writeProofBundle(destination, source, receipt, { fsApi = fs, now = new Date(), randomId = randomUUID, signingKey = null } = {}) {
+export async function writeProofBundle(destination, source, receipt, { fsApi = fs, now = new Date(), randomId = randomUUID, signingKey = null, signal } = {}) {
+  throwIfAborted(signal);
   const validatedReceipt = validateDecisionReceipt(receipt);
+  throwIfAborted(signal);
   if (!source || !Array.isArray(source.evidenceFiles) || !source.kind || !source.sourceSha256) throw inputError('proof source is invalid');
   if (validatedReceipt.subject.kind !== source.kind || validatedReceipt.subject.sha256 !== source.sourceSha256) throw inputError('receipt does not bind to proof source');
   const resolved = path.resolve(destination);
@@ -21,24 +23,31 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
   const lockPath = path.join(parent, `.${path.basename(resolved)}.lock`);
   const stage = path.join(parent, `.${path.basename(resolved)}.${randomId()}.staging`);
   let lock;
+  let committed = false;
   try {
+    throwIfAborted(signal);
     lock = await fsApi.open(lockPath, 'wx', 0o600);
+    throwIfAborted(signal);
     await fsApi.mkdir(stage, { mode: 0o700 });
+    throwIfAborted(signal);
     const artifactEntries = [];
     for (const file of source.evidenceFiles) {
-      const entry = await writeArtifact(stage, file.relativePath, file.bytes, fsApi);
+      throwIfAborted(signal);
+      const entry = await writeArtifact(stage, file.relativePath, file.bytes, fsApi, signal);
       artifactEntries.push({ ...entry, role: 'source-evidence' });
     }
-    const receiptEntry = await writeArtifact(stage, 'decision-receipt.json', Buffer.from(`${JSON.stringify(validatedReceipt, null, 2)}\n`), fsApi);
+    throwIfAborted(signal);
+    const receiptEntry = await writeArtifact(stage, 'decision-receipt.json', Buffer.from(`${JSON.stringify(validatedReceipt, null, 2)}\n`), fsApi, signal);
     artifactEntries.push({ ...receiptEntry, role: 'human-decision-receipt' });
     const reports = renderProofReports({ source, receipt: validatedReceipt });
-    const markdownEntry = await writeArtifact(stage, 'report.md', Buffer.from(reports.markdown), fsApi);
-    const htmlEntry = await writeArtifact(stage, 'report.html', Buffer.from(reports.html), fsApi);
+    const markdownEntry = await writeArtifact(stage, 'report.md', Buffer.from(reports.markdown), fsApi, signal);
+    const htmlEntry = await writeArtifact(stage, 'report.html', Buffer.from(reports.html), fsApi, signal);
     artifactEntries.push({ ...markdownEntry, role: 'report-markdown' }, { ...htmlEntry, role: 'report-html' });
     if (signingKey && !validatedReceipt.reviewer.principal) throw inputError('SSH signing requires a signer principal');
     if (signingKey) {
       const publicKey = await derivePublicKey(path.resolve(signingKey), { fsApi });
-      const publicEntry = await writeArtifact(stage, 'signature/signer.pub', publicKey, fsApi);
+      throwIfAborted(signal);
+      const publicEntry = await writeArtifact(stage, 'signature/signer.pub', publicKey, fsApi, signal);
       artifactEntries.push({ ...publicEntry, role: 'ssh-public-key' });
     }
     const manifest = {
@@ -52,34 +61,59 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
       signature: signingKey ? { format: 'ssh-sig', namespace: 'linmas-proof-v1', path: 'signature/manifest.sig', publicKeyPath: 'signature/signer.pub', principal: validatedReceipt.reviewer.principal } : null,
       safetyBoundary: { satisfied: true, humanReviewRequired: true, statement: 'Human review remains required.' }
     };
-    await writeJson(stage, 'manifest.json', manifest, fsApi);
+    await writeJson(stage, 'manifest.json', manifest, fsApi, signal);
     if (signingKey) {
+      throwIfAborted(signal);
       const signedManifest = await signManifest(path.join(stage, 'manifest.json'), path.resolve(signingKey), { fsApi });
+      throwIfAborted(signal);
       await fsApi.writeFile(path.join(stage, 'signature/manifest.sig'), signedManifest.signature, { flag: 'wx', mode: 0o600 });
+      throwIfAborted(signal);
       await fsApi.rm(signedManifest.signaturePath, { force: true });
+      throwIfAborted(signal);
     }
+    throwIfAborted(signal);
     await fsApi.rename(stage, resolved);
+    committed = true;
+    throwIfAborted(signal);
     return { path: resolved, manifest };
   } catch (cause) {
+    if (signal?.aborted) throw cancellationError();
     if (cause instanceof ProofError) throw cause;
     throw new ProofError(`proof bundle could not be written: ${cause.message}`, 'write', 2);
   } finally {
     try { await lock?.close(); } catch {}
     try { await fsApi.rm(lockPath, { force: true }); } catch {}
+    if (committed && signal?.aborted) {
+      try { await fsApi.rm(resolved, { recursive: true, force: true }); } catch {}
+    }
     try { await fsApi.rm(stage, { recursive: true, force: true }); } catch {}
   }
 }
 
-async function writeArtifact(root, relativePath, bytes, fsApi) {
+async function writeArtifact(root, relativePath, bytes, fsApi, signal) {
+  throwIfAborted(signal);
   if (!safeRelativePath(relativePath)) throw inputError('proof artifact path is unsafe');
   const target = path.join(root, ...relativePath.split('/'));
   await fsApi.mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
+  throwIfAborted(signal);
   await fsApi.writeFile(target, bytes, { mode: 0o600, flag: 'wx' });
+  throwIfAborted(signal);
   return { path: relativePath, bytes: bytes.byteLength, sha256: sha256(bytes), mediaType: mediaType(relativePath) };
 }
 
-async function writeJson(root, relativePath, value, fsApi) {
+async function writeJson(root, relativePath, value, fsApi, signal) {
+  throwIfAborted(signal);
   await fsApi.writeFile(path.join(root, relativePath), `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
+  throwIfAborted(signal);
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw cancellationError();
+}
+
+function cancellationError() {
+  return Object.assign(new Error('proof bundle write cancelled'), { name: 'AbortError', code: 'ABORT_ERR' });
 }
 
 function safeRelativePath(value) { return typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.includes('\\') && !value.split('/').includes('..'); }
