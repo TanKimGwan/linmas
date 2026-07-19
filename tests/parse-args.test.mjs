@@ -68,3 +68,16 @@ test('parses offline review capsule comparison', () => {
   assert.equal(args.output, 'json');
   assert.equal(args.provider, null);
 });
+
+test('parses proof create and verify subcommands without changing legacy review shape', () => {
+  assert.deepEqual(parseArgv(['node', 'linmas', 'proof', 'create', 'capsule.json', '--bundle', 'proof', '--signing-key', 'key']), {
+    command: 'proof', proofAction: 'create', proofSource: 'capsule.json', proofBundle: 'proof', signingKey: 'key', allowedSigners: null, proofErrors: [],
+    skillName: null, installAll: false, dryRun: false, inputPath: null, useStdin: false,
+    provider: null, model: null, output: 'text', assumeYes: false, policyId: null, policyFile: null, capsulePath: null
+  });
+  const verify = parseArgv(['node', 'linmas', 'proof', 'verify', 'proof', '--output', 'json', '--allowed-signers', 'allowed']);
+  assert.equal(verify.proofAction, 'verify');
+  assert.equal(verify.proofSource, 'proof');
+  assert.equal(verify.output, 'json');
+  assert.equal(verify.allowedSigners, 'allowed');
+});

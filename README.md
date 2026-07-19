@@ -107,6 +107,29 @@ Capsules are written with destination preflight and atomic no-overwrite behavior
 
 A capsule is not a digital signature, remote attestation, certification, or proof that software is secure. It is a reviewable evidence envelope for a bounded run.
 
+## The Proof Chain
+
+Turn a validated Review Capsule or a completed Codex Security sealed scan into a portable, human-reviewed evidence bundle:
+
+```bash
+linmas proof create review-capsule.json --bundle proof-bundle
+linmas proof verify proof-bundle
+npm run demo:proof
+```
+
+The creation wizard records a disposition and rationale for every finding, derives an overall disposition, and writes `decision-receipt.json`, `report.md`, `report.html`, and hashed source evidence. The bundle is immutable at the destination and can be verified offline without provider credentials or network access.
+
+Codex Security imports require the complete sealed scan directory containing `scan-manifest.json`, `findings.json`, and `coverage.json`. Linmas verifies the manifest references and artifact hashes before importing the three structured files. It does not copy the full scan, execute scan content, or accept a findings-only file as a verified source.
+
+SSH signing is optional. A valid signature proves integrity and key possession; identity becomes trusted only when the verifier supplies a matching `--allowed-signers` file:
+
+```bash
+linmas proof create review-capsule.json --bundle signed-proof --signing-key ~/.ssh/id_ed25519
+linmas proof verify signed-proof --allowed-signers ~/.ssh/allowed_signers --output json
+```
+
+Proof bundles are evidence summaries, not approvals, certifications, or proof that software is secure. Human review remains required.
+
 ## Compare before and after
 
 Compare two capsules locally, without a provider or network call:
@@ -243,7 +266,10 @@ Codex contributed as the provider-native review engine, implementation collabora
 | `linmas uninstall <skill>` | Remove a Linmas-managed skill. |
 | `linmas review ...` | Prepare locally or execute an explicit provider review. |
 | `linmas review compare before.json after.json` | Compare two capsules offline. |
+| `linmas proof create <source> --bundle <dir>` | Record human decisions and create a portable proof bundle. |
+| `linmas proof verify <dir>` | Verify bundle hashes and optional SSH signature offline. |
 | `npm run demo:judge` | Run the deterministic judge demo. |
+| `npm run demo:proof` | Create and verify an ephemeral offline Proof Chain bundle. |
 | `npm run validate` | Validate package structure, skills, examples, and secrets. |
 | `npm run eval:offline` | Run checked-in evaluation cases without model calls. |
 | `npm run coverage` | Run tests with enforced source coverage thresholds. |
@@ -255,6 +281,8 @@ Codex contributed as the provider-native review engine, implementation collabora
 - Linmas never approves, merges, releases, or automatically fixes a change.
 - A policy `pass` or an empty comparison does not prove security.
 - Offline replay is not a fresh model inference.
+- A valid Proof Chain bundle records human disposition; it does not approve or certify a change.
+- Codex Security adapter input must be a completed sealed scan directory; findings-only JSON is not treated as verified evidence.
 - Live review transmits the explicit input to the selected provider after confirmation.
 - No claim is made that a read-only sandbox limits provider reads to the Linmas input.
 
