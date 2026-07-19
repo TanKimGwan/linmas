@@ -14,10 +14,12 @@ import {
   parseArgs,
   resolveSafeTarget
 } from '../scripts/build-codex-plugin.mjs';
+import { PUBLIC_PLUGIN_ROOT } from '../scripts/sync-codex-marketplace.mjs';
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_JSON = JSON.parse(await fs.readFile(path.join(REPOSITORY_ROOT, 'package.json'), 'utf8'));
 const DEFAULT_VALIDATE_PLUGIN = path.join(os.homedir(), '.codex', 'skills', '.system', 'plugin-creator', 'scripts', 'validate_plugin.py');
+const MARKETPLACE_FILE = path.join(REPOSITORY_ROOT, '.agents', 'plugins', 'marketplace.json');
 
 async function runNpm(args, options) {
   if (process.env.npm_execpath) {
@@ -49,6 +51,24 @@ async function listDirectories(directory) {
 
 async function sha256(filePath) {
   return crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
+}
+
+async function listRegularFiles(root, relativeRoot = '') {
+  const files = [];
+  const entries = await fs.readdir(path.join(root, relativeRoot), { withFileTypes: true });
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    const relativePath = path.join(relativeRoot, entry.name);
+    if (entry.isSymbolicLink()) {
+      assert.fail(`public plugin artifact must not contain symlinks: ${relativePath}`);
+    }
+    if (entry.isDirectory()) {
+      files.push(...await listRegularFiles(root, relativePath));
+    } else {
+      assert.equal(entry.isFile(), true, `public plugin entry must be a regular file: ${relativePath}`);
+      files.push(relativePath.replaceAll('\\', '/'));
+    }
+  }
+  return files;
 }
 
 test('Codex plugin source inventory contains exactly eleven canonical skills', async () => {
@@ -101,6 +121,48 @@ test('canonical manifest has the required MCP metadata and explicit capabilities
   assert.equal(Object.hasOwn(manifest, 'hooks'), false);
 });
 
+test('public Git marketplace exposes a byte-identical validated Linmas plugin', async () => {
+  const marketplace = JSON.parse(await fs.readFile(MARKETPLACE_FILE, 'utf8'));
+  assert.deepEqual(marketplace, {
+    name: 'linmas',
+    interface: { displayName: 'Linmas Security' },
+    plugins: [{
+      name: 'linmas',
+      source: { source: 'local', path: './plugins/linmas' },
+      policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+      category: 'Security'
+    }]
+  });
+
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-public-marketplace-test-'));
+  const freshPlugin = path.join(tempRoot, 'linmas');
+  try {
+    await buildPlugin(freshPlugin);
+    const trackedFiles = await listRegularFiles(PUBLIC_PLUGIN_ROOT);
+    const freshFiles = await listRegularFiles(freshPlugin);
+    assert.deepEqual(trackedFiles, freshFiles);
+    for (const relativePath of trackedFiles) {
+      assert.equal(
+        await sha256(path.join(PUBLIC_PLUGIN_ROOT, relativePath)),
+        await sha256(path.join(freshPlugin, relativePath)),
+        `tracked public plugin drifted from canonical source: ${relativePath}`
+      );
+    }
+
+    const manifest = JSON.parse(await fs.readFile(path.join(PUBLIC_PLUGIN_ROOT, '.codex-plugin', 'plugin.json'), 'utf8'));
+    assert.equal(manifest.version, PACKAGE_JSON.version);
+    assert.equal((await listDirectories(path.join(PUBLIC_PLUGIN_ROOT, 'skills'))).length, 11);
+    await runExternalPluginValidatorIfAvailable(PUBLIC_PLUGIN_ROOT);
+
+    const readme = await fs.readFile(path.join(REPOSITORY_ROOT, 'README.md'), 'utf8');
+    assert.match(readme, /codex plugin marketplace add TanKimGwan\/linmas --ref main/);
+    assert.match(readme, /codex plugin add linmas@linmas/);
+    assert.match(readme, /restart the Codex desktop\/app-server/i);
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('npm packed artifact contains builder inputs and builds a validated plugin without internal files', async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-packed-plugin-test-'));
   const packDestination = path.join(tempRoot, 'pack');
@@ -117,7 +179,7 @@ test('npm packed artifact contains builder inputs and builds a validated plugin 
     assert.ok(Array.isArray(packResult.files));
     const listing = packResult.files.map((entry) => entry.path.replaceAll('\\', '/'));
     assert.ok(listing.includes('plugin/manifest.template.json'));
-    for (const forbidden of ['tests/', 'docs/', '.serena/', 'AGENTS.md', 'marketplace', 'gstack/']) {
+    for (const forbidden of ['tests/', 'docs/', '.agents/', 'plugins/', '.serena/', 'AGENTS.md', 'marketplace', 'gstack/']) {
       assert.equal(listing.some((entry) => entry === forbidden || entry.startsWith(forbidden)), false, `packed artifact must exclude ${forbidden}`);
     }
 
