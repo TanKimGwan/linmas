@@ -1,12 +1,13 @@
 # Panduan Penggunaan Linmas
 
-Linmas adalah toolkit review keamanan defensif untuk software yang dibantu AI. Linmas menyediakan CLI, sebelas skill keamanan bernamespace, evaluasi policy deterministik, bukti Proof Chain portabel, dan native MCP server untuk Codex. Human review tetap wajib untuk setiap hasil.
+Linmas adalah toolkit review keamanan defensif Codex-first untuk software yang dibantu AI. Linmas menyediakan CLI, sebelas skill keamanan bernamespace, evaluasi policy deterministik, bukti Proof Chain portabel, dan native MCP server untuk Codex. Skill Linmas juga dapat digunakan oleh AI coding agent lain sesuai tingkat kompatibilitas yang dijelaskan di bawah. Human review tetap wajib untuk setiap hasil.
 
 ## Persyaratan
 
 - Node.js 24 atau lebih baru untuk CLI, source checkout, dan runtime MCP lokal.
 - Git untuk instalasi dari source dan marketplace Codex.
 - Codex CLI atau Codex desktop/app-server untuk jalur plugin Codex.
+- Claude Code hanya jika menggunakan jalur managed skill Claude yang sudah diverifikasi.
 
 Linmas tidak meminta API key OpenAI untuk penggunaan Codex berbasis subscription. Autentikasi provider tetap dikelola Codex. Live review bersifat opt-in dan memerlukan konfirmasi eksplisit sebelum input keluar dari komputer.
 
@@ -17,8 +18,21 @@ Linmas tidak meminta API key OpenAI untuk penggunaan Codex berbasis subscription
 | Source GitHub | Kontributor, development lokal reproducible, dan demo offline | Repository beserta script development |
 | npm | Menjalankan CLI Linmas tanpa clone repository | Package dan CLI `linmas` yang dipublish |
 | Codex marketplace | Menggunakan skill dan MCP tool Linmas di Codex | Plugin siap pakai `linmas@linmas` |
+| Managed skill Claude Code | Menggunakan sebelas skill Linmas di Claude Code | Skill yang dipasang melalui CLI Linmas |
 
 Package npm dan marketplace Codex adalah dua jalur distribusi terpisah. Instalasi package npm tidak otomatis mendaftarkan marketplace Codex, dan instalasi plugin Codex tidak otomatis menambahkan package ke project Node.js lain.
+
+## Kompatibilitas AI agent
+
+Codex adalah integrasi native utama dan jalur referensi untuk OpenAI Build Week 2026. Linmas tetap compatible dengan agent lain melalui managed installation yang diverifikasi atau instruksi Markdown portabel:
+
+| AI agent atau surface | Tingkat kompatibilitas | Surface Linmas yang tersedia |
+| --- | --- | --- |
+| Codex | **Utama / native** | Plugin Git marketplace, sebelas skill, enam native MCP tool, managed skill directory, dan review melalui provider Codex. |
+| Claude Code | **Compatible dan terverifikasi** | Managed installation sebelas skill dan review melalui provider Claude API. Registrasi native Linmas MCP plugin untuk Claude Code tidak diklaim. |
+| Gemini CLI dan AI coding agent lain | **Portabel / manual** | Import atau adaptasi instruksi `skills/linmas-*/SKILL.md` jika agent mendukung project instruction atau user instruction yang setara. Belum ada installer, provider adapter, registrasi MCP, atau klaim parity khusus Gemini. |
+
+Kompatibilitas portabel mencakup isi instruksi defensif, bukan instalasi otomatis atau perilaku runtime yang identik. Human review, otorisasi, dan safety boundary Linmas tetap berlaku pada setiap host.
 
 ## Instalasi dari GitHub
 
@@ -131,6 +145,35 @@ codex plugin marketplace remove linmas
 ```
 
 Ini adalah instalasi plugin marketplace Codex. Linmas tidak otomatis muncul di katalog plugin ChatGPT `@...`. Plugin/app ChatGPT adalah surface terpisah dan memerlukan ChatGPT App atau remote MCP yang di-host secara terpisah.
+
+## Instalasi skill di Claude Code
+
+Pasang seluruh sebelas managed skill dari package yang dipublish:
+
+```bash
+npx --yes linmas@0.5.1 detect
+npx --yes linmas@0.5.1 install --all
+```
+
+Pilih `Claude` ketika prompt host interaktif muncul. Linmas menulis managed skill ke `~/.claude/skills` dan mencatat ownership pada `~/.claude/linmas-manifest.json`. Untuk memasang satu specialist saja:
+
+```bash
+npx --yes linmas@0.5.1 install linmas-secure-code-reviewer
+```
+
+Verifikasi managed installation:
+
+```bash
+npx --yes linmas@0.5.1 doctor
+```
+
+Live execution melalui provider Claude adalah surface opt-in yang terpisah. Jalur tersebut membutuhkan `ANTHROPIC_API_KEY`, model eksplisit melalui `LINMAS_EVAL_MODEL` atau CLI, serta konfirmasi sebelum input yang disebutkan keluar dari komputer. Instalasi skill tidak mentransmisikan data review.
+
+## Menggunakan Linmas dengan Gemini atau AI coding agent lain
+
+Linmas saat ini tidak mengubah konfigurasi Gemini atau agent lain yang belum terdaftar. Jika agent mendukung instruksi Markdown persisten atau direktori bergaya Agent Skills, Anda dapat mengimpor atau mengadaptasi file canonical yang relevan dari `skills/linmas-*/SKILL.md` secara manual.
+
+Perlakukan jalur ini sebagai kompatibilitas instruksi portabel, bukan integrasi native yang sudah diverifikasi. Agent harus mempertahankan persyaratan otorisasi, evidence, consent, dan human review Linmas. Native provider execution dan enam MCP tool Codex tidak otomatis tersedia hanya dengan menyalin file skill.
 
 ## Menggunakan Linmas dari CLI
 

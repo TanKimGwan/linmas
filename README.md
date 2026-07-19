@@ -8,14 +8,16 @@
   <p>Turn one explicit change into a normalized finding, deterministic policy decision, and portable Review Capsule—with human review always required.</p>
 
   <p>
-    <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/TanKimGwan/linmas/ci.yml?branch=main&label=CI&logo=github"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version" src="https://img.shields.io/npm/v/linmas?logo=npm&logoColor=white"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm monthly downloads" src="https://img.shields.io/npm/dm/linmas?logo=npm&logoColor=white"></a>
-    <a href="https://github.com/TanKimGwan/linmas/releases"><img alt="latest GitHub release" src="https://img.shields.io/github/v/release/TanKimGwan/linmas?display_name=tag&logo=github"></a>
-    <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TanKimGwan/linmas"></a>
-    <img alt="Node.js 24+" src="https://img.shields.io/node/v/linmas?logo=node.js&logoColor=white">
-    <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex marketplace" src="https://img.shields.io/badge/Codex-marketplace-6E56CF?logo=openai&logoColor=white"></a>
-    <img alt="Security: defensive only" src="https://img.shields.io/badge/security-defensive_only-16A34A.svg">
+    <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.5.1" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
+    <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.5.1"><img alt="release v0.5.1" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
+    <a href="LICENSE"><img alt="License: Apache-2.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/license.svg"></a>
+    <img alt="Node.js 24+" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/node.svg">
+    <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex primary" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/codex.svg"></a>
+    <a href="#ai-agent-compatibility"><img alt="Claude Code compatible" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/claude-code.svg"></a>
+    <a href="#ai-agent-compatibility"><img alt="AI agent skills portable" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/agent-skills.svg"></a>
+    <a href="OPENAI_BUILD_WEEK_2026.md"><img alt="OpenAI Build Week 2026" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/openai-build-week.svg"></a>
+    <img alt="Security: defensive only" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/security.svg">
   </p>
 </div>
 
@@ -51,6 +53,18 @@ Choose the guide that matches your language and installation goal:
 - [Panduan Penggunaan Linmas — Bahasa Indonesia](PANDUAN-PENGGUNAAN.md): panduan instalasi dan penggunaan dalam bahasa Indonesia.
 
 GitHub's standard repository navigation exposes fixed tabs; these public usage guides are tracked at the repository root and linked here for reliable discovery. The guides are intentionally excluded from the npm package.
+
+## AI agent compatibility
+
+Linmas is **Codex-first for OpenAI Build Week 2026** and designed to remain portable across AI coding agents. The Codex plugin, native MCP tools, offline judge, and verified live-review evidence are the primary event path. Compatibility with other agents depends on the integration level below.
+
+| AI agent or surface | Status | Supported integration |
+| --- | --- | --- |
+| Codex | **Primary / native** | Git marketplace plugin, eleven skills, six native MCP tools, managed skill directory, and provider-backed review. |
+| Claude Code | **Verified compatible** | Managed installation of eleven skills and Claude API provider-backed review. |
+| Gemini CLI and other coding agents | **Portable / manual** | The Markdown skill instructions can be imported or adapted where the agent supports equivalent instructions. Linmas does not yet provide a Gemini-specific installer, provider adapter, or MCP registration. |
+
+“Portable / manual” means the defensive instructions can be reused; it does not mean native integration has been verified. New native hosts must have deterministic detection, install/uninstall tests, safety-boundary parity, and a maintenance owner before Linmas labels them verified.
 
 ## Why the name “Linmas”?
 
@@ -221,7 +235,7 @@ Installation hosts and execution providers are independent:
 | Installation hosts | Claude Code and Codex managed skill directories |
 | Execution providers | Claude and Codex provider-native configuration |
 
-Credentials are never stored in an installation manifest. Live execution is opt-in. Additional installation hosts remain demand-driven and require testable install/uninstall behavior and a maintenance owner.
+Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.5.1. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
 
 ```bash
 npx linmas list
