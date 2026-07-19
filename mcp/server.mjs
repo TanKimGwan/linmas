@@ -581,11 +581,22 @@ async function validateWorkspaceRoot(rawRoot) {
   if (BROAD_ROOTS.has(root) || root === path.parse(root).root) throw toolError('invalid_path', 'workspace_root is too broad');
   let stat;
   try { stat = await fs.lstat(root); } catch { throw toolError('invalid_path', 'workspace_root is not accessible'); }
-  if (!stat.isDirectory() || stat.isSymbolicLink()) throw toolError('invalid_path', 'workspace_root must be a regular directory');
-  let real;
-  try { real = await fs.realpath(root); } catch { throw toolError('invalid_path', 'workspace_root could not be resolved'); }
-  if (real !== root) throw toolError('invalid_path', 'workspace_root must not resolve through a symlink');
+  if (stat.isSymbolicLink()) throw toolError('invalid_path', 'workspace_root must not resolve through a symlink');
+  if (!stat.isDirectory()) throw toolError('invalid_path', 'workspace_root must be a regular directory');
+  await assertNoSymlinkPathComponents(root);
+  try { await fs.realpath(root); } catch { throw toolError('invalid_path', 'workspace_root could not be resolved'); }
   return root;
+}
+
+async function assertNoSymlinkPathComponents(target) {
+  const filesystemRoot = path.parse(target).root;
+  let current = filesystemRoot;
+  for (const segment of target.slice(filesystemRoot.length).split(path.sep).filter(Boolean)) {
+    current = path.join(current, segment);
+    let stat;
+    try { stat = await fs.lstat(current); } catch { throw toolError('invalid_path', 'workspace_root is not accessible'); }
+    if (stat.isSymbolicLink()) throw toolError('invalid_path', 'workspace_root must not resolve through a symlink');
+  }
 }
 
 async function resolveExisting(workspace, rawPath, label, { directory = false } = {}) {

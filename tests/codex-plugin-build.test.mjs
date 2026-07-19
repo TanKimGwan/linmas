@@ -17,7 +17,22 @@ import {
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_JSON = JSON.parse(await fs.readFile(path.join(REPOSITORY_ROOT, 'package.json'), 'utf8'));
-const VALIDATE_PLUGIN = path.join(os.homedir(), '.codex', 'skills', '.system', 'plugin-creator', 'scripts', 'validate_plugin.py');
+const NPM_COMMAND = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const DEFAULT_VALIDATE_PLUGIN = path.join(os.homedir(), '.codex', 'skills', '.system', 'plugin-creator', 'scripts', 'validate_plugin.py');
+
+async function runExternalPluginValidatorIfAvailable(pluginPath) {
+  const validator = process.env.LINMAS_VALIDATE_PLUGIN ?? DEFAULT_VALIDATE_PLUGIN;
+  try {
+    await fs.access(validator);
+  } catch (cause) {
+    if (process.env.LINMAS_VALIDATE_PLUGIN) {
+      throw new Error(`LINMAS_VALIDATE_PLUGIN is not accessible: ${validator}`, { cause });
+    }
+    return;
+  }
+  const python = process.env.LINMAS_PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3');
+  await execFileAsync(python, [validator, pluginPath]);
+}
 
 async function listDirectories(directory) {
   return (await fs.readdir(directory, { withFileTypes: true }))
@@ -90,7 +105,7 @@ test('npm packed artifact contains builder inputs and builds a validated plugin 
   await fs.mkdir(targetParent);
 
   try {
-    const { stdout } = await execFileAsync('npm', ['pack', '--json', '--pack-destination', packDestination], { cwd: REPOSITORY_ROOT });
+    const { stdout } = await execFileAsync(NPM_COMMAND, ['pack', '--json', '--pack-destination', packDestination], { cwd: REPOSITORY_ROOT });
     const packResult = JSON.parse(stdout)[0];
     const archive = path.join(packDestination, packResult.filename);
     const listing = (await execFileAsync('tar', ['-tzf', archive])).stdout.split('\n').filter(Boolean).map((entry) => entry.replace(/^package\//u, ''));
@@ -109,7 +124,7 @@ test('npm packed artifact contains builder inputs and builds a validated plugin 
     assert.equal((await fs.readdir(path.join(builtRoot, 'skills'), { withFileTypes: true })).filter((entry) => entry.isDirectory()).length, 11);
     assert.equal((await fs.lstat(path.join(builtRoot, '.mcp.json'))).isFile(), true);
     assert.equal((await fs.lstat(path.join(builtRoot, 'mcp', 'server.mjs'))).isFile(), true);
-    await execFileAsync('python3', [VALIDATE_PLUGIN, builtRoot]);
+    await runExternalPluginValidatorIfAvailable(builtRoot);
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }

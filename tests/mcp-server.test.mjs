@@ -118,6 +118,13 @@ test('all offline tool paths validate strict input and workspace boundaries', as
     } finally {
       await fs.rm(path.join(root, 'link'), { force: true });
     }
+    const linkedRoot = `${root}-link`;
+    await fs.symlink(root, linkedRoot, process.platform === 'win32' ? 'junction' : 'dir');
+    try {
+      await assert.rejects(dispatch('linmas_review_prepare', { workspace_root: linkedRoot, input_text: 'x' }), /symlink/);
+    } finally {
+      await fs.rm(linkedRoot, { force: true });
+    }
     await assert.rejects(dispatch('linmas_review_prepare', { workspace_root: root, input_text: 'x', timeout_ms: TOOL_TIMEOUTS.read.maxMs + 1 }), /bounded tool limit/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
