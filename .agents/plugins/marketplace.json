@@ -1,0 +1,20 @@
+{
+  "name": "linmas",
+  "interface": {
+    "displayName": "Linmas Security"
+  },
+  "plugins": [
+    {
+      "name": "linmas",
+      "source": {
+        "source": "local",
+        "path": "./plugins/linmas"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Security"
+    }
+  ]
+}

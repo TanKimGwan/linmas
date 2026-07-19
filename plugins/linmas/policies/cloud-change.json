@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "id": "cloud-change",
+  "version": "1.0.0",
+  "description": "Cloud configuration change security review conditions",
+  "specialists": [
+    "cloud-hardening-architect"
+  ],
+  "modes": [
+    "advisor-review"
+  ],
+  "acceptedInputs": [
+    "text",
+    "diff",
+    "code"
+  ],
+  "rules": [
+    {
+      "id": "least-privilege",
+      "type": "minimum-checks",
+      "checks": [
+        "least-privilege review"
+      ]
+    },
+    {
+      "id": "critical-cloud-findings",
+      "type": "finding-threshold",
+      "severities": [
+        "Critical",
+        "High"
+      ],
+      "statuses": [
+        "Confirmed finding"
+      ],
+      "status": "blocked"
+    },
+    {
+      "id": "cloud-evidence",
+      "type": "require-evidence"
+    }
+  ],
+  "humanReview": {
+    "required": true,
+    "statement": "A human reviewer must approve the decision."
+  }
+}
