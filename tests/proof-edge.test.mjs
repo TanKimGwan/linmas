@@ -6,7 +6,7 @@ import path from 'node:path';
 import { buildReviewCapsule } from '../src/review/build-capsule.mjs';
 import { parseArgv } from '../src/cli/parse-args.mjs';
 import { runProof } from '../src/proof/run-proof.mjs';
-import { loadCapsuleEvidence, loadProofEvidence } from '../src/proof/load-evidence.mjs';
+import { loadCapsuleEvidence, loadProofEvidence, sha256 } from '../src/proof/load-evidence.mjs';
 import { buildDecisionReceipt, validateDecisionReceipt } from '../src/proof/validate-receipt.mjs';
 import { deriveOverallDisposition, assertOverallDisposition } from '../src/proof/derive-disposition.mjs';
 import { writeProofBundle } from '../src/proof/write-bundle.mjs';
@@ -95,6 +95,7 @@ test('proof CLI exposes verify output and rejects malformed proof invocations', 
     await assert.rejects(runProof(parseArgv(['node', 'linmas', 'proof', 'verify', bundle, '--signing-key', 'key']), { io }), /only valid/);
     await assert.rejects(runProof({ proofErrors: ['unknown'] }, { io }), /unknown/);
     await assert.rejects(runProof({ proofAction: 'create', proofSource: 'x', proofBundle: null, proofErrors: [] }, { io }), /requires source/);
+    await assert.rejects(runProof({ proofAction: 'verify', proofSource: null, proofErrors: [] }, { io }), /requires a bundle/);
     await assert.rejects(runProof({ proofAction: 'invalid', proofSource: null, proofErrors: [] }, { io }), /must be create or verify/);
     const cliErrors = [];
     const cliCode = await runCli(['node', 'linmas', 'proof', 'verify', '/definitely/missing-proof-bundle'], {
@@ -172,16 +173,54 @@ test('verifier rejects manifest shape and artifact binding changes', async () =>
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
 
+test('verifier rejects root, manifest, duplicate, and receipt contract failures', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-proof-contract-'));
+  try {
+    const { bundle } = await makeBundle(root);
+    await assert.rejects(verifyProofBundle(path.join(bundle, 'report.md')), /regular directory/);
+    const bundleLink = path.join(root, 'bundle-link');
+    await fs.symlink(bundle, bundleLink);
+    await assert.rejects(verifyProofBundle(bundleLink), /regular directory/);
+
+    const manifestPath = path.join(bundle, 'manifest.json');
+    const originalManifest = await fs.readFile(manifestPath, 'utf8');
+    await fs.writeFile(manifestPath, '{bad');
+    await assert.rejects(verifyProofBundle(bundle), /invalid JSON/);
+    await fs.writeFile(manifestPath, originalManifest);
+
+    const duplicateManifest = JSON.parse(originalManifest);
+    duplicateManifest.artifacts.push(structuredClone(duplicateManifest.artifacts[0]));
+    await fs.writeFile(manifestPath, `${JSON.stringify(duplicateManifest, null, 2)}\n`);
+    await assert.rejects(verifyProofBundle(bundle), /duplicate manifest artifact/);
+    await fs.writeFile(manifestPath, originalManifest);
+
+    const receiptPath = path.join(bundle, 'decision-receipt.json');
+    const invalidReceiptBytes = Buffer.from('{bad\n');
+    await fs.writeFile(receiptPath, invalidReceiptBytes);
+    const invalidReceiptManifest = JSON.parse(originalManifest);
+    const receiptArtifact = invalidReceiptManifest.artifacts.find((entry) => entry.path === 'decision-receipt.json');
+    receiptArtifact.bytes = invalidReceiptBytes.byteLength;
+    receiptArtifact.sha256 = sha256(invalidReceiptBytes);
+    invalidReceiptManifest.receipt.sha256 = sha256(invalidReceiptBytes);
+    await fs.writeFile(manifestPath, `${JSON.stringify(invalidReceiptManifest, null, 2)}\n`);
+    await assert.rejects(verifyProofBundle(bundle), /receipt is invalid/);
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
 test('bundle writer rejects preflight, binding, and unexpected filesystem failures', async () => {
   await assert.rejects(derivePublicKey('/definitely/missing-private-key'), /SSH signing key could not be inspected/);
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-proof-write-'));
   try {
     const { bundle, source, receipt } = await makeBundle(root);
     await assert.rejects(writeProofBundle(bundle, source, receipt), /already exists/);
+    await assert.rejects(writeProofBundle(path.join(root, 'capsule.json', 'child'), source, receipt), /parent must be a directory/);
     const mismatch = structuredClone(receipt);
     mismatch.subject.sha256 = 'c'.repeat(64);
     await assert.rejects(writeProofBundle(path.join(root, 'mismatch'), source, mismatch), /bind/);
     await assert.rejects(writeProofBundle(path.join(root, 'invalid'), null, receipt), /source is invalid/);
+    const unsafeSource = { ...source, evidenceFiles: [...source.evidenceFiles, { relativePath: '../unsafe', bytes: Buffer.from('unsafe') }] };
+    await assert.rejects(writeProofBundle(path.join(root, 'unsafe'), unsafeSource, receipt), /unsafe/);
+    await assert.rejects(writeProofBundle(path.join(root, 'signing-without-principal'), source, receipt, { signingKey: '/definitely/missing-key' }), /signer principal/);
     const failingFs = { ...fs, async mkdir() { throw new Error('synthetic mkdir failure'); } };
     await assert.rejects(writeProofBundle(path.join(root, 'failure'), source, receipt, { fsApi: failingFs }), /could not be written/);
     assert.equal(await fs.stat(path.join(root, 'failure')).then(() => true, () => false), false);
