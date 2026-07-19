@@ -91,6 +91,23 @@ test('bilingual usage guides are linked from README and excluded from npm packag
   assert.equal(pkg.files.includes('PANDUAN-PENGGUNAAN.md'), false);
 });
 
+test('bilingual usage guides include a beginner case and namespaced Codex prompt for every skill', () => {
+  const guides = [
+    { file: 'USAGE.md', invocation: 'Use' },
+    { file: 'PANDUAN-PENGGUNAAN.md', invocation: 'Gunakan' }
+  ];
+
+  for (const { file, invocation } of guides) {
+    const text = read(file);
+    for (const skill of PUBLIC_SKILL_IDS) {
+      assert.match(text, new RegExp(`\\b${skill}\\b`), `${file} must describe ${skill}`);
+      assert.match(text, new RegExp(`${invocation} ` + '`' + `linmas:${skill}` + '`'), `${file} must include a copyable Codex prompt for ${skill}`);
+    }
+    assert.equal([...text.matchAll(/\*\*(?:Example case|Contoh kasus):\*\*/g)].length, PUBLIC_SKILL_IDS.length, `${file} must include one case per skill`);
+    assert.equal([...text.matchAll(/\*\*(?:Expected result|Hasil yang diharapkan):\*\*/g)].length, PUBLIC_SKILL_IDS.length, `${file} must include one expected result per skill`);
+  }
+});
+
 test('README badges use renderable SVG endpoints and static release metadata stays current', () => {
   const text = read('README.md');
   const pkg = JSON.parse(read('package.json'));
