@@ -64,6 +64,9 @@ const forbiddenPatterns = [
 // Mirror the intended npm publish surface from package.json.
 const publishedSurface = [
   'bin',
+  '.mcp.json',
+  'mcp',
+  'plugin',
   'src',
   'README.md',
   'OPENAI_BUILD_WEEK_2026.md',

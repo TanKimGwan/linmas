@@ -252,7 +252,31 @@ Codex contributed as the provider-native review engine, implementation collabora
 - The offline workflow is provider-independent and deterministic.
 - The verified live evidence was collected on Linux.
 - Codex executable discovery covers native POSIX and Windows layouts; unsafe Windows `.cmd` and `.bat` shims are rejected.
-- A successful live Windows provider run is not currently claimed.
+- The native MCP stdio path is verified on Linux with Node.js 24+. Native Windows MCP and a successful live Windows provider run are not currently claimed.
+
+## Native MCP plugin
+
+The release candidate includes a local Codex plugin with a native stdio MCP server. Build it from the repository into a plugin directory, then validate the generated directory before using the host installation flow:
+
+```bash
+npm run build:codex-plugin -- --target /absolute/path/to/plugins/linmas
+python3 /home/tan/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /absolute/path/to/plugins/linmas
+```
+
+The builder copies exactly eleven canonical Linmas skills, the bounded MCP server, policy/runtime files, `.mcp.json`, and the package metadata required to report the canonical version. It does not install or update a marketplace entry. For development-only host refreshes, use the official cachebuster/reinstall flow; a cachebuster is not part of the canonical source or package version. After reinstalling a plugin whose MCP server changed, restart the Codex desktop/app-server before starting a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache even when the new task was created after reinstall.
+
+The MCP server exposes exactly six tools:
+
+| Tool | Boundary |
+|---|---|
+| `linmas_review_prepare` | Offline preparation; no provider and no writes. |
+| `linmas_review_compare` | Offline capsule comparison. |
+| `linmas_policy_evaluate` | Offline deterministic policy evaluation. |
+| `linmas_proof_verify` | Offline proof-bundle verification. |
+| `linmas_proof_create` | Local write only after `confirm_write=true`. |
+| `linmas_review_execute` | Provider transmission only after `confirm_transmission=true`. |
+
+Tool results expose bounded status values such as `prepared`, `verified`, and `executed`, plus `humanReviewRequired=true`; every result remains `needs_human_review`. A prepared result does not call a provider or write output. Offline tools do not transmit data. A provider-backed review transmits only after explicit consent, and a proof bundle is written only after explicit write confirmation. Timeouts cancel provider work and prevent late normalization, policy evaluation, capsule creation, or final output writes.
 
 ## Command reference
 
@@ -285,6 +309,7 @@ Codex contributed as the provider-native review engine, implementation collabora
 - Codex Security adapter input must be a completed sealed scan directory; findings-only JSON is not treated as verified evidence.
 - Live review transmits the explicit input to the selected provider after confirmation.
 - No claim is made that a read-only sandbox limits provider reads to the Linmas input.
+- Native MCP support is bounded to the documented Node.js 24+ Linux-verified path; Codex fresh-task discovery requires a separately verified host reinstall and is not implied by direct stdio validation.
 
 ## Contributing, security, and license
 
