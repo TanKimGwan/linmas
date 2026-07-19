@@ -90,3 +90,34 @@ test('bilingual usage guides are linked from README and excluded from npm packag
   assert.equal(pkg.files.includes('USAGE.md'), false);
   assert.equal(pkg.files.includes('PANDUAN-PENGGUNAAN.md'), false);
 });
+
+test('README badges use renderable SVG endpoints and static release metadata stays current', () => {
+  const text = read('README.md');
+  const pkg = JSON.parse(read('package.json'));
+  const sources = [...text.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => match[1]);
+  const badgeSources = sources.filter((source) => source.includes('/badge'));
+
+  assert.ok(badgeSources.length >= 8, 'README should retain the public project badge set');
+  for (const source of badgeSources) {
+    const url = new URL(source);
+    assert.match(url.pathname, /\.svg$/, `badge must use an explicit SVG endpoint: ${source}`);
+    if (url.hostname === 'raw.githubusercontent.com') {
+      const relativePath = url.pathname.replace(/^\/TanKimGwan\/linmas\/main\//, '');
+      assert.equal(fs.existsSync(path.join(rootDir, relativePath)), true, `missing tracked badge asset: ${relativePath}`);
+    }
+  }
+  assert.doesNotMatch(text, /img\.shields\.io/, 'README badges must not depend on the failing third-party proxy');
+  assert.match(read('assets/badges/npm.svg'), new RegExp(`npm: v${pkg.version.replaceAll('.', '\\.')}`));
+  assert.match(read('assets/badges/release.svg'), new RegExp(`release: v${pkg.version.replaceAll('.', '\\.')}`));
+});
+
+test('public docs describe Codex-first compatibility without overstating other agents', () => {
+  for (const file of ['README.md', 'USAGE.md', 'PANDUAN-PENGGUNAAN.md']) {
+    const text = read(file);
+    assert.match(text, /Codex/i, `${file} must identify Codex`);
+    assert.match(text, /Claude Code/i, `${file} must document verified Claude Code compatibility`);
+    assert.match(text, /Gemini/i, `${file} must document the Gemini portability boundary`);
+    assert.match(text, /(?:Codex-first|Codex is the primary native integration|Codex adalah integrasi native utama)/i, `${file} must keep Codex as the primary integration`);
+    assert.match(text, /(?:portable|portabel)[\s\S]{0,400}(?:manual|native integration|integrasi native)/i, `${file} must distinguish portability from native integration`);
+  }
+});
