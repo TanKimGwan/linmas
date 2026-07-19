@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="133" height="20" role="img" aria-label="security: defensive only">
+  <title>security: defensive only</title>
+  <g shape-rendering="crispEdges">
+    <rect width="57" height="20" rx="3" fill="#555"/>
+    <rect x="57" width="76" height="20" rx="3" fill="#16a34a"/>
+    <rect x="54" width="6" height="20" fill="#16a34a"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11">
+    <text x="28.5" y="14">security</text>
+    <text x="95" y="14">defensive only</text>
+  </g>
+</svg>

@@ -1,12 +1,13 @@
 # Linmas Usage Guide
 
-Linmas is a defensive security review toolkit for AI-assisted software. It provides a CLI, eleven namespaced security skills, deterministic policy checks, portable proof evidence, and a native MCP server for Codex. Human review remains required for every result.
+Linmas is a Codex-first defensive security review toolkit for AI-assisted software. It provides a CLI, eleven namespaced security skills, deterministic policy checks, portable proof evidence, and a native MCP server for Codex. The skills can also be used by other AI coding agents at the compatibility levels documented below. Human review remains required for every result.
 
 ## Requirements
 
 - Node.js 24 or newer for the CLI, source checkout, and local MCP runtime.
 - Git for the source installation and Codex marketplace installation.
 - Codex CLI or Codex desktop/app-server for the Codex plugin path.
+- Claude Code only when using the verified Claude managed-skill path.
 
 Linmas does not require an OpenAI API key for subscription-first Codex use. Codex owns provider authentication. Live review is opt-in and requires explicit confirmation before input leaves the machine.
 
@@ -17,8 +18,21 @@ Linmas does not require an OpenAI API key for subscription-first Codex use. Code
 | GitHub source | Contributors, reproducible local development, and the offline demo | The repository and its development scripts |
 | npm | Running the Linmas CLI without cloning the repository | The published `linmas` package and CLI |
 | Codex marketplace | Using Linmas skills and MCP tools inside Codex | The ready-to-install `linmas@linmas` plugin |
+| Claude Code managed skills | Using the eleven Linmas skills inside Claude Code | Skills installed through the Linmas CLI |
 
 The npm package and Codex marketplace are separate distribution paths. Installing the npm package does not register a Codex marketplace, and installing the Codex plugin does not add the package to another Node.js project.
+
+## AI agent compatibility
+
+Codex is the primary native integration and the reference path for OpenAI Build Week 2026. Linmas remains compatible with other agents through verified managed installation or portable Markdown instructions:
+
+| AI agent or surface | Compatibility level | Available Linmas surface |
+| --- | --- | --- |
+| Codex | **Primary / native** | Git marketplace plugin, eleven skills, six native MCP tools, managed skill directory, and Codex provider-backed review. |
+| Claude Code | **Verified compatible** | Managed installation of eleven skills and Claude API provider-backed review. Native Linmas MCP plugin registration is not claimed for Claude Code. |
+| Gemini CLI and other coding agents | **Portable / manual** | Import or adapt the relevant `skills/linmas-*/SKILL.md` instructions if the agent supports equivalent project or user instructions. There is no Gemini-specific installer, provider adapter, MCP registration, or verified parity claim yet. |
+
+Portable compatibility covers the defensive instruction content, not automatic installation or identical runtime behavior. Human review, authorization, and the Linmas safety boundary still apply in every host.
 
 ## Install from GitHub
 
@@ -131,6 +145,35 @@ codex plugin marketplace remove linmas
 ```
 
 This is a Codex plugin marketplace installation. It does not make Linmas appear in the ChatGPT `@` plugin catalog. ChatGPT plugins/apps are a separate surface and would require a separately hosted ChatGPT App or remote MCP integration.
+
+## Install skills in Claude Code
+
+Install all eleven managed skills from the published package:
+
+```bash
+npx --yes linmas@0.5.1 detect
+npx --yes linmas@0.5.1 install --all
+```
+
+Choose `Claude` when the interactive host prompt appears. Linmas writes managed skills under `~/.claude/skills` and records ownership in `~/.claude/linmas-manifest.json`. To install only one specialist:
+
+```bash
+npx --yes linmas@0.5.1 install linmas-secure-code-reviewer
+```
+
+Verify the managed installation:
+
+```bash
+npx --yes linmas@0.5.1 doctor
+```
+
+Live Claude provider execution is a separate opt-in surface. It requires `ANTHROPIC_API_KEY`, an explicit model through `LINMAS_EVAL_MODEL` or the CLI, and confirmation before the named input leaves the machine. Installing skills does not transmit review data.
+
+## Use Linmas with Gemini or another AI coding agent
+
+Linmas does not currently mutate Gemini or other unregistered agent configuration. If an agent supports persistent Markdown instructions or an Agent Skills-style directory, you can manually import or adapt the relevant canonical file from `skills/linmas-*/SKILL.md`.
+
+Treat this as portable instruction compatibility, not a verified native integration. The agent must preserve Linmas authorization, evidence, consent, and human-review requirements. Native provider execution and the six Codex MCP tools are not implied by copying a skill file.
 
 ## Use Linmas from the CLI
 
