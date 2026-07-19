@@ -114,7 +114,8 @@ test('npm packed artifact contains builder inputs and builds a validated plugin 
     const { stdout } = await runNpm(['pack', '--json', '--pack-destination', packDestination], { cwd: REPOSITORY_ROOT });
     const packResult = JSON.parse(stdout)[0];
     const archive = path.join(packDestination, packResult.filename);
-    const listing = (await execFileAsync('tar', ['-tzf', archive])).stdout.split('\n').filter(Boolean).map((entry) => entry.replace(/^package\//u, ''));
+    assert.ok(Array.isArray(packResult.files));
+    const listing = packResult.files.map((entry) => entry.path.replaceAll('\\', '/'));
     assert.ok(listing.includes('plugin/manifest.template.json'));
     for (const forbidden of ['tests/', 'docs/', '.serena/', 'AGENTS.md', 'marketplace', 'gstack/']) {
       assert.equal(listing.some((entry) => entry === forbidden || entry.startsWith(forbidden)), false, `packed artifact must exclude ${forbidden}`);
