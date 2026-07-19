@@ -1,3 +1,4 @@
 * text=auto
 examples/build-week/*.diff text eol=lf
 examples/build-week/*.json text eol=lf
+plugins/linmas/.codex-plugin/plugin.json text eol=lf

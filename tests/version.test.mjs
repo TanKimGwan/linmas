@@ -16,7 +16,7 @@ test('Linmas version loader validates package metadata deterministically', async
     await fs.writeFile(malformed, '{not-json}\n');
     await fs.writeFile(empty, '{"version":"  "}\n');
 
-    assert.equal(LINMAS_VERSION, '0.5.0');
+    assert.equal(LINMAS_VERSION, '0.5.1');
     assert.equal(loadLinmasVersion(valid), '9.8.7');
     assert.throws(() => loadLinmasVersion(malformed), /unable to read Linmas package version/);
     assert.throws(() => loadLinmasVersion(path.join(root, 'missing.json')), /unable to read Linmas package version/);

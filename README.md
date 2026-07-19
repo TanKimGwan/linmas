@@ -256,14 +256,38 @@ Codex contributed as the provider-native review engine, implementation collabora
 
 ## Native MCP plugin
 
-The release candidate includes a local Codex plugin with a native stdio MCP server. Build it from the repository into a plugin directory, then validate the generated directory before using the host installation flow:
+Install the public Git marketplace and the Linmas plugin:
+
+```bash
+codex plugin marketplace add TanKimGwan/linmas --ref main
+codex plugin add linmas@linmas
+codex plugin list
+```
+
+To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.5.1`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
+
+To upgrade an existing marketplace installation:
+
+```bash
+codex plugin marketplace upgrade linmas
+codex plugin add linmas@linmas
+```
+
+The public marketplace tracks a ready-to-install plugin at `plugins/linmas`. Maintainers regenerate it from canonical sources and verify every file byte-for-byte:
+
+```bash
+npm run sync:codex-marketplace
+python3 /home/tan/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/linmas
+```
+
+Npm users can also build an independent local plugin directory:
 
 ```bash
 npm run build:codex-plugin -- --target /absolute/path/to/plugins/linmas
 python3 /home/tan/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /absolute/path/to/plugins/linmas
 ```
 
-The builder copies exactly eleven canonical Linmas skills, the bounded MCP server, policy/runtime files, `.mcp.json`, and the package metadata required to report the canonical version. It does not install or update a marketplace entry. For development-only host refreshes, use the official cachebuster/reinstall flow; a cachebuster is not part of the canonical source or package version. After reinstalling a plugin whose MCP server changed, restart the Codex desktop/app-server before starting a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache even when the new task was created after reinstall.
+The builder copies exactly eleven canonical Linmas skills, the bounded MCP server, policy/runtime files, `.mcp.json`, and the package metadata required to report the canonical version. It does not mutate a user's marketplace configuration. Development cachebusters are host-artifact metadata and are not part of the canonical source or package version.
 
 The MCP server exposes exactly six tools:
 
