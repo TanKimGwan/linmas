@@ -18,6 +18,8 @@ import { createProviderRegistry } from '../src/providers/registry.mjs';
 import { createHostRegistry } from '../src/hosts/registry.mjs';
 import { loadPolicyPack } from '../src/policy/load-pack.mjs';
 import { formatSecurityDelta, loadAndCompareCapsules } from '../src/review/compare-capsules.mjs';
+import { runProof } from '../src/proof/run-proof.mjs';
+import { ProofError } from '../src/proof/errors.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -80,6 +82,16 @@ export async function run(argv, io = process, dependencies = {}) {
     } catch (error) {
       io.stderr.write(`Error: ${error.message}\n`);
       return error instanceof ReviewError ? error.exitCode : 1;
+    }
+  }
+
+  if (args.command === 'proof') {
+    try {
+      await runProof(args, { io });
+      return 0;
+    } catch (error) {
+      io.stderr.write(`Error: ${error.message}\n`);
+      return error instanceof ProofError ? error.exitCode : 1;
     }
   }
 

@@ -6,11 +6,14 @@ This is the public implementation and reproducibility record for Linmas's entry 
 
 Linmas turns one explicitly named change into a review result, a deterministic policy decision, and a portable Review Capsule. The capsule binds the exact input bytes to the normalized review through SHA-256, records the execution mode, and preserves the non-negotiable safety statement: **Human review remains required.**
 
+The current Build Week extension adds a Proof Chain above that capsule. A judge can run `npm run demo:proof` to see an offline human decision receipt, static reports, source hashes, and bundle verification. A completed Codex Security sealed scan can also be imported after Linmas verifies its manifest, findings, coverage, and listed artifact hashes.
+
 The judge path works without credentials or a network call:
 
 ```bash
 npm install
 npm run demo:judge
+npm run demo:proof
 ```
 
 The default demo is an **OFFLINE FIXTURE REPLAY — NO MODEL CALL**. A live Codex run is separate, explicit, and confirmation-gated.
@@ -122,6 +125,7 @@ linmas review compare before.json after.json
 
 - Offline fixture replay demonstrates the pipeline, not a fresh model inference.
 - A Review Capsule is deterministic evidence, not a digital signature, remote attestation, certification, or proof that software is secure.
+- A Proof Chain bundle is a portable human-review record, not an approval or certification. Optional SSH signatures provide integrity and optional signer trust; they do not validate the finding itself.
 - Policy `pass` means only that declared machine-checkable conditions passed; it is not approval.
 - Live review sends the explicitly supplied review content to Codex after confirmation.
 - Findings are advisory. Human review remains required.

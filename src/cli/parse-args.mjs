@@ -8,6 +8,11 @@ const VALUE_FLAGS = new Map([
   ['--policy-file', 'policyFile'],
   ['--capsule', 'capsulePath']
 ]);
+const PROOF_VALUE_FLAGS = new Map([
+  ['--bundle', 'proofBundle'],
+  ['--signing-key', 'signingKey'],
+  ['--allowed-signers', 'allowedSigners']
+]);
 
 export function parseArgv(argv) {
   const result = {
@@ -27,6 +32,14 @@ export function parseArgv(argv) {
   };
   const args = argv.slice(2);
   if (args[0] && !args[0].startsWith('--')) result.command = args.shift();
+  if (result.command === 'proof') {
+    result.proofAction = args.shift() ?? null;
+    result.proofSource = args.shift() ?? null;
+    result.proofBundle = null;
+    result.signingKey = null;
+    result.allowedSigners = null;
+    result.proofErrors = [];
+  }
   if (result.command === 'review' && args[0] === 'compare') {
     args.shift();
     result.reviewAction = 'compare';
@@ -35,8 +48,13 @@ export function parseArgv(argv) {
   }
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (VALUE_FLAGS.has(arg)) {
-      result[VALUE_FLAGS.get(arg)] = args[++index] ?? null;
+    const valueFlags = result.command === 'proof' ? new Map([...VALUE_FLAGS, ...PROOF_VALUE_FLAGS]) : VALUE_FLAGS;
+    if (valueFlags.has(arg)) {
+      const value = args[++index] ?? null;
+      result[valueFlags.get(arg)] = value;
+      if (result.command === 'proof' && (!value || value.startsWith('--'))) result.proofErrors.push(`${arg} requires a value`);
+    } else if (result.command === 'proof') {
+      result.proofErrors.push(arg.startsWith('--') ? `unknown proof option ${arg}` : `unexpected proof argument ${arg}`);
     } else if (arg === '--all') {
       result.installAll = true;
     } else if (arg === '--dry-run') {
