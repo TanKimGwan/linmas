@@ -8,9 +8,13 @@
   <p>Turn one explicit change into a normalized finding, deterministic policy decision, and portable Review Capsule—with human review always required.</p>
 
   <p>
-    <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version" src="https://img.shields.io/npm/v/linmas.svg"></a>
-    <img alt="Node.js 24+" src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js&logoColor=white">
+    <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/TanKimGwan/linmas/ci.yml?branch=main&label=CI&logo=github"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version" src="https://img.shields.io/npm/v/linmas?logo=npm&logoColor=white"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm monthly downloads" src="https://img.shields.io/npm/dm/linmas?logo=npm&logoColor=white"></a>
+    <a href="https://github.com/TanKimGwan/linmas/releases"><img alt="latest GitHub release" src="https://img.shields.io/github/v/release/TanKimGwan/linmas?display_name=tag&logo=github"></a>
+    <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/github/license/TanKimGwan/linmas"></a>
+    <img alt="Node.js 24+" src="https://img.shields.io/node/v/linmas?logo=node.js&logoColor=white">
+    <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex marketplace" src="https://img.shields.io/badge/Codex-marketplace-6E56CF?logo=openai&logoColor=white"></a>
     <img alt="Security: defensive only" src="https://img.shields.io/badge/security-defensive_only-16A34A.svg">
   </p>
 </div>
@@ -38,6 +42,15 @@ Capsule     Validated in memory
 ```
 
 This is a reproducible demonstration of the review pipeline, not a claim that a model was called during offline replay.
+
+## Documentation
+
+Choose the guide that matches your language and installation goal:
+
+- [Linmas Usage Guide — English](USAGE.md): GitHub source, npm CLI, Codex marketplace, CLI/MCP usage, verification, and troubleshooting.
+- [Panduan Penggunaan Linmas — Bahasa Indonesia](PANDUAN-PENGGUNAAN.md): panduan instalasi dan penggunaan dalam bahasa Indonesia.
+
+GitHub's standard repository navigation exposes fixed tabs; these public usage guides are tracked at the repository root and linked here for reliable discovery. The guides are intentionally excluded from the npm package.
 
 ## Why the name “Linmas”?
 
