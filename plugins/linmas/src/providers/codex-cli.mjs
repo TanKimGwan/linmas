@@ -113,8 +113,8 @@ export function createCodexRunner({ model, command = 'codex', schemaPath, output
         const category = outcome.error.code === 'ENOENT' ? 'provider-configuration' : 'provider-transport';
         throw classified(category, 'Codex invocation failed to start', outcome.error);
       }
-      if (outcome.timedOut) throw classified('provider-timeout', 'Codex invocation timed out');
-      if (outcome.aborted) throw classified('provider-transport', 'Codex invocation cancelled', signal?.reason);
+      if (outcome.timedOut) throw classified('provider-timeout', 'Codex invocation timed out', undefined, { stage: 'provider-execution', reasonCode: 'EXECUTION_TIMEOUT', retryable: true, transmissionState: 'attempted' });
+      if (outcome.aborted) throw classified('provider-transport', 'Codex invocation cancelled', signal?.reason, { stage: 'provider-execution', reasonCode: 'EXECUTION_CANCELLED', retryable: false, transmissionState: 'attempted' });
       if (outcome.code !== 0) {
         const stderr = outcome.stderr;
         const category = /(?:401|403|unauthori[sz]ed|forbidden|authentication|invalid api key|login required)/i.test(stderr)
@@ -122,7 +122,8 @@ export function createCodexRunner({ model, command = 'codex', schemaPath, output
           : /(?:429|rate[ -]?limit|too many requests|quota)/i.test(stderr)
             ? 'provider-rate-limit'
             : 'provider-transport';
-        throw classified(category, `Codex exited ${outcome.code}: ${sanitize(stderr)}`);
+        const reasonCode = category === 'provider-authentication' ? 'EXECUTION_AUTHENTICATION_FAILED' : category === 'provider-rate-limit' ? 'EXECUTION_RATE_LIMITED' : 'EXECUTION_FAILED';
+        throw classified(category, `Codex exited ${outcome.code}: ${sanitize(stderr)}`, undefined, { stage: 'provider-execution', reasonCode, retryable: category === 'provider-rate-limit', transmissionState: 'attempted' });
       }
       let rawResponse;
       try {
@@ -130,14 +131,14 @@ export function createCodexRunner({ model, command = 'codex', schemaPath, output
         try {
           const buffer = Buffer.alloc(MAX_RESPONSE_BYTES + 1);
           const { bytesRead } = await handle.read(buffer, 0, MAX_RESPONSE_BYTES + 1, 0);
-          if (bytesRead > MAX_RESPONSE_BYTES) throw classified('provider-transport', `Codex response exceeds ${MAX_RESPONSE_BYTES} bytes`);
+          if (bytesRead > MAX_RESPONSE_BYTES) throw classified('provider-transport', `Codex response exceeds ${MAX_RESPONSE_BYTES} bytes`, undefined, { stage: 'response-read', reasonCode: 'RESPONSE_TOO_LARGE', retryable: false, transmissionState: 'attempted' });
           rawResponse = buffer.toString('utf8', 0, bytesRead);
         } finally {
           await handle.close();
         }
       } catch (cause) {
         if (cause instanceof ReviewError) throw cause;
-        throw classified('provider-transport', 'Codex did not produce a final response', cause);
+        throw classified('provider-transport', 'Codex did not produce a final response', cause, { stage: 'response-read', reasonCode: 'RESPONSE_MISSING', retryable: false, transmissionState: 'attempted' });
       }
       return { provider: 'codex', model, rawResponse, usage: null, requestId: randomUUID() };
     }
@@ -196,8 +197,14 @@ function collectBoundedProcess(child, { input, timeoutMs, killGraceMs, signal })
   });
 }
 
-function classified(category, message, cause) {
-  const error = new ReviewError(message, category, EXIT_CODES.PROVIDER);
+function classified(category, message, cause, metadata = {}) {
+  const error = new ReviewError(message, category, EXIT_CODES.PROVIDER, {
+    stage: metadata.stage ?? (category === 'provider-timeout' ? 'provider-execution' : 'provider-execution'),
+    reasonCode: metadata.reasonCode ?? (category === 'provider-timeout' ? 'EXECUTION_TIMEOUT' : category === 'provider-authentication' ? 'EXECUTION_AUTHENTICATION_FAILED' : category === 'provider-rate-limit' ? 'EXECUTION_RATE_LIMITED' : 'EXECUTION_FAILED'),
+    retryable: metadata.retryable ?? (category === 'provider-timeout' || category === 'provider-rate-limit'),
+    transmissionState: metadata.transmissionState ?? 'attempted',
+    ...metadata
+  });
   error.failureClass = category;
   if (cause !== undefined) error.cause = cause;
   return error;

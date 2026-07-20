@@ -13,11 +13,14 @@ export function createClaudeRunner({ apiKey, model, fetchImpl = fetch, timeoutMs
           headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] })
         });
-      } catch (cause) { throw classified('provider-transport', 'Claude request failed', cause); }
+      } catch (cause) {
+        const category = signal?.aborted ? 'provider-timeout' : 'provider-transport';
+        throw classified(category, signal?.aborted ? 'Claude request timed out or was cancelled' : 'Claude request failed', cause, { stage: 'provider-execution', reasonCode: signal?.aborted ? 'EXECUTION_TIMEOUT' : 'EXECUTION_FAILED', retryable: category === 'provider-timeout', transmissionState: 'attempted' });
+      }
       const body = await response.json().catch(() => null);
       if (!response.ok) {
         const kind = response.status === 401 || response.status === 403 ? 'provider-authentication' : response.status === 429 ? 'provider-rate-limit' : 'provider-transport';
-        throw classified(kind, `Claude API returned HTTP ${response.status}`);
+        throw classified(kind, `Claude API returned HTTP ${response.status}`, undefined, { stage: 'provider-execution', reasonCode: kind === 'provider-authentication' ? 'EXECUTION_AUTHENTICATION_FAILED' : kind === 'provider-rate-limit' ? 'EXECUTION_RATE_LIMITED' : 'EXECUTION_FAILED', retryable: kind === 'provider-rate-limit', transmissionState: 'attempted' });
       }
       const text = body?.content?.filter((block) => block.type === 'text').map((block) => block.text).join('\n');
       if (!text) throw classified('normalization-failed', 'Claude response contains no text block');
@@ -32,6 +35,6 @@ function combineSignals(signal, timeoutMs) {
   return AbortSignal.any([signal, timeoutSignal]);
 }
 
-function classified(failureClass, message, cause) {
-  return Object.assign(new Error(message, cause ? { cause } : undefined), { failureClass });
+function classified(failureClass, message, cause, metadata = {}) {
+  return Object.assign(new Error(message, cause ? { cause } : undefined), { failureClass, ...metadata });
 }
