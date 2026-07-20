@@ -78,7 +78,7 @@ export function createProviderRegistry({
         if (!probe || typeof probe.read !== 'function') throw providerConfiguration('Codex capability probe is invalid');
         return await probe.read({ includeModels, signal });
       } catch (error) {
-        throw translateProviderError(error);
+        throw translateProviderError(error, 'codex');
       }
     },
     async prepareExecution(options = {}) {
@@ -124,7 +124,7 @@ export async function prepareProviderExecution(registry, providerId, options = {
   let preparedOptions = options;
   if (typeof provider.prepareExecution === 'function') {
     try { preparedOptions = await provider.prepareExecution(options); }
-    catch (error) { throw translateProviderError(error); }
+    catch (error) { throw translateProviderError(error, providerId); }
     if (!preparedOptions || typeof preparedOptions !== 'object' || Array.isArray(preparedOptions)) {
       throw providerConfiguration(`provider ${providerId} returned invalid execution options`);
     }
@@ -161,7 +161,7 @@ function getProviderDescriptor(registry, providerId) {
 function createResolvedRunner(provider, providerId, options) {
   let runner;
   try { runner = provider.create(options); }
-  catch (error) { throw translateProviderError(error); }
+    catch (error) { throw translateProviderError(error, providerId); }
   if (!runner || (typeof runner !== 'object' && typeof runner !== 'function') || typeof runner.run !== 'function') {
     throw providerConfiguration(`provider ${providerId} created an invalid runner`);
   }
@@ -169,7 +169,7 @@ function createResolvedRunner(provider, providerId, options) {
     ...runner,
     async run(request) {
       try { return await runner.run(request); }
-      catch (error) { throw translateProviderError(error); }
+      catch (error) { throw translateProviderError(error, providerId); }
     }
   };
 }
@@ -178,10 +178,19 @@ function providerConfiguration(message) {
   return new ReviewError(message, 'provider-configuration', EXIT_CODES.PROVIDER);
 }
 
-function translateProviderError(error) {
-  if (error instanceof ReviewError) return error;
+function translateProviderError(error, providerId = null) {
+  if (error instanceof ReviewError) {
+    if (!error.provider) error.provider = providerId;
+    return error;
+  }
   const failureClass = error && typeof error === 'object' ? error.failureClass : undefined;
   const normalization = failureClass === 'normalization-failed';
   const message = error instanceof Error && error.message ? error.message : String(error ?? 'provider execution failed');
-  return new ReviewError(message, normalization ? 'normalization' : failureClass ?? 'provider-transport', normalization ? EXIT_CODES.CONTRACT : EXIT_CODES.PROVIDER);
+  return new ReviewError(message, normalization ? 'normalization' : failureClass ?? 'provider-transport', normalization ? EXIT_CODES.CONTRACT : EXIT_CODES.PROVIDER, {
+    stage: error?.stage ?? (normalization ? 'normalization' : 'provider-execution'),
+    reasonCode: error?.reasonCode ?? null,
+    retryable: typeof error?.retryable === 'boolean' ? error.retryable : null,
+    provider: error?.provider ?? providerId,
+    transmissionState: error?.transmissionState ?? 'unknown'
+  });
 }

@@ -66,21 +66,21 @@ node bin/linmas.mjs review --skill linmas-secure-code-reviewer --input patch.dif
 For a global CLI installation:
 
 ```bash
-npm install --global linmas@0.5.2
+npm install --global linmas@0.5.3
 linmas list
 ```
 
 For a one-time invocation without a global install:
 
 ```bash
-npx --yes linmas@0.5.2 list
-npx --yes linmas@0.5.2 review --skill linmas-secure-code-reviewer --input patch.diff
+npx --yes linmas@0.5.3 list
+npx --yes linmas@0.5.3 review --skill linmas-secure-code-reviewer --input patch.diff
 ```
 
 For a project-local dependency:
 
 ```bash
-npm install --save-dev linmas@0.5.2
+npm install --save-dev linmas@0.5.3
 npx linmas list
 ```
 
@@ -96,10 +96,24 @@ codex plugin add linmas@linmas
 codex plugin list
 ```
 
+### Important: marketplace visibility is per device
+
+This is a public **GitHub repository marketplace**, not an entry in the global Codex/ChatGPT Plugins Directory. The marketplace configuration is local to each computer, so installing Linmas on one computer does not make it appear automatically on another computer or in global search.
+
+On every computer where you want to use Linmas, run:
+
+```bash
+codex plugin marketplace add TanKimGwan/linmas --ref v0.5.3
+codex plugin add linmas@linmas
+codex plugin list
+```
+
+Then restart Codex completely and create a fresh task. If the plugin is still missing, verify Git, Node.js 24+, and GitHub network access on that computer. Publication to the official Plugins Directory is a separate OpenAI submission, review, and approval process; publishing to GitHub and npm does not automatically publish Linmas there.
+
 For a reproducible immutable release, pin the repository ref:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.5.2
+codex plugin marketplace add TanKimGwan/linmas --ref v0.5.3
 codex plugin add linmas@linmas
 ```
 
@@ -151,20 +165,20 @@ This is a Codex plugin marketplace installation. It does not make Linmas appear 
 Install all eleven managed skills from the published package:
 
 ```bash
-npx --yes linmas@0.5.2 detect
-npx --yes linmas@0.5.2 install --all
+npx --yes linmas@0.5.3 detect
+npx --yes linmas@0.5.3 install --all
 ```
 
 Choose `Claude` when the interactive host prompt appears. Linmas writes managed skills under `~/.claude/skills` and records ownership in `~/.claude/linmas-manifest.json`. To install only one specialist:
 
 ```bash
-npx --yes linmas@0.5.2 install linmas-secure-code-reviewer
+npx --yes linmas@0.5.3 install linmas-secure-code-reviewer
 ```
 
 Verify the managed installation:
 
 ```bash
-npx --yes linmas@0.5.2 doctor
+npx --yes linmas@0.5.3 doctor
 ```
 
 Live Claude provider execution is a separate opt-in surface. It requires `ANTHROPIC_API_KEY`, an explicit model through `LINMAS_EVAL_MODEL` or the CLI, and confirmation before the named input leaves the machine. Installing skills does not transmit review data.
@@ -438,7 +452,7 @@ codex plugin list
 Expected plugin entry:
 
 ```text
-linmas@linmas  installed, enabled  0.5.2
+linmas@linmas  installed, enabled  0.5.3
 ```
 
 If a new installation is not discovered in a current task, restart the Codex desktop/app-server and create a new task. Then ask Codex to list the Linmas skills or MCP tools.
@@ -447,12 +461,14 @@ If a new installation is not discovered in a current task, restart the Codex des
 
 ### `linmas@linmas` is not found
 
-Add or refresh the marketplace, then retry the plugin installation:
+The GitHub marketplace must be added separately on each computer. Add or refresh it, then retry the plugin installation:
 
 ```bash
 codex plugin marketplace add TanKimGwan/linmas --ref main
 codex plugin add linmas@linmas
 ```
+
+If you were searching the Codex Plugins Directory, Linmas may not appear there yet because the public GitHub marketplace and the official global directory are separate distribution channels.
 
 ### The plugin is installed but skills or MCP tools are missing
 

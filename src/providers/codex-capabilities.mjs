@@ -9,14 +9,14 @@ const FINAL_CLOSE_GRACE_MS = 20;
 export const MAX_CAPABILITY_MODELS = 200;
 
 export function selectCodexModel(models, requestedModel) {
-  if (!Array.isArray(models)) throw classified('provider-configuration', 'Codex model inventory is unavailable');
+  if (!Array.isArray(models)) throw classified('provider-configuration', 'Codex model inventory is unavailable', undefined, { stage: 'model-selection', reasonCode: 'MODEL_INVENTORY_INVALID', retryable: false });
   if (requestedModel !== undefined && requestedModel !== null && requestedModel !== '') {
     const match = models.find((item) => item?.id === requestedModel || item?.model === requestedModel);
-    if (!match) throw classified('provider-configuration', `Requested Codex model is not available: ${sanitize(requestedModel)}`);
+    if (!match) throw classified('provider-configuration', `Requested Codex model is not available: ${sanitize(requestedModel)}`, undefined, { stage: 'model-selection', reasonCode: 'MODEL_NOT_AVAILABLE', retryable: false });
     return match.model;
   }
 
-  if (models.length === 0) throw classified('provider-configuration', 'No account-visible models are available to this Codex account');
+  if (models.length === 0) throw classified('provider-configuration', 'No account-visible models are available to this Codex account', undefined, { stage: 'model-selection', reasonCode: 'NO_VISIBLE_MODELS', retryable: false });
   const defaults = models.filter((item) => item?.isDefault === true);
   if (defaults.length === 1) return defaults[0].model;
   if (defaults.length > 1) throw classified('provider-configuration', 'Codex reported multiple default models; choose an explicit model');
@@ -237,8 +237,14 @@ function startFailure(cause) {
   return classified(cause?.code === 'ENOENT' ? 'provider-configuration' : 'provider-transport', 'Codex capability process failed to start', cause);
 }
 
-function classified(category, message, cause) {
-  const error = new ReviewError(message, category, EXIT_CODES.PROVIDER);
+function classified(category, message, cause, metadata = {}) {
+  const error = new ReviewError(message, category, EXIT_CODES.PROVIDER, {
+    stage: metadata.stage ?? (category === 'provider-timeout' ? 'capability-startup' : category === 'provider-authentication' ? 'authentication' : 'capability-startup'),
+    reasonCode: metadata.reasonCode ?? (category === 'provider-timeout' ? 'CAPABILITY_TIMEOUT' : category === 'provider-authentication' ? 'AUTHENTICATION_REQUIRED' : category === 'provider-transport' ? 'CAPABILITY_UNAVAILABLE' : 'CAPABILITY_START_FAILED'),
+    retryable: metadata.retryable ?? (category === 'provider-timeout' || category === 'provider-transport'),
+    transmissionState: metadata.transmissionState ?? 'not-started',
+    ...metadata
+  });
   error.failureClass = category;
   if (cause !== undefined) error.cause = cause;
   return error;
