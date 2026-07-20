@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Smart Contract Reviewer"
+  short_description: "Smart contract review skill for protocol risk analysis, invariant review, and Web3 design verification in authorized contexts."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"

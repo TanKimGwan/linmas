@@ -23,6 +23,11 @@
     "longDescription": "Linmas provides bounded defensive security review specialists with deterministic policy, portable evidence, and human review required.",
     "developerName": "TanKimGwan",
     "category": "Security",
+    "websiteURL": "https://github.com/TanKimGwan/linmas",
+    "brandColor": "#F87818",
+    "composerIcon": "./assets/linmas-logo-dark.png",
+    "logo": "./assets/linmas-logo.png",
+    "logoDark": "./assets/linmas-logo-dark.png",
     "capabilities": [
       "Interactive",
       "Read",

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Security Domain Router"
+  short_description: "Security domain routing skill for choosing the right specialist workflow across secure coding, architecture, response, operations, cloud, threat, blockchain, and compliance work."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"

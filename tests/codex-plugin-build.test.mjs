@@ -7,6 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import {
+  BRAND_ASSETS_SOURCE,
+  BRAND_COLOR,
   EXPECTED_SKILLS,
   MANIFEST_SOURCE,
   REPOSITORY_ROOT,
@@ -91,7 +93,7 @@ test('built plugin preserves canonical manifest and every skill byte-for-byte', 
     assert.deepEqual(await listDirectories(path.join(target, 'skills')), [...EXPECTED_SKILLS].sort());
     assert.deepEqual(
       await fs.readdir(target, { withFileTypes: true }).then((entries) => entries.map((entry) => entry.name).sort()),
-      ['.codex-plugin', '.mcp.json', 'mcp', 'package.json', 'policies', 'skills', 'src']
+      ['.codex-plugin', '.mcp.json', 'assets', 'mcp', 'package.json', 'policies', 'skills', 'src']
     );
     const template = JSON.parse(await fs.readFile(MANIFEST_SOURCE, 'utf8'));
     const builtManifest = JSON.parse(await fs.readFile(path.join(target, '.codex-plugin', 'plugin.json'), 'utf8'));
@@ -102,7 +104,29 @@ test('built plugin preserves canonical manifest and every skill byte-for-byte', 
         await sha256(path.join(target, 'skills', skillName, 'SKILL.md')),
         await sha256(path.join(REPOSITORY_ROOT, 'skills', skillName, 'SKILL.md'))
       );
+      const agentManifest = await fs.readFile(path.join(target, 'skills', skillName, 'agents', 'openai.yaml'), 'utf8');
+      assert.match(agentManifest, /^interface:/m);
+      assert.match(agentManifest, /icon_small: "\.\/assets\/icon-small\.png"/);
+      assert.match(agentManifest, /icon_large: "\.\/assets\/icon-large\.png"/);
+      assert.match(agentManifest, new RegExp(`brand_color: "${BRAND_COLOR}"`));
+      assert.equal(
+        await sha256(path.join(target, 'skills', skillName, 'assets', 'icon-small.png')),
+        await sha256(path.join(BRAND_ASSETS_SOURCE, 'linmas-logo-dark.png'))
+      );
+      assert.equal(
+        await sha256(path.join(target, 'skills', skillName, 'assets', 'icon-large.png')),
+        await sha256(path.join(BRAND_ASSETS_SOURCE, 'linmas-logo-dark.png'))
+      );
     }
+
+    assert.equal(
+      await sha256(path.join(target, 'assets', 'linmas-logo.png')),
+      await sha256(path.join(BRAND_ASSETS_SOURCE, 'linmas-logo.png'))
+    );
+    assert.equal(
+      await sha256(path.join(target, 'assets', 'linmas-logo-dark.png')),
+      await sha256(path.join(BRAND_ASSETS_SOURCE, 'linmas-logo-dark.png'))
+    );
   } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
@@ -116,6 +140,11 @@ test('canonical manifest has the required MCP metadata and explicit capabilities
   assert.equal(manifest.skills, './skills/');
   assert.equal(manifest.interface.category, 'Security');
   assert.deepEqual(manifest.interface.capabilities, ['Interactive', 'Read', 'Write']);
+  assert.equal(manifest.interface.websiteURL, 'https://github.com/TanKimGwan/linmas');
+  assert.equal(manifest.interface.brandColor, BRAND_COLOR);
+  assert.equal(manifest.interface.composerIcon, './assets/linmas-logo-dark.png');
+  assert.equal(manifest.interface.logo, './assets/linmas-logo.png');
+  assert.equal(manifest.interface.logoDark, './assets/linmas-logo-dark.png');
   assert.equal(manifest.mcpServers, './.mcp.json');
   assert.equal(Object.hasOwn(manifest, 'apps'), false);
   assert.equal(Object.hasOwn(manifest, 'hooks'), false);
@@ -179,6 +208,8 @@ test('npm packed artifact contains builder inputs and builds a validated plugin 
     assert.ok(Array.isArray(packResult.files));
     const listing = packResult.files.map((entry) => entry.path.replaceAll('\\', '/'));
     assert.ok(listing.includes('plugin/manifest.template.json'));
+    assert.ok(listing.includes('plugin/assets/linmas-logo.png'));
+    assert.ok(listing.includes('plugin/assets/linmas-logo-dark.png'));
     for (const forbidden of ['tests/', 'docs/', '.agents/', 'plugins/', '.serena/', 'AGENTS.md', 'marketplace', 'gstack/']) {
       assert.equal(listing.some((entry) => entry === forbidden || entry.startsWith(forbidden)), false, `packed artifact must exclude ${forbidden}`);
     }
