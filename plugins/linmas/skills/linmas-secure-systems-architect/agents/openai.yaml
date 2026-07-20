@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Secure Systems Architect"
+  short_description: "Secure systems architecture skill for trust zones, identity patterns, control placement, and cross-system design review."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"

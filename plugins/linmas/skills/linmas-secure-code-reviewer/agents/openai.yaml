@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Secure Code Reviewer"
+  short_description: "Secure code review skill for application risk analysis, threat modeling, scanner tuning, and developer-focused remediation guidance."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"
