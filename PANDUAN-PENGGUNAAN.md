@@ -96,6 +96,20 @@ codex plugin add linmas@linmas
 codex plugin list
 ```
 
+### Penting: marketplace berlaku per perangkat
+
+Ini adalah **marketplace repository GitHub publik**, bukan entri pada katalog global Plugins Directory Codex/ChatGPT. Konfigurasi marketplace disimpan secara lokal di setiap komputer. Karena itu, Linmas yang sudah terpasang di satu komputer tidak otomatis muncul pada komputer lain atau pada pencarian katalog global.
+
+Pada setiap komputer yang akan menggunakan Linmas, jalankan:
+
+```bash
+codex plugin marketplace add TanKimGwan/linmas --ref v0.5.2
+codex plugin add linmas@linmas
+codex plugin list
+```
+
+Setelah itu, tutup Codex sepenuhnya, buka kembali, lalu buat task baru. Jika plugin belum muncul, pastikan komputer tersebut memiliki Git, Node.js 24+, dan akses jaringan ke GitHub. Publikasi ke Plugins Directory resmi adalah proses terpisah yang memerlukan submission, review, dan approval OpenAI. Publikasi di GitHub dan npm tidak otomatis membuat Linmas muncul di katalog global tersebut.
+
 Untuk release immutable yang reproducible, gunakan ref `v0.5.2`:
 
 ```bash
@@ -447,12 +461,14 @@ Jika instalasi baru belum ter-discovery pada task berjalan, restart Codex deskto
 
 ### `linmas@linmas` tidak ditemukan
 
-Tambahkan atau refresh marketplace, lalu ulangi instalasi plugin:
+Marketplace GitHub harus ditambahkan secara terpisah pada setiap komputer. Tambahkan atau refresh marketplace, lalu ulangi instalasi plugin:
 
 ```bash
 codex plugin marketplace add TanKimGwan/linmas --ref main
 codex plugin add linmas@linmas
 ```
+
+Jika pencarian dilakukan dari Plugins Directory Codex, Linmas mungkin belum terlihat karena marketplace GitHub publik dan katalog global resmi merupakan dua jalur distribusi yang berbeda.
 
 ### Plugin terpasang tetapi skill atau MCP tool tidak muncul
 

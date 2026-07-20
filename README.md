@@ -291,6 +291,18 @@ codex plugin add linmas@linmas
 codex plugin list
 ```
 
+### Important: marketplace visibility is per device
+
+This is a public **GitHub repository marketplace**, not yet an entry in the global Codex/ChatGPT Plugins Directory. Therefore, Linmas will not automatically appear in search on another computer just because you are signed in to the same ChatGPT account. Add the marketplace once on each computer:
+
+```bash
+codex plugin marketplace add TanKimGwan/linmas --ref v0.5.2
+codex plugin add linmas@linmas
+codex plugin list
+```
+
+After installation, restart Codex completely and create a new task. If `linmas@linmas` is still not listed, verify that the computer has Git, Node.js 24+, and network access to GitHub. The official Plugins Directory is a separate publication channel that requires OpenAI submission, review, and approval; GitHub and npm publication do not automatically add Linmas to that global catalog.
+
 To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.5.2`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
 
 To upgrade an existing marketplace installation:
