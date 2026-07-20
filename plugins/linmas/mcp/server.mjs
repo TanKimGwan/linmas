@@ -16,6 +16,7 @@ import { buildDecisionReceipt } from '../src/proof/validate-receipt.mjs';
 import { verifyProofBundle } from '../src/proof/verify-bundle.mjs';
 import { writeProofBundle } from '../src/proof/write-bundle.mjs';
 import { normalizeProviderResponse } from '../src/review/normalize-response.mjs';
+import { toPublicReviewError } from '../src/review/public-error.mjs';
 import { prepareProviderExecution, createProviderRegistry } from '../src/providers/registry.mjs';
 import { PUBLIC_SKILL_IDS } from '../src/core/skill-catalog.mjs';
 import { LINMAS_VERSION } from '../src/core/version.mjs';
@@ -745,19 +746,8 @@ function toolError(code, message, cause = undefined) {
 }
 
 function safeError(error, { transmitting = false } = {}) {
-  const category = error?.toolCode ?? error?.failureClass ?? error?.category;
-  const code = category === 'timeout' || category === 'provider-timeout' || error?.name === 'AbortError' || error?.code === 'ABORT_ERR' ? 'TIMEOUT'
-    : category === 'invalid_path' ? 'INVALID_PATH'
-      : category === 'input_too_large' ? 'INPUT_TOO_LARGE'
-        : category === 'output_too_large' ? 'OUTPUT_TOO_LARGE'
-          : category === 'write_target_exists' ? 'WRITE_TARGET_EXISTS'
-            : category === 'contract_violation' || category === 'contract' ? 'CONTRACT_VIOLATION'
-              : category?.startsWith?.('provider') ? 'PROVIDER_FAILURE'
-                : 'INVALID_INPUT';
-  const message = transmitting && (code === 'PROVIDER_FAILURE' || code === 'TIMEOUT')
-    ? 'Provider execution did not complete. Sensitive provider diagnostics are not returned.'
-    : `Linmas tool rejected the request (${code}).`;
-  return { code, message };
+  if (error?.name === 'AbortError' || error?.code === 'ABORT_ERR') error.toolCode = 'timeout';
+  return toPublicReviewError(error, { transmitting });
 }
 
 function jsonRpcResult(id, result) {

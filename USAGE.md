@@ -66,21 +66,21 @@ node bin/linmas.mjs review --skill linmas-secure-code-reviewer --input patch.dif
 For a global CLI installation:
 
 ```bash
-npm install --global linmas@0.5.2
+npm install --global linmas@0.5.3
 linmas list
 ```
 
 For a one-time invocation without a global install:
 
 ```bash
-npx --yes linmas@0.5.2 list
-npx --yes linmas@0.5.2 review --skill linmas-secure-code-reviewer --input patch.diff
+npx --yes linmas@0.5.3 list
+npx --yes linmas@0.5.3 review --skill linmas-secure-code-reviewer --input patch.diff
 ```
 
 For a project-local dependency:
 
 ```bash
-npm install --save-dev linmas@0.5.2
+npm install --save-dev linmas@0.5.3
 npx linmas list
 ```
 
@@ -103,7 +103,7 @@ This is a public **GitHub repository marketplace**, not an entry in the global C
 On every computer where you want to use Linmas, run:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.5.2
+codex plugin marketplace add TanKimGwan/linmas --ref v0.5.3
 codex plugin add linmas@linmas
 codex plugin list
 ```
@@ -113,7 +113,7 @@ Then restart Codex completely and create a fresh task. If the plugin is still mi
 For a reproducible immutable release, pin the repository ref:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.5.2
+codex plugin marketplace add TanKimGwan/linmas --ref v0.5.3
 codex plugin add linmas@linmas
 ```
 
@@ -165,20 +165,20 @@ This is a Codex plugin marketplace installation. It does not make Linmas appear 
 Install all eleven managed skills from the published package:
 
 ```bash
-npx --yes linmas@0.5.2 detect
-npx --yes linmas@0.5.2 install --all
+npx --yes linmas@0.5.3 detect
+npx --yes linmas@0.5.3 install --all
 ```
 
 Choose `Claude` when the interactive host prompt appears. Linmas writes managed skills under `~/.claude/skills` and records ownership in `~/.claude/linmas-manifest.json`. To install only one specialist:
 
 ```bash
-npx --yes linmas@0.5.2 install linmas-secure-code-reviewer
+npx --yes linmas@0.5.3 install linmas-secure-code-reviewer
 ```
 
 Verify the managed installation:
 
 ```bash
-npx --yes linmas@0.5.2 doctor
+npx --yes linmas@0.5.3 doctor
 ```
 
 Live Claude provider execution is a separate opt-in surface. It requires `ANTHROPIC_API_KEY`, an explicit model through `LINMAS_EVAL_MODEL` or the CLI, and confirmation before the named input leaves the machine. Installing skills does not transmit review data.
@@ -452,7 +452,7 @@ codex plugin list
 Expected plugin entry:
 
 ```text
-linmas@linmas  installed, enabled  0.5.2
+linmas@linmas  installed, enabled  0.5.3
 ```
 
 If a new installation is not discovered in a current task, restart the Codex desktop/app-server and create a new task. Then ask Codex to list the Linmas skills or MCP tools.
