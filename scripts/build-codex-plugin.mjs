@@ -14,6 +14,12 @@ export const MCP_SOURCE = path.join(REPOSITORY_ROOT, 'mcp');
 export const RUNTIME_SOURCE = path.join(REPOSITORY_ROOT, 'src');
 export const POLICIES_SOURCE = path.join(REPOSITORY_ROOT, 'policies');
 export const SKILLS_SOURCE = path.join(REPOSITORY_ROOT, 'skills');
+export const BRAND_ASSETS_SOURCE = path.join(REPOSITORY_ROOT, 'plugin', 'assets');
+export const BRAND_COLOR = '#F87818';
+export const BRAND_ASSETS = Object.freeze([
+  'linmas-logo-dark.png',
+  'linmas-logo.png'
+]);
 export const EXPECTED_SKILLS = Object.freeze([
   'linmas-cloud-hardening-architect',
   'linmas-controls-compliance-reviewer',
@@ -147,6 +153,17 @@ async function assertCanonicalManifest() {
   if (JSON.stringify(manifest.interface?.capabilities) !== JSON.stringify(['Interactive', 'Read', 'Write'])) {
     fail("canonical manifest capabilities must be ['Interactive', 'Read', 'Write']");
   }
+  if (manifest.interface?.websiteURL !== 'https://github.com/TanKimGwan/linmas') {
+    fail('canonical manifest must link to the Linmas repository');
+  }
+  if (manifest.interface?.brandColor !== BRAND_COLOR) {
+    fail(`canonical manifest must use brand color '${BRAND_COLOR}'`);
+  }
+  if (manifest.interface?.composerIcon !== './assets/linmas-logo-dark.png'
+    || manifest.interface?.logo !== './assets/linmas-logo.png'
+    || manifest.interface?.logoDark !== './assets/linmas-logo-dark.png') {
+    fail('canonical manifest must use the canonical Linmas interface assets');
+  }
   for (const key of FORBIDDEN_MANIFEST_KEYS) {
     if (Object.hasOwn(manifest, key)) {
       fail(`canonical manifest must not declare ${key}`);
@@ -219,6 +236,45 @@ async function assertCanonicalSkills() {
   }
 }
 
+async function assertBrandAssets() {
+  const assetsStat = await lstatIfExists(BRAND_ASSETS_SOURCE);
+  if (!assetsStat?.isDirectory() || assetsStat.isSymbolicLink()) {
+    fail('unsafe brand assets: plugin/assets must be a real directory');
+  }
+
+  const entries = await fs.readdir(BRAND_ASSETS_SOURCE, { withFileTypes: true });
+  const files = entries.map((entry) => entry.name).sort();
+  if (JSON.stringify(files) !== JSON.stringify([...BRAND_ASSETS].sort())) {
+    fail(`brand asset inventory must contain exactly: ${BRAND_ASSETS.join(', ')}`);
+  }
+  for (const entry of entries) {
+    if (entry.isSymbolicLink() || !entry.isFile()) {
+      fail(`unsafe brand asset: plugin/assets/${entry.name} must be a regular file`);
+    }
+  }
+}
+
+function parseSkillInterfaceMetadata(skillText, skillName) {
+  const description = skillText.match(/^description:\s*(.+)$/mu)?.[1]?.trim();
+  const heading = skillText.match(/^#\s+(.+)$/mu)?.[1]?.trim();
+  if (!description || !heading) {
+    fail(`skill metadata is incomplete: skills/${skillName}/SKILL.md`);
+  }
+  return { description, displayName: `Linmas ${heading}` };
+}
+
+function renderSkillAgentManifest({ description, displayName }) {
+  return [
+    'interface:',
+    `  display_name: ${JSON.stringify(displayName)}`,
+    `  short_description: ${JSON.stringify(description)}`,
+    '  icon_small: "./assets/icon-small.png"',
+    '  icon_large: "./assets/icon-large.png"',
+    `  brand_color: "${BRAND_COLOR}"`,
+    ''
+  ].join('\n');
+}
+
 async function copySourceTree(source, destination) {
   await fs.mkdir(destination, { recursive: true });
   for (const entry of await fs.readdir(source, { withFileTypes: true })) {
@@ -245,13 +301,32 @@ async function createStagingOutput(parentPath, manifestText, mcpManifestText) {
     await copySourceTree(MCP_SOURCE, path.join(stagingPath, 'mcp'));
     await copySourceTree(RUNTIME_SOURCE, path.join(stagingPath, 'src'));
     await copySourceTree(POLICIES_SOURCE, path.join(stagingPath, 'policies'));
+    await copySourceTree(BRAND_ASSETS_SOURCE, path.join(stagingPath, 'assets'));
 
     for (const skillName of EXPECTED_SKILLS) {
       const destinationRoot = path.join(stagingPath, 'skills', skillName);
       await fs.mkdir(destinationRoot);
+      const skillText = await fs.readFile(path.join(SKILLS_SOURCE, skillName, 'SKILL.md'), 'utf8');
       await fs.copyFile(
         path.join(SKILLS_SOURCE, skillName, 'SKILL.md'),
         path.join(destinationRoot, 'SKILL.md'),
+        fs.constants.COPYFILE_EXCL
+      );
+      await fs.mkdir(path.join(destinationRoot, 'agents'));
+      await fs.writeFile(
+        path.join(destinationRoot, 'agents', 'openai.yaml'),
+        renderSkillAgentManifest(parseSkillInterfaceMetadata(skillText, skillName)),
+        'utf8'
+      );
+      await fs.mkdir(path.join(destinationRoot, 'assets'));
+      await fs.copyFile(
+        path.join(BRAND_ASSETS_SOURCE, 'linmas-logo-dark.png'),
+        path.join(destinationRoot, 'assets', 'icon-small.png'),
+        fs.constants.COPYFILE_EXCL
+      );
+      await fs.copyFile(
+        path.join(BRAND_ASSETS_SOURCE, 'linmas-logo-dark.png'),
+        path.join(destinationRoot, 'assets', 'icon-large.png'),
         fs.constants.COPYFILE_EXCL
       );
     }
@@ -297,6 +372,7 @@ export async function buildPlugin(rawTarget) {
   const manifestText = await assertCanonicalManifest();
   const mcpManifestText = await assertMcpManifest();
   await assertCanonicalSkills();
+  await assertBrandAssets();
 
   const stagingPath = await createStagingOutput(path.dirname(targetPath), manifestText, mcpManifestText);
   try {

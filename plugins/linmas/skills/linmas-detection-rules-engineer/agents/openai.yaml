@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Detection Rules Engineer"
+  short_description: "Detection rules engineering skill for SIEM logic, alert design, telemetry mapping, tuning, and false-positive reduction."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"

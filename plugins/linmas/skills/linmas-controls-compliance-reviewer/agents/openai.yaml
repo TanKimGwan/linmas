@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Controls Compliance Reviewer"
+  short_description: "Controls and compliance review skill for evidence review, control mapping, audit preparation, and framework gap analysis."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"

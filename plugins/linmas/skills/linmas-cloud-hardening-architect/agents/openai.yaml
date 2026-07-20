@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Cloud Hardening Architect"
+  short_description: "Cloud hardening architecture skill for IAM, network segmentation, service boundaries, workload protection, and platform control design."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"

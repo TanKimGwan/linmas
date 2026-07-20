@@ -1,0 +1,6 @@
+interface:
+  display_name: "Linmas Threat Research Analyst"
+  short_description: "Threat research skill for IOC analysis, adversary tracking, campaign reporting, and intelligence-to-detection translation."
+  icon_small: "./assets/icon-small.png"
+  icon_large: "./assets/icon-large.png"
+  brand_color: "#F87818"

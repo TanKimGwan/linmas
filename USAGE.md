@@ -66,21 +66,21 @@ node bin/linmas.mjs review --skill linmas-secure-code-reviewer --input patch.dif
 For a global CLI installation:
 
 ```bash
-npm install --global linmas@0.5.1
+npm install --global linmas@0.5.2
 linmas list
 ```
 
 For a one-time invocation without a global install:
 
 ```bash
-npx --yes linmas@0.5.1 list
-npx --yes linmas@0.5.1 review --skill linmas-secure-code-reviewer --input patch.diff
+npx --yes linmas@0.5.2 list
+npx --yes linmas@0.5.2 review --skill linmas-secure-code-reviewer --input patch.diff
 ```
 
 For a project-local dependency:
 
 ```bash
-npm install --save-dev linmas@0.5.1
+npm install --save-dev linmas@0.5.2
 npx linmas list
 ```
 
@@ -99,7 +99,7 @@ codex plugin list
 For a reproducible immutable release, pin the repository ref:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.5.1
+codex plugin marketplace add TanKimGwan/linmas --ref v0.5.2
 codex plugin add linmas@linmas
 ```
 
@@ -151,20 +151,20 @@ This is a Codex plugin marketplace installation. It does not make Linmas appear 
 Install all eleven managed skills from the published package:
 
 ```bash
-npx --yes linmas@0.5.1 detect
-npx --yes linmas@0.5.1 install --all
+npx --yes linmas@0.5.2 detect
+npx --yes linmas@0.5.2 install --all
 ```
 
 Choose `Claude` when the interactive host prompt appears. Linmas writes managed skills under `~/.claude/skills` and records ownership in `~/.claude/linmas-manifest.json`. To install only one specialist:
 
 ```bash
-npx --yes linmas@0.5.1 install linmas-secure-code-reviewer
+npx --yes linmas@0.5.2 install linmas-secure-code-reviewer
 ```
 
 Verify the managed installation:
 
 ```bash
-npx --yes linmas@0.5.1 doctor
+npx --yes linmas@0.5.2 doctor
 ```
 
 Live Claude provider execution is a separate opt-in surface. It requires `ANTHROPIC_API_KEY`, an explicit model through `LINMAS_EVAL_MODEL` or the CLI, and confirmation before the named input leaves the machine. Installing skills does not transmit review data.
@@ -438,7 +438,7 @@ codex plugin list
 Expected plugin entry:
 
 ```text
-linmas@linmas  installed, enabled  0.5.1
+linmas@linmas  installed, enabled  0.5.2
 ```
 
 If a new installation is not discovered in a current task, restart the Codex desktop/app-server and create a new task. Then ask Codex to list the Linmas skills or MCP tools.
