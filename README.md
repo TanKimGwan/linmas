@@ -29,7 +29,7 @@
 From a clone of this repository, with Node.js 24 or newer:
 
 ```bash
-npm install
+npm ci
 npm run demo:judge
 ```
 
@@ -48,6 +48,38 @@ Capsule     Validated in memory
 
 This is a reproducible demonstration of the review pipeline, not a claim that a model was called during offline replay.
 
+## OpenAI Build Week 2026 submission
+
+For the Devpost submission, Linmas targets the **Developer Tools** track as a defensive security review toolkit for AI-assisted software. Judges can test the project directly from this repository without credentials, a hosted account, or a rebuild:
+
+```bash
+git clone https://github.com/TanKimGwan/linmas.git
+cd linmas
+npm ci
+npm run demo:judge
+npm run demo:proof
+```
+
+The checked-in sample is [`examples/build-week/insecure-query.diff`](examples/build-week/insecure-query.diff). Both commands above use synthetic, offline fixtures and make no model call. The separate [live Codex path](#run-a-live-codex-review) is opt-in and sends only the explicitly named input after confirmation.
+
+### How Codex and GPT-5.6 were used
+
+- **In the working product:** Linmas uses Codex as a provider-native review engine and explicitly selects the account-visible `gpt-5.6-sol` model for the verified live path. GPT-5.6 reviews the supplied change; Linmas then validates the structured response before deterministic policy evaluation or Review Capsule creation.
+- **During implementation:** Codex accelerated implementation and verification of account/model discovery, the bounded provider workflow, strict response normalization, deterministic policy, portable evidence, and the offline judge demos.
+- **Human-owned decisions:** the maintainer chose the product scope, authorization and transmission boundaries, model, policy thresholds, evidence publication, privacy language, and final commits. Neither Codex output nor a passing Linmas policy is treated as approval.
+
+Key engineering decisions were deliberate:
+
+| Decision | Reason |
+|---|---|
+| Keep the default judge path offline | Judges get a deterministic run with no credentials or network dependency; the output clearly says that no model was called. |
+| Separate live execution behind `--live --yes` | Review content cannot leave the machine through the demo without explicit intent. |
+| Validate model output before policy or evidence creation | Malformed provider output cannot bypass the Linmas result contract. |
+| Bind capsules to exact input bytes with SHA-256 | Review evidence stays tied to the input that was actually evaluated. |
+| Require human review for every result | A model finding, policy `pass`, or valid proof bundle is evidence, never automatic approval or certification. |
+
+See the [public Build Week implementation and reproducibility record](OPENAI_BUILD_WEEK_2026.md) for the dated baseline, feature commits, verified live configuration, architecture, commands, and limitations. Installation options, supported platforms, and the no-rebuild judge path are also summarized below and in the [usage guide](USAGE.md).
+
 ## Documentation
 
 Choose the guide that matches your language and installation goal:
@@ -63,7 +95,7 @@ Linmas is **Codex-first for OpenAI Build Week 2026** and designed to remain port
 
 | AI agent or surface | Status | Supported integration |
 | --- | --- | --- |
-| Codex | **Primary / native** | Git marketplace plugin, eleven skills, six native MCP tools, managed skill directory, and provider-backed review. |
+| Codex | **Primary / native** | Git marketplace plugin, eleven skills, seven native MCP tools, managed skill directory, and provider-backed review. |
 | Claude Code | **Verified compatible** | Managed installation of eleven skills and Claude API provider-backed review. |
 | [Hermes Agent](https://hermes-agent.nousresearch.com/docs/) | **Compatible** | Linmas `SKILL.md` files follow the open Agent Skills structure and can be loaded through Hermes's skills workflow. Hermes-specific MCP configuration remains a separate optional integration. |
 | Gemini CLI and other coding agents | **Portable / manual** | The Markdown skill instructions can be imported or adapted where the agent supports equivalent instructions. Linmas does not yet provide a Gemini-specific installer, provider adapter, or MCP registration. |

@@ -28,7 +28,7 @@ Codex adalah integrasi native utama dan jalur referensi untuk OpenAI Build Week 
 
 | AI agent atau surface | Tingkat kompatibilitas | Surface Linmas yang tersedia |
 | --- | --- | --- |
-| Codex | **Utama / native** | Plugin Git marketplace, sebelas skill, enam native MCP tool, managed skill directory, dan review melalui provider Codex. |
+| Codex | **Utama / native** | Plugin Git marketplace, sebelas skill, tujuh native MCP tool, managed skill directory, dan review melalui provider Codex. |
 | Claude Code | **Compatible dan terverifikasi** | Managed installation sebelas skill dan review melalui provider Claude API. Registrasi native Linmas MCP plugin untuk Claude Code tidak diklaim. |
 | Gemini CLI dan AI coding agent lain | **Portabel / manual** | Import atau adaptasi instruksi `skills/linmas-*/SKILL.md` jika agent mendukung project instruction atau user instruction yang setara. Belum ada installer, provider adapter, registrasi MCP, atau klaim parity khusus Gemini. |
 
@@ -66,21 +66,21 @@ node bin/linmas.mjs review --skill linmas-secure-code-reviewer --input patch.dif
 Untuk instalasi CLI global:
 
 ```bash
-npm install --global linmas@0.6.0
+npm install --global linmas@0.7.0
 linmas list
 ```
 
 Untuk menjalankan sekali tanpa instalasi global:
 
 ```bash
-npx --yes linmas@0.6.0 list
-npx --yes linmas@0.6.0 review --skill linmas-secure-code-reviewer --input patch.diff
+npx --yes linmas@0.7.0 list
+npx --yes linmas@0.7.0 review --skill linmas-secure-code-reviewer --input patch.diff
 ```
 
 Untuk dependency lokal project:
 
 ```bash
-npm install --save-dev linmas@0.6.0
+npm install --save-dev linmas@0.7.0
 npx linmas list
 ```
 
@@ -103,17 +103,17 @@ Ini adalah **marketplace repository GitHub publik**, bukan entri pada katalog gl
 Pada setiap komputer yang akan menggunakan Linmas, jalankan:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.6.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
 codex plugin add linmas@linmas
 codex plugin list
 ```
 
 Setelah itu, tutup Codex sepenuhnya, buka kembali, lalu buat task baru. Jika plugin belum muncul, pastikan komputer tersebut memiliki Git, Node.js 24+, dan akses jaringan ke GitHub. Publikasi ke Plugins Directory resmi adalah proses terpisah yang memerlukan submission, review, dan approval OpenAI. Publikasi di GitHub dan npm tidak otomatis membuat Linmas muncul di katalog global tersebut.
 
-Untuk release immutable yang reproducible, gunakan ref `v0.6.0`:
+Untuk release immutable yang reproducible, gunakan ref `v0.7.0`:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.6.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
 codex plugin add linmas@linmas
 ```
 
@@ -133,10 +133,11 @@ Plugin menyediakan sebelas skill:
 - `linmas-smart-contract-reviewer`
 - `linmas-threat-research-analyst`
 
-Native MCP server menyediakan tepat enam tool:
+Native MCP server menyediakan tepat tujuh tool:
 
 | Tool | Perilaku |
 | --- | --- |
+| `linmas_review_decide` | Pilihan tindak lanjut reviewer manusia melalui form interaktif atau fallback teks setelah finding tersedia; tidak pernah menjadi approval. |
 | `linmas_review_prepare` | Persiapan offline; tidak memanggil provider dan tidak menulis file. |
 | `linmas_review_compare` | Perbandingan offline dua capsule tervalidasi. |
 | `linmas_policy_evaluate` | Evaluasi policy lokal deterministik. |
@@ -165,20 +166,20 @@ Ini adalah instalasi plugin marketplace Codex. Linmas tidak otomatis muncul di k
 Pasang seluruh sebelas managed skill dari package yang dipublish:
 
 ```bash
-npx --yes linmas@0.6.0 detect
-npx --yes linmas@0.6.0 install --all
+npx --yes linmas@0.7.0 detect
+npx --yes linmas@0.7.0 install --all
 ```
 
 Pilih `Claude` ketika prompt host interaktif muncul. Linmas menulis managed skill ke `~/.claude/skills` dan mencatat ownership pada `~/.claude/linmas-manifest.json`. Untuk memasang satu specialist saja:
 
 ```bash
-npx --yes linmas@0.6.0 install linmas-secure-code-reviewer
+npx --yes linmas@0.7.0 install linmas-secure-code-reviewer
 ```
 
 Verifikasi managed installation:
 
 ```bash
-npx --yes linmas@0.6.0 doctor
+npx --yes linmas@0.7.0 doctor
 ```
 
 Live execution melalui provider Claude adalah surface opt-in yang terpisah. Jalur tersebut membutuhkan `ANTHROPIC_API_KEY`, model eksplisit melalui `LINMAS_EVAL_MODEL` atau CLI, serta konfirmasi sebelum input yang disebutkan keluar dari komputer. Instalasi skill tidak mentransmisikan data review.
@@ -187,7 +188,7 @@ Live execution melalui provider Claude adalah surface opt-in yang terpisah. Jalu
 
 Linmas saat ini tidak mengubah konfigurasi Gemini atau agent lain yang belum terdaftar. Jika agent mendukung instruksi Markdown persisten atau direktori bergaya Agent Skills, Anda dapat mengimpor atau mengadaptasi file canonical yang relevan dari `skills/linmas-*/SKILL.md` secara manual.
 
-Perlakukan jalur ini sebagai kompatibilitas instruksi portabel, bukan integrasi native yang sudah diverifikasi. Agent harus mempertahankan persyaratan otorisasi, evidence, consent, dan human review Linmas. Native provider execution dan enam MCP tool Codex tidak otomatis tersedia hanya dengan menyalin file skill.
+Perlakukan jalur ini sebagai kompatibilitas instruksi portabel, bukan integrasi native yang sudah diverifikasi. Agent harus mempertahankan persyaratan otorisasi, evidence, consent, dan human review Linmas. Native provider execution dan tujuh MCP tool Codex tidak otomatis tersedia hanya dengan menyalin file skill.
 
 ## Menggunakan Linmas dari CLI
 
@@ -454,7 +455,7 @@ codex plugin list
 Entry yang diharapkan:
 
 ```text
-linmas@linmas  installed, enabled  0.6.0
+linmas@linmas  installed, enabled  0.7.0
 ```
 
 Jika instalasi baru belum ter-discovery pada task berjalan, restart Codex desktop/app-server dan buat task baru. Lalu minta Codex menampilkan skill atau MCP tool Linmas.
