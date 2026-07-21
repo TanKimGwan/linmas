@@ -21,6 +21,11 @@ export const SKILL_CATALOG = Object.freeze(SPECIALIST_NAMES.map((specialistId) =
 
 export const PUBLIC_SKILL_IDS = Object.freeze(SKILL_CATALOG.map(({ skillId }) => skillId));
 export const SPECIALIST_IDS = Object.freeze(SKILL_CATALOG.map(({ specialistId }) => specialistId));
+export const SPECIALIST_IDENTIFIERS = Object.freeze(
+  SKILL_CATALOG
+    .filter(({ kind }) => kind === 'specialist')
+    .flatMap(({ skillId, legacyAliases }) => [skillId, ...legacyAliases])
+);
 
 const BY_IDENTIFIER = new Map(
   SKILL_CATALOG.flatMap((entry) => [entry.skillId, ...entry.legacyAliases].map((identifier) => [identifier, entry]))

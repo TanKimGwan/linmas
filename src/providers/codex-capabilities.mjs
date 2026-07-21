@@ -242,7 +242,7 @@ function classified(category, message, cause, metadata = {}) {
     stage: metadata.stage ?? (category === 'provider-timeout' ? 'capability-startup' : category === 'provider-authentication' ? 'authentication' : 'capability-startup'),
     reasonCode: metadata.reasonCode ?? (category === 'provider-timeout' ? 'CAPABILITY_TIMEOUT' : category === 'provider-authentication' ? 'AUTHENTICATION_REQUIRED' : category === 'provider-transport' ? 'CAPABILITY_UNAVAILABLE' : 'CAPABILITY_START_FAILED'),
     retryable: metadata.retryable ?? (category === 'provider-timeout' || category === 'provider-transport'),
-    transmissionState: metadata.transmissionState ?? 'not-started',
+    transmissionState: metadata.transmissionState ?? 'not-attempted',
     ...metadata
   });
   error.failureClass = category;

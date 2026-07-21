@@ -111,19 +111,23 @@ export function createCodexRunner({ model, command = 'codex', schemaPath, output
       const outcome = await collectBoundedProcess(child, { input: `${system}\n\n${user}`, timeoutMs, killGraceMs, signal });
       if (outcome.error) {
         const category = outcome.error.code === 'ENOENT' ? 'provider-configuration' : 'provider-transport';
-        throw classified(category, 'Codex invocation failed to start', outcome.error);
+        throw classified(category, 'Codex invocation failed to start', outcome.error, { stage: category === 'provider-configuration' ? 'provider-preflight' : 'provider-execution', reasonCode: category === 'provider-configuration' ? 'CONFIGURATION_MISSING' : 'EXECUTION_FAILED', retryable: false, transmissionState: category === 'provider-configuration' ? 'not-attempted' : 'attempted' });
       }
       if (outcome.timedOut) throw classified('provider-timeout', 'Codex invocation timed out', undefined, { stage: 'provider-execution', reasonCode: 'EXECUTION_TIMEOUT', retryable: true, transmissionState: 'attempted' });
-      if (outcome.aborted) throw classified('provider-transport', 'Codex invocation cancelled', signal?.reason, { stage: 'provider-execution', reasonCode: 'EXECUTION_CANCELLED', retryable: false, transmissionState: 'attempted' });
+      if (outcome.aborted) throw classified('provider-cancelled', 'Codex invocation cancelled', signal?.reason, { stage: 'provider-execution', reasonCode: 'EXECUTION_CANCELLED', retryable: false, transmissionState: 'attempted' });
       if (outcome.code !== 0) {
         const stderr = outcome.stderr;
         const category = /(?:401|403|unauthori[sz]ed|forbidden|authentication|invalid api key|login required)/i.test(stderr)
           ? 'provider-authentication'
           : /(?:429|rate[ -]?limit|too many requests|quota)/i.test(stderr)
             ? 'provider-rate-limit'
+            : /(?:\b5\d\d\b|server error|service unavailable|bad gateway|gateway timeout)/i.test(stderr)
+              ? 'provider-upstream'
+              : /(?:\b4\d\d\b|bad request|invalid request|forbidden)/i.test(stderr)
+                ? 'provider-rejected'
             : 'provider-transport';
-        const reasonCode = category === 'provider-authentication' ? 'EXECUTION_AUTHENTICATION_FAILED' : category === 'provider-rate-limit' ? 'EXECUTION_RATE_LIMITED' : 'EXECUTION_FAILED';
-        throw classified(category, `Codex exited ${outcome.code}: ${sanitize(stderr)}`, undefined, { stage: 'provider-execution', reasonCode, retryable: category === 'provider-rate-limit', transmissionState: 'attempted' });
+        const reasonCode = category === 'provider-authentication' ? 'EXECUTION_AUTHENTICATION_FAILED' : category === 'provider-rate-limit' ? 'EXECUTION_RATE_LIMITED' : category === 'provider-upstream' ? 'EXECUTION_UPSTREAM_FAILED' : category === 'provider-rejected' ? 'EXECUTION_REQUEST_REJECTED' : 'EXECUTION_FAILED';
+        throw classified(category, `Codex exited ${outcome.code}: ${sanitize(stderr)}`, undefined, { stage: 'provider-execution', reasonCode, retryable: ['provider-rate-limit', 'provider-upstream', 'provider-transport'].includes(category), transmissionState: 'attempted' });
       }
       let rawResponse;
       try {
@@ -131,7 +135,7 @@ export function createCodexRunner({ model, command = 'codex', schemaPath, output
         try {
           const buffer = Buffer.alloc(MAX_RESPONSE_BYTES + 1);
           const { bytesRead } = await handle.read(buffer, 0, MAX_RESPONSE_BYTES + 1, 0);
-          if (bytesRead > MAX_RESPONSE_BYTES) throw classified('provider-transport', `Codex response exceeds ${MAX_RESPONSE_BYTES} bytes`, undefined, { stage: 'response-read', reasonCode: 'RESPONSE_TOO_LARGE', retryable: false, transmissionState: 'attempted' });
+          if (bytesRead > MAX_RESPONSE_BYTES) throw classified('provider-response-invalid', `Codex response exceeds ${MAX_RESPONSE_BYTES} bytes`, undefined, { stage: 'response-read', reasonCode: 'RESPONSE_TOO_LARGE', retryable: false, transmissionState: 'response-received' });
           rawResponse = buffer.toString('utf8', 0, bytesRead);
         } finally {
           await handle.close();

@@ -176,7 +176,8 @@ test('Codex binary is configured without requiring LINMAS_EVAL_MODEL', () => {
     provider: 'codex',
     status: 'configured',
     reason: 'codex binary is available; authentication and model are verified at execution',
-    defaultModel: null
+    defaultModel: null,
+    missingRequirements: []
   });
 });
 
