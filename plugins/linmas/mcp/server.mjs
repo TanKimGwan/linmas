@@ -35,6 +35,7 @@ export const TOOL_TIMEOUTS = Object.freeze({
   write: { defaultMs: 60_000, maxMs: 120_000 },
   transmit: { defaultMs: 120_000, maxMs: 180_000 }
 });
+export const ELICITATION_TIMEOUT_MS = 120_000;
 
 const SPECIALIST_SKILL_IDS = Object.freeze(
   PUBLIC_SKILL_IDS.filter((skillId) => skillId !== 'linmas-security-domain-router')
@@ -46,6 +47,30 @@ const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const BROAD_ROOTS = new Set(['/home', '/tmp', '/var', '/etc', '/usr', '/opt']);
 
 const TOOL_DEFINITIONS = Object.freeze([
+  {
+    name: 'linmas_review_decide',
+    title: 'Record Linmas Human Review Decision',
+    description: 'Ask for and record a bounded human disposition after findings are available. This never approves a review or bypasses transmission and write consent.',
+    kind: 'read',
+    inputSchema: commonSchema({
+      required: ['workspace_root', 'review_result'],
+      properties: {
+        review_result: { type: 'object', description: 'Validated review result containing findings; sensitive source content is not required.' },
+        decision: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['disposition'],
+          properties: {
+            disposition: { type: 'string', enum: ['fix_requested', 'continue_with_note', 'manual_review_required', 'custom_instruction'] },
+            risk_acknowledged: { type: 'boolean' },
+            rationale: boundedStringSchema(4096),
+            custom_instruction: boundedStringSchema(4096)
+          }
+        }
+      }
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false }
+  },
   {
     name: 'linmas_review_prepare',
     title: 'Prepare Linmas Review',
@@ -181,7 +206,7 @@ export function createLinmasDispatcher({
 } = {}) {
   const registry = providerRegistry ?? providerRegistryFactory({ env });
 
-  return async function dispatchTool(name, rawArguments = {}) {
+  return async function dispatchTool(name, rawArguments = {}, context = {}) {
     const definition = TOOL_DEFINITIONS.find((tool) => tool.name === name);
     if (!definition) throw toolError('unknown_tool', 'unknown tool', undefined, {
       stage: 'argument-validation',
@@ -192,6 +217,7 @@ export function createLinmasDispatcher({
     const operation = (signal) => {
       switch (name) {
         case 'linmas_review_prepare': return reviewPrepare(args);
+        case 'linmas_review_decide': return reviewDecide(args, context.elicit);
         case 'linmas_review_compare': return reviewCompare(args, signal);
         case 'linmas_policy_evaluate': return policyEvaluate(args, pluginRoot, signal);
         case 'linmas_proof_verify': return proofVerify(args, signal);
@@ -297,8 +323,33 @@ function validateToolArguments(definition, value) {
   if (definition.name === 'linmas_policy_evaluate' && value.policy_id === undefined && value.policy_path === undefined) throw toolError('invalid_input', 'policy_id or policy_path is required');
   if (definition.name === 'linmas_policy_evaluate' && value.policy_id === undefined && value.policy_path === undefined) throw toolError('invalid_input', 'policy_id or policy_path is required');
   if (definition.name === 'linmas_proof_create') validateProofCreateArguments(value);
+  if (definition.name === 'linmas_review_decide') validateReviewDecisionArguments(value);
   if (definition.name === 'linmas_review_execute') validateReviewExecuteArguments(value);
   return value;
+}
+
+function validateReviewDecisionArguments(value) {
+  object(value.review_result, 'review_result');
+  if (!Array.isArray(value.review_result.findings) || value.review_result.findings.length > 256) {
+    throw toolError('invalid_input', 'review_result.findings must be an array with at most 256 items');
+  }
+  for (const finding of value.review_result.findings) {
+    object(finding, 'review_result.finding');
+    boundedString(finding.id, 'review_result.finding.id', 512);
+    if (typeof finding.severity !== 'string' || !['Critical', 'High', 'Medium', 'Low', 'Info'].includes(finding.severity)) {
+      throw toolError('invalid_input', 'review_result.finding.severity is invalid');
+    }
+  }
+  if (value.decision !== undefined) {
+    object(value.decision, 'decision');
+    exactKeys(value.decision, ['disposition', 'risk_acknowledged', 'rationale', 'custom_instruction'].filter((key) => Object.hasOwn(value.decision, key)), 'decision');
+    if (!['fix_requested', 'continue_with_note', 'manual_review_required', 'custom_instruction'].includes(value.decision.disposition)) {
+      throw toolError('invalid_input', 'decision.disposition is invalid');
+    }
+    if (value.decision.risk_acknowledged !== undefined && typeof value.decision.risk_acknowledged !== 'boolean') throw toolError('invalid_input', 'decision.risk_acknowledged must be boolean');
+    if (value.decision.rationale !== undefined) boundedString(value.decision.rationale, 'decision.rationale', 4096);
+    if (value.decision.custom_instruction !== undefined) boundedString(value.decision.custom_instruction, 'decision.custom_instruction', 4096);
+  }
 }
 
 function validateProofCreateArguments(value) {
@@ -337,6 +388,124 @@ async function reviewPrepare(args) {
     reviewState: 'needs_human_review',
     request
   };
+}
+
+const REVIEW_DISPOSITIONS = Object.freeze({
+  fix_requested: 'A — Minta agent memperbaiki',
+  continue_with_note: 'B — Lanjutkan dengan catatan khusus',
+  manual_review_required: 'C — Hentikan task untuk review manual',
+  custom_instruction: 'D — Beri tahu agent harus bertindak apa'
+});
+
+function reviewSeverityCounts(reviewResult) {
+  const counts = { Critical: 0, High: 0, Medium: 0, Low: 0, Info: 0 };
+  for (const finding of reviewResult.findings) counts[finding.severity] += 1;
+  return counts;
+}
+
+function reviewDecisionRecord({ args, decision, channel, status = 'selected', rationale = null, customInstruction = null }) {
+  const counts = reviewSeverityCounts(args.review_result);
+  return {
+    status,
+    operation: 'review_decide',
+    dataLeavesMachine: false,
+    humanReviewRequired: true,
+    reviewState: 'needs_human_review',
+    reviewInteraction: {
+      schemaVersion: 1,
+      status,
+      channel,
+      disposition: decision,
+      unresolvedFindings: counts,
+      riskAcceptance: {
+        required: counts.Critical > 0 || counts.High > 0,
+        acknowledged: decision === 'continue_with_note' ? true : false,
+        rationale
+      },
+      finalResponseNoteRequired: decision === 'continue_with_note',
+      customInstruction,
+      mayContinue: decision === 'continue_with_note' && (counts.Critical === 0 && counts.High === 0 || Boolean(rationale))
+    }
+  };
+}
+
+function decisionSchema({ includeFix }) {
+  const choices = Object.entries(REVIEW_DISPOSITIONS)
+    .filter(([id]) => includeFix || id !== 'fix_requested')
+    .map(([constValue, title]) => ({ const: constValue, title }));
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['disposition'],
+    properties: { disposition: { type: 'string', oneOf: choices } }
+  };
+}
+
+async function reviewDecide(args, elicit) {
+  const counts = reviewSeverityCounts(args.review_result);
+  const hasFindings = args.review_result.findings.length > 0;
+  if (args.decision) return finalizeReviewDecision(args, args.decision, 'text_fallback');
+  const prompt = `Linmas menemukan ${args.review_result.findings.length} finding (Critical ${counts.Critical}, High ${counts.High}, Medium ${counts.Medium}, Low ${counts.Low}, Info ${counts.Info}). Pilih tindakan. Ini bukan approval keamanan.`;
+  if (typeof elicit !== 'function') return {
+    ...reviewDecisionRecord({ args, decision: null, channel: 'text_fallback', status: 'input_required' }),
+    reviewInteraction: {
+      ...reviewDecisionRecord({ args, decision: null, channel: 'text_fallback', status: 'input_required' }).reviewInteraction,
+      prompt,
+      options: Object.entries(REVIEW_DISPOSITIONS).filter(([id]) => hasFindings || id !== 'fix_requested').map(([id, label]) => ({ id, label }))
+    }
+  };
+  const first = await elicit({
+    mode: 'form',
+    message: prompt,
+    requestedSchema: decisionSchema({ includeFix: hasFindings })
+  });
+  if (first?.reason === 'client-unsupported' || first?.reason === 'send-failed') {
+    const fallback = reviewDecisionRecord({ args, decision: null, channel: 'text_fallback', status: 'input_required' });
+    return {
+      ...fallback,
+      reviewInteraction: {
+        ...fallback.reviewInteraction,
+        prompt,
+        options: Object.entries(REVIEW_DISPOSITIONS).filter(([id]) => hasFindings || id !== 'fix_requested').map(([id, label]) => ({ id, label }))
+      }
+    };
+  }
+  if (first?.action !== 'accept' || !first?.content?.disposition) {
+    return reviewDecisionRecord({ args, decision: null, channel: 'mcp_form', status: first?.action === 'cancel' ? 'cancelled' : 'declined' });
+  }
+  const disposition = first.content.disposition;
+  if (disposition === 'custom_instruction') {
+    const custom = await elicit({
+      mode: 'form',
+      message: 'Tuliskan instruksi custom. Instruksi ini tidak dapat melewati consent transmisi, consent write, atau risk acknowledgement.',
+      requestedSchema: { type: 'object', additionalProperties: false, required: ['custom_instruction'], properties: { custom_instruction: boundedStringSchema(4096) } }
+    });
+    if (custom?.action !== 'accept' || !custom?.content?.custom_instruction) return reviewDecisionRecord({ args, decision: 'custom_instruction', channel: 'mcp_form', status: custom?.action === 'cancel' ? 'cancelled' : 'declined' });
+    return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', customInstruction: custom.content.custom_instruction });
+  }
+  if (disposition === 'continue_with_note' && (counts.Critical > 0 || counts.High > 0)) {
+    const risk = await elicit({
+      mode: 'form',
+      message: 'Critical/High findings belum selesai. Akui risiko dan berikan alasan sebelum melanjutkan.',
+      requestedSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['risk_acknowledged', 'rationale'],
+        properties: { risk_acknowledged: { type: 'boolean', const: true }, rationale: boundedStringSchema(4096) }
+      }
+    });
+    if (risk?.action !== 'accept' || risk.content?.risk_acknowledged !== true || !risk.content?.rationale) return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', status: risk?.action === 'cancel' ? 'cancelled' : 'declined' });
+    return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', rationale: risk.content.rationale });
+  }
+  return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form' });
+}
+
+function finalizeReviewDecision(args, decision, channel) {
+  if (decision.disposition === 'custom_instruction' && !decision.custom_instruction) throw toolError('decision_input_required', 'custom_instruction is required for disposition custom_instruction');
+  if (decision.disposition === 'continue_with_note' && (reviewSeverityCounts(args.review_result).Critical > 0 || reviewSeverityCounts(args.review_result).High > 0)) {
+    if (decision.risk_acknowledged !== true || !decision.rationale) throw toolError('risk_acknowledgement_required', 'Critical/High findings require explicit risk acknowledgement and rationale');
+  }
+  return reviewDecisionRecord({ args, decision: decision.disposition, channel, rationale: decision.rationale ?? null, customInstruction: decision.custom_instruction ?? null });
 }
 
 async function reviewCompare(args) {
@@ -812,12 +981,35 @@ function jsonRpcToolError(id, error, transmitting = false) {
   return { jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: JSON.stringify(envelope) }], structuredContent: envelope } };
 }
 
-export function createStdioServer({ dispatcher = createLinmasDispatcher() } = {}) {
+export function createStdioServer({ dispatcher = createLinmasDispatcher(), sendRequest = null, elicitationTimeoutMs = ELICITATION_TIMEOUT_MS } = {}) {
+  const pending = new Map();
+  let nextRequestId = 0;
+  let clientCapabilities = {};
+  const elicit = (params) => {
+    if (!clientCapabilities?.elicitation?.form || typeof sendRequest !== 'function') return Promise.resolve({ action: 'decline', reason: 'client-unsupported' });
+    const id = `linmas-elicitation-${++nextRequestId}`;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        resolve({ action: 'cancel', reason: 'timeout' });
+      }, elicitationTimeoutMs);
+      pending.set(id, { resolve: (response) => { clearTimeout(timer); resolve(response); } });
+      try { sendRequest({ jsonrpc: '2.0', id, method: 'elicitation/create', params }); } catch { clearTimeout(timer); pending.delete(id); resolve({ action: 'cancel', reason: 'send-failed' }); }
+    });
+  };
   return {
+    get pendingRequestCount() { return pending.size; },
     async handle(message) {
+      if (message && message.id !== undefined && message.method === undefined && pending.has(message.id)) {
+        const request = pending.get(message.id);
+        pending.delete(message.id);
+        request.resolve(message.result ?? { action: 'cancel', reason: 'invalid-response' });
+        return null;
+      }
       if (!message || typeof message !== 'object' || Array.isArray(message)) return null;
       const { id, method, params } = message;
       if (method === 'initialize') {
+        clientCapabilities = params?.capabilities ?? {};
         return { jsonrpc: '2.0', id, result: { protocolVersion: typeof params?.protocolVersion === 'string' ? params.protocolVersion : PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: SERVER_NAME, version: SERVER_VERSION }, instructions: 'Linmas MCP tools are bounded. Offline tools do not transmit data. Review execution requires explicit confirm_transmission=true; writes require confirm_write=true. Results remain advisory and require human review.' } };
       }
       if (method === 'notifications/initialized' || method === 'ping') return method === 'ping' ? { jsonrpc: '2.0', id, result: {} } : null;
@@ -825,7 +1017,7 @@ export function createStdioServer({ dispatcher = createLinmasDispatcher() } = {}
       if (method === 'tools/call') {
         const name = params?.name;
         try {
-          const result = await dispatcher(name, params?.arguments ?? {});
+          const result = await dispatcher(name, params?.arguments ?? {}, { elicit });
           return jsonRpcResult(id, result);
         } catch (error) {
           return jsonRpcToolError(id, error, name === 'linmas_review_execute');
@@ -838,13 +1030,25 @@ export function createStdioServer({ dispatcher = createLinmasDispatcher() } = {}
 }
 
 async function runStdio() {
-  const server = createStdioServer();
+  let writeChain = Promise.resolve();
+  const writeMessage = (message) => {
+    writeChain = writeChain.then(() => new Promise((resolve, reject) => {
+      process.stdout.write(`${JSON.stringify(message)}\n`, (error) => error ? reject(error) : resolve());
+    }));
+    return writeChain;
+  };
+  const server = createStdioServer({ sendRequest: (message) => { void writeMessage(message); } });
+  const tasks = new Set();
   await readBoundedJsonLines(process.stdin, {
-    onMessage: async (message) => {
-    const response = await server.handle(message);
-    if (response) process.stdout.write(`${JSON.stringify(response)}\n`);
+    onMessage: (message) => {
+      const task = server.handle(message)
+        .then((response) => response ? writeMessage(response) : undefined)
+        .finally(() => tasks.delete(task));
+      tasks.add(task);
     }
   });
+  await Promise.all(tasks);
+  await writeChain;
 }
 
 export async function readBoundedJsonLines(input, { maxBytes = MAX_MCP_LINE_BYTES, onMessage = async () => {}, onInvalid = () => {} } = {}) {
