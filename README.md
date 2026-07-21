@@ -10,13 +10,14 @@
   <p>
     <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml/badge.svg?branch=main"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.6.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm total downloads" src="https://badgen.net/npm/dt/linmas.svg?label=total%20downloads"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/linmas.svg?label=weekly%20downloads"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm total downloads" src="https://badgen.net/npm/dt/linmas?label=total%20downloads"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/linmas?label=weekly%20downloads"></a>
     <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.6.0"><img alt="release v0.6.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
     <a href="LICENSE"><img alt="License: Apache-2.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/license.svg"></a>
     <img alt="Node.js 24+" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/node.svg">
     <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex primary" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/codex.svg"></a>
     <a href="#ai-agent-compatibility"><img alt="Claude Code compatible" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/claude-code.svg"></a>
+    <a href="#ai-agent-compatibility"><img alt="Hermes Agent compatible" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/hermes-agent.svg"></a>
     <a href="#ai-agent-compatibility"><img alt="AI agent skills portable" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/agent-skills.svg"></a>
     <a href="OPENAI_BUILD_WEEK_2026.md"><img alt="OpenAI Build Week 2026" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/openai-build-week.svg"></a>
     <img alt="Security: defensive only" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/security.svg">
