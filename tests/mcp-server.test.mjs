@@ -95,6 +95,46 @@ test('offline prepare is read-only and returns prepared plus human-review state'
   }
 });
 
+test('offline prepare accepts documented legacy specialist aliases and normalizes them', async () => {
+  const root = await setup();
+  try {
+    const result = await createLinmasDispatcher()('linmas_review_prepare', {
+      workspace_root: root,
+      input_text: 'SELECT * FROM users WHERE id = $id',
+      skill_name: 'secure-code-reviewer'
+    });
+    assert.equal(result.request.specialist, 'secure-code-reviewer');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('provider preflight fails before input execution and exposes safe configuration details', async () => {
+  const root = await setup();
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ env: {} }) });
+    const response = await server.handle({
+      jsonrpc: '2.0', id: 41, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: {
+        workspace_root: root,
+        input_text: 'synthetic fixture',
+        skill_name: 'secure-code-reviewer',
+        provider: 'claude',
+        confirm_transmission: true
+      } }
+    });
+    const envelope = response.result.structuredContent;
+    assert.equal(envelope.error.code, 'PROVIDER_CONFIGURATION_MISSING');
+    assert.equal(envelope.error.stage, 'provider-preflight');
+    assert.deepEqual(envelope.error.missingRequirements, ['ANTHROPIC_API_KEY', 'LINMAS_EVAL_MODEL']);
+    assert.equal(envelope.error.transmissionState, 'not-attempted');
+    assert.equal(envelope.error.transmissionAttempted, false);
+    assert.match(response.result.content[0].text, /PROVIDER_CONFIGURATION_MISSING/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test('all offline tool paths validate strict input and workspace boundaries', async () => {
   const root = await setup();
   try {
@@ -352,7 +392,7 @@ test('review execute is prepared without consent and only executes a mocked prov
   }]]);
   try {
     const dispatch = createLinmasDispatcher({ providerRegistry });
-    const args = { workspace_root: root, input_text: 'safe fixture', skill_name: 'linmas-secure-code-reviewer', provider: 'codex', confirm_transmission: false };
+    const args = { workspace_root: root, input_text: 'safe fixture', skill_name: 'secure-code-reviewer', provider: 'codex', confirm_transmission: false };
     const prepared = await dispatch('linmas_review_execute', args);
     assert.equal(prepared.status, 'prepared');
     assert.equal(prepared.dataLeavesMachine, false);
@@ -364,6 +404,9 @@ test('review execute is prepared without consent and only executes a mocked prov
     assert.equal(executed.dataLeavesMachine, true);
     assert.equal(executed.transmissionConfirmed, true);
     assert.equal(executed.review.modelMetadata.requestId, null);
+    assert.equal(executed.transmissionState, 'normalized');
+    assert.equal(executed.providerResponseReceived, true);
+    assert.equal(executed.capsuleWritten, false);
     assert.equal(calls, 1);
   } finally {
     await fs.rm(root, { recursive: true, force: true });

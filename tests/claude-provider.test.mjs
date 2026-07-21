@@ -29,9 +29,17 @@ test('Claude runner classifies rate limits and authentication without retrying i
   await assert.rejects(unauthorized.run({ system: 'x', user: 'y' }), (error) => error.failureClass === 'provider-authentication');
 });
 
+test('Claude runner classifies upstream and request rejection responses safely', async () => {
+  for (const [status, failureClass, retryable] of [[400, 'provider-rejected', false], [503, 'provider-upstream', true]]) {
+    const runner = createClaudeRunner({ apiKey: 'test-key', model: 'claude-opus-4-8', fetchImpl: async () => new Response('{}', { status }) });
+    await assert.rejects(runner.run({ system: 'x', user: 'y' }), (error) => error.failureClass === failureClass
+      && error.retryable === retryable && error.httpStatus === status && error.transmissionState === 'response-received');
+  }
+});
+
 test('Claude runner rejects missing configuration and empty text', async () => {
   assert.throws(() => createClaudeRunner({ model: 'm' }), /ANTHROPIC_API_KEY/);
   assert.throws(() => createClaudeRunner({ apiKey: 'k' }), /LINMAS_EVAL_MODEL/);
   const empty = createClaudeRunner({ apiKey: 'k', model: 'm', fetchImpl: async () => new Response(JSON.stringify({ content: [] }), { status: 200 }) });
-  await assert.rejects(empty.run({ system: 'x', user: 'y' }), (error) => error.failureClass === 'normalization-failed');
+  await assert.rejects(empty.run({ system: 'x', user: 'y' }), (error) => error.failureClass === 'provider-response-invalid' && error.transmissionState === 'response-received');
 });
