@@ -2,16 +2,20 @@
 
 This is the public implementation and reproducibility record for Linmas's entry in OpenAI Build Week 2026 on Devpost. It contains only evidence that can be checked from the repository or that was observed in a bounded live test. It is not an OpenAI endorsement.
 
+**Version status:** this record targets Linmas **v0.7.0** (immutable tag `v0.7.0`, release commit `8ad6fbd`). Documentation and repository-metadata changes after that tag do not change the runtime or package version.
+
 ## Product claim
 
 Linmas turns one explicitly named change into a review result, a deterministic policy decision, and a portable Review Capsule. The capsule binds the exact input bytes to the normalized review through SHA-256, records the execution mode, and preserves the non-negotiable safety statement: **Human review remains required.**
 
 The current Build Week extension adds a Proof Chain above that capsule. A judge can run `npm run demo:proof` to see an offline human decision receipt, static reports, source hashes, and bundle verification. A completed Codex Security sealed scan can also be imported after Linmas verifies its manifest, findings, coverage, and listed artifact hashes.
 
+The v0.7.0 release adds an additive native MCP human-review gate, `linmas_review_decide`, plus the bounded MCP surface described below. The release contains eleven namespaced skills and exactly seven native MCP tools. Existing review results remain advisory and continue to carry `humanReviewRequired=true`; the gate never grants automatic approval.
+
 The judge path works without credentials or a network call:
 
 ```bash
-npm install
+npm ci
 npm run demo:judge
 npm run demo:proof
 ```
@@ -32,6 +36,16 @@ Build Week implementation baseline: `0476c7843d0f5adc8ccff3f6729def306aeb896e` (
 | `a9a846c` | 2026-07-18 | Added offline before/after capsule comparison. |
 
 The range above names the focused feature commits, not every repository commit made on that date.
+
+Release and public-surface checkpoints:
+
+| Commit | Date | Verifiable contribution |
+|---|---|---|
+| `161aaab` | 2026-07-21 | Added the additive `linmas_review_decide` interactive human-review gate with structured chat fallback. |
+| `0b6f0ea` | 2026-07-21 | Prepared the v0.7.0 release surface and version-bound artifacts. |
+| `8ad6fbd` | 2026-07-21 | Promoted v0.7.0 to `main` and created the immutable `v0.7.0` release tag. |
+
+The current repository may contain later documentation-only and contribution-metadata commits; those do not change the v0.7.0 runtime claim.
 
 ## Verified live evidence
 
@@ -63,13 +77,34 @@ bounded request + exact-byte SHA-256
                          |
              +-----------+-----------+
              v                       v
- deterministic policy          Review Capsule
- pass / needs-review / blocked  + safety boundary
+ human-review decision      deterministic policy
+ MCP form or chat fallback  + Review Capsule
+             |               + safety boundary
+             +-----------------------+
+                         |
+                         v
+                    Proof Chain
 ```
 
 Linmas does not log users into Codex and does not store credentials. Codex owns authentication, whether the user has a ChatGPT subscription or a Codex-managed API key. Linmas probes only the capability class and account-visible model catalog needed to validate the requested run.
 
 For live execution, Linmas reads the named input, creates a managed temporary working directory, requests a read-only Codex sandbox, disables approvals, uses an ephemeral session, and ignores user config and repository rules. These controls reduce ambient influence; they do **not** guarantee that Codex cannot read other filesystem paths allowed by the host and Codex sandbox. Linmas therefore does not claim input-only filesystem isolation.
+
+## v0.7.0 release surface
+
+The v0.7.0 package and Codex marketplace plugin require Node.js 24 or newer. The public plugin contains eleven Linmas skills and the following seven bounded MCP tools:
+
+| Tool | Boundary |
+|---|---|
+| `linmas_review_decide` | Explicit human disposition after findings; never an approval. |
+| `linmas_review_prepare` | Offline preparation; no provider call and no writes. |
+| `linmas_review_compare` | Offline Review Capsule comparison. |
+| `linmas_policy_evaluate` | Offline deterministic policy evaluation. |
+| `linmas_proof_verify` | Offline proof-bundle verification. |
+| `linmas_proof_create` | Local write only after `confirm_write=true`. |
+| `linmas_review_execute` | Provider transmission only after `confirm_transmission=true`. |
+
+When the host supports MCP form elicitation, `linmas_review_decide` presents explicit choices to fix findings, continue with documented risk acknowledgement, stop for manual review, or provide custom guidance. Without elicitation, the same choices are returned as structured chat data and no choice is made automatically. Full Access or `--dangerously-skip-permissions` does not count as a human disposition.
 
 ## What Codex contributed and what humans decided
 
@@ -83,10 +118,11 @@ Use Node.js 24 or newer:
 
 ```bash
 npm test
+npm run coverage
 npm run validate
 npm run eval:offline
 npm run demo:judge
-npm pack --dry-run --cache /tmp/linmas-npm-cache
+npm run pack:dry-run
 ```
 
 Inspect a review without transmitting data:
@@ -121,6 +157,17 @@ Compare two capsules without a provider call:
 linmas review compare before.json after.json
 ```
 
+Install or pin the v0.7.0 release for a reproducible Codex marketplace check:
+
+```bash
+npm install --global linmas@0.7.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
+codex plugin add linmas@linmas
+codex plugin list
+```
+
+After upgrading the native MCP plugin, restart Codex desktop/app-server and create a fresh task. An existing task or stale app-server may retain an older plugin child process or cache.
+
 ## Limitations and safety
 
 - Offline fixture replay demonstrates the pipeline, not a fresh model inference.
@@ -131,5 +178,7 @@ linmas review compare before.json after.json
 - Findings are advisory. Human review remains required.
 - Linmas is defensive-only and intended for authorized environments.
 - The verified live evidence above was collected on Linux. Cross-platform discovery is tested, but no equivalent live Windows run is claimed.
+- Native MCP v0.7.0 is verified on the documented Node.js 24+ Linux path. Windows CI validates deterministic behavior, but no live Windows provider or fresh-task MCP discovery claim is made here.
+- To roll back, use a Git revert and pin npm or the Codex marketplace to `0.6.0` / `v0.6.0`; restart the app-server and verify from a fresh task. Do not use destructive reset or npm unpublish.
 
 See the [README](README.md), [security policy](.github/SECURITY.md), and [license](LICENSE) for the full public contract.
