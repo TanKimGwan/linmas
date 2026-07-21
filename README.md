@@ -334,10 +334,11 @@ python3 /home/tan/.codex/skills/.system/plugin-creator/scripts/validate_plugin.p
 
 The builder copies exactly eleven canonical Linmas skills, the bounded MCP server, policy/runtime files, `.mcp.json`, and the package metadata required to report the canonical version. It does not mutate a user's marketplace configuration. Development cachebusters are host-artifact metadata and are not part of the canonical source or package version.
 
-The MCP server exposes exactly six tools:
+The MCP server exposes exactly seven tools:
 
 | Tool | Boundary |
 |---|---|
+| `linmas_review_decide` | Interactive or text-fallback human disposition after findings are available; never an approval. |
 | `linmas_review_prepare` | Offline preparation; no provider and no writes. |
 | `linmas_review_compare` | Offline capsule comparison. |
 | `linmas_policy_evaluate` | Offline deterministic policy evaluation. |
@@ -346,6 +347,19 @@ The MCP server exposes exactly six tools:
 | `linmas_review_execute` | Provider transmission only after `confirm_transmission=true`. |
 
 Tool results expose bounded status values such as `prepared`, `verified`, and `executed`, plus `humanReviewRequired=true`; every result remains `needs_human_review`. A prepared result does not call a provider or write output. Offline tools do not transmit data. A provider-backed review transmits only after explicit consent, and a proof bundle is written only after explicit write confirmation. Timeouts cancel provider work and prevent late normalization, policy evaluation, capsule creation, or final output writes.
+
+### Interactive human-review gate
+
+When a reviewer has produced findings, `linmas_review_decide` requests an explicit disposition through MCP form elicitation when the host supports it. The first form offers:
+
+- **A — Minta agent memperbaiki**: agent fixes the findings and reruns the review.
+- **B — Lanjutkan dengan catatan khusus**: unresolved findings must be included in the final response; Critical/High findings additionally require risk acknowledgement and rationale.
+- **C — Hentikan task untuk review manual**: agent stops without claiming approval or security.
+- **D — Beri tahu agent harus bertindak apa**: custom guidance that cannot bypass transmission, write, or safety gates.
+
+If no findings are actionable, A is omitted. If the host cannot show an MCP form, Linmas returns the same choices as a structured chat fallback and does not choose one automatically. A generic “lanjutkan” is not sufficient disposition. The gate uses the MCP protocol's client-side [form elicitation](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation); host permission modes remain separate controls.
+
+Codex and Claude Code must have the Linmas MCP server registered for the form to appear. A Full Access or `--dangerously-skip-permissions` mode controls command permission prompts; it does not grant a Linmas review disposition. If the active host suppresses or lacks MCP elicitation, the structured chat fallback remains mandatory.
 
 ## Command reference
 
