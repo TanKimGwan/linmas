@@ -117,6 +117,10 @@ test('README badges use renderable SVG endpoints and static release metadata sta
   assert.ok(badgeSources.length >= 8, 'README should retain the public project badge set');
   for (const source of badgeSources) {
     const url = new URL(source);
+    if (url.hostname === 'badgen.net') {
+      assert.match(url.pathname, /^\/npm\/d[tw]\/linmas$/, `dynamic npm badge must use the package name without a file suffix: ${source}`);
+      continue;
+    }
     assert.match(url.pathname, /\.svg$/, `badge must use an explicit SVG endpoint: ${source}`);
     if (url.hostname === 'raw.githubusercontent.com') {
       const relativePath = url.pathname.replace(/^\/TanKimGwan\/linmas\/main\//, '');
@@ -146,4 +150,5 @@ test('README documents Hermes Agent compatibility through portable skills', () =
   assert.match(text, /Hermes Agent/i);
   assert.match(text, /Hermes Agent[\s\S]{0,300}Compatible/i);
   assert.match(text, /SKILL\.md[\s\S]{0,200}Hermes/i);
+  assert.match(text, /assets\/badges\/hermes-agent\.svg/, 'README should show Hermes compatibility in the badge row');
 });
