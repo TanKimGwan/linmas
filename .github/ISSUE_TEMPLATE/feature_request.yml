@@ -1,0 +1,56 @@
+name: Feature request
+description: Propose a user-facing improvement to Linmas.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the user problem first. Proposed features must preserve Linmas's defensive, authorized-use scope and mandatory human review.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who is affected, and what is difficult or impossible today?
+      placeholder: I need to ... because ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain what you want Linmas to do and where it should appear (CLI, skill, MCP, packaging, or documentation).
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or existing commands have you tried?
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable behavior or tests that would demonstrate the request is complete.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Add sanitized examples, links, constraints, or related issues. Do not attach secrets or private data.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Scope and safety checks
+      options:
+        - label: This request is for authorized, defensive use and does not seek malware, credential theft, stealth, persistence, evasion, or unauthorized access.
+          required: true
+        - label: I understand that Linmas must keep human review required and must not automatically approve a change.
+          required: true
