@@ -28,7 +28,7 @@ Codex is the primary native integration and the reference path for OpenAI Build 
 
 | AI agent or surface | Compatibility level | Available Linmas surface |
 | --- | --- | --- |
-| Codex | **Primary / native** | Git marketplace plugin, eleven skills, six native MCP tools, managed skill directory, and Codex provider-backed review. |
+| Codex | **Primary / native** | Git marketplace plugin, eleven skills, seven native MCP tools, managed skill directory, and Codex provider-backed review. |
 | Claude Code | **Verified compatible** | Managed installation of eleven skills and Claude API provider-backed review. Native Linmas MCP plugin registration is not claimed for Claude Code. |
 | Gemini CLI and other coding agents | **Portable / manual** | Import or adapt the relevant `skills/linmas-*/SKILL.md` instructions if the agent supports equivalent project or user instructions. There is no Gemini-specific installer, provider adapter, MCP registration, or verified parity claim yet. |
 
@@ -66,21 +66,21 @@ node bin/linmas.mjs review --skill linmas-secure-code-reviewer --input patch.dif
 For a global CLI installation:
 
 ```bash
-npm install --global linmas@0.6.0
+npm install --global linmas@0.7.0
 linmas list
 ```
 
 For a one-time invocation without a global install:
 
 ```bash
-npx --yes linmas@0.6.0 list
-npx --yes linmas@0.6.0 review --skill linmas-secure-code-reviewer --input patch.diff
+npx --yes linmas@0.7.0 list
+npx --yes linmas@0.7.0 review --skill linmas-secure-code-reviewer --input patch.diff
 ```
 
 For a project-local dependency:
 
 ```bash
-npm install --save-dev linmas@0.6.0
+npm install --save-dev linmas@0.7.0
 npx linmas list
 ```
 
@@ -103,7 +103,7 @@ This is a public **GitHub repository marketplace**, not an entry in the global C
 On every computer where you want to use Linmas, run:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.6.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
 codex plugin add linmas@linmas
 codex plugin list
 ```
@@ -113,7 +113,7 @@ Then restart Codex completely and create a fresh task. If the plugin is still mi
 For a reproducible immutable release, pin the repository ref:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.6.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
 codex plugin add linmas@linmas
 ```
 
@@ -133,10 +133,11 @@ The plugin exposes eleven skills:
 - `linmas-smart-contract-reviewer`
 - `linmas-threat-research-analyst`
 
-The native MCP server exposes exactly six tools:
+The native MCP server exposes exactly seven tools:
 
 | Tool | Behavior |
 | --- | --- |
+| `linmas_review_decide` | Interactive or text-fallback human disposition after findings are available; never an approval. |
 | `linmas_review_prepare` | Offline preparation; no provider call and no write. |
 | `linmas_review_compare` | Offline comparison of two validated capsules. |
 | `linmas_policy_evaluate` | Deterministic local policy evaluation. |
@@ -165,20 +166,20 @@ This is a Codex plugin marketplace installation. It does not make Linmas appear 
 Install all eleven managed skills from the published package:
 
 ```bash
-npx --yes linmas@0.6.0 detect
-npx --yes linmas@0.6.0 install --all
+npx --yes linmas@0.7.0 detect
+npx --yes linmas@0.7.0 install --all
 ```
 
 Choose `Claude` when the interactive host prompt appears. Linmas writes managed skills under `~/.claude/skills` and records ownership in `~/.claude/linmas-manifest.json`. To install only one specialist:
 
 ```bash
-npx --yes linmas@0.6.0 install linmas-secure-code-reviewer
+npx --yes linmas@0.7.0 install linmas-secure-code-reviewer
 ```
 
 Verify the managed installation:
 
 ```bash
-npx --yes linmas@0.6.0 doctor
+npx --yes linmas@0.7.0 doctor
 ```
 
 Live Claude provider execution is a separate opt-in surface. It requires `ANTHROPIC_API_KEY`, an explicit model through `LINMAS_EVAL_MODEL` or the CLI, and confirmation before the named input leaves the machine. Installing skills does not transmit review data.
@@ -187,7 +188,7 @@ Live Claude provider execution is a separate opt-in surface. It requires `ANTHRO
 
 Linmas does not currently mutate Gemini or other unregistered agent configuration. If an agent supports persistent Markdown instructions or an Agent Skills-style directory, you can manually import or adapt the relevant canonical file from `skills/linmas-*/SKILL.md`.
 
-Treat this as portable instruction compatibility, not a verified native integration. The agent must preserve Linmas authorization, evidence, consent, and human-review requirements. Native provider execution and the six Codex MCP tools are not implied by copying a skill file.
+Treat this as portable instruction compatibility, not a verified native integration. The agent must preserve Linmas authorization, evidence, consent, and human-review requirements. Native provider execution and the seven Codex MCP tools are not implied by copying a skill file.
 
 ## Use Linmas from the CLI
 
@@ -454,7 +455,7 @@ codex plugin list
 Expected plugin entry:
 
 ```text
-linmas@linmas  installed, enabled  0.6.0
+linmas@linmas  installed, enabled  0.7.0
 ```
 
 If a new installation is not discovered in a current task, restart the Codex desktop/app-server and create a new task. Then ask Codex to list the Linmas skills or MCP tools.
