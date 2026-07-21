@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/TanKimGwan/linmas/security/advisories/new
+    about: Do not disclose vulnerabilities in a public issue. Use GitHub Security Advisories.
+  - name: Read the usage guide first
+    url: https://github.com/TanKimGwan/linmas/blob/main/USAGE.md
+    about: Check installation, supported hosts, troubleshooting, and safety boundaries.

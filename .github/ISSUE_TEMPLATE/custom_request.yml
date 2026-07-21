@@ -1,0 +1,59 @@
+name: Custom request
+description: Ask for documentation, integration, maintenance, or another project request.
+title: "[Request]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when the request is not a bug or a feature proposal. For security vulnerabilities, use the private Security Advisories link instead of a public issue.
+
+  - type: dropdown
+    id: request_type
+    attributes:
+      label: Request type
+      options:
+        - Documentation or examples
+        - Integration or platform support
+        - Packaging or release process
+        - Maintenance or cleanup
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Request goal
+      description: What outcome should this request achieve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Explain the current behavior, affected workflow, and relevant versions or hosts.
+    validations:
+      required: true
+
+  - type: textarea
+    id: desired_result
+    attributes:
+      label: Desired result
+      description: Describe the smallest useful result or acceptance criteria.
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and references
+      description: Include compatibility, rollout, or documentation constraints and sanitized links.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety and privacy checks
+      options:
+        - label: I removed secrets, credentials, private keys, personal data, and sensitive review content.
+          required: true
+        - label: This request stays within authorized, defensive use of Linmas and does not request harmful operational detail.
+          required: true
