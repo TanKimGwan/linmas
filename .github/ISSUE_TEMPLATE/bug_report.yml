@@ -1,0 +1,95 @@
+name: Bug report
+description: Report a reproducible defect in Linmas.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Linmas. For suspected security vulnerabilities, do not include exploit details or sensitive data here. Use the private Security Advisories link in the issue chooser.
+
+  - type: input
+    id: version
+    attributes:
+      label: Linmas version
+      description: Provide the package, tag, or commit being tested.
+      placeholder: "0.7.0 or v0.7.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation path
+      description: How is Linmas being used?
+      options:
+        - GitHub source checkout
+        - npm CLI
+        - Codex marketplace plugin
+        - Claude Code managed skills
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, architecture, Node.js version, and host/provider version when relevant.
+      placeholder: |
+        OS and architecture:
+        Node.js:
+        Codex/Claude Code version:
+        Provider or host:
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest authorized reproduction, including the command or MCP tool input.
+      placeholder: |
+        1. Run ...
+        2. Provide ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should Linmas do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the exact safe error message when possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or output
+      description: Paste sanitized output only. Remove tokens, credentials, private paths, review input, and provider responses.
+      render: shell
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Add a minimal fixture, link, or other context that helps reproduce the issue.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety and privacy checks
+      options:
+        - label: I removed secrets, credentials, private keys, personal data, and sensitive review content from this report.
+          required: true
+        - label: This report concerns an authorized, defensive use of Linmas and is not a request for harmful operational guidance.
+          required: true
