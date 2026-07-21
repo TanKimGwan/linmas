@@ -38,16 +38,28 @@ export function createProviderRegistry({
 } = {}) {
   const claude = {
     id: 'claude',
-    detectConfiguration({ env: source = env } = {}) {
-      const reason = !source.ANTHROPIC_API_KEY
-        ? 'ANTHROPIC_API_KEY is not set'
-        : !source.LINMAS_EVAL_MODEL ? 'LINMAS_EVAL_MODEL is not set' : 'ANTHROPIC_API_KEY and LINMAS_EVAL_MODEL are configured';
-      return { provider: 'claude', status: source.ANTHROPIC_API_KEY && source.LINMAS_EVAL_MODEL ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
+    detectConfiguration({ env: source = env, model } = {}) {
+      const missingRequirements = [];
+      if (!source.ANTHROPIC_API_KEY) missingRequirements.push('ANTHROPIC_API_KEY');
+      const resolvedModel = model ?? source.LINMAS_EVAL_MODEL;
+      if (!resolvedModel) missingRequirements.push('LINMAS_EVAL_MODEL');
+      const reason = missingRequirements.length ? `${missingRequirements.join(' and ')} ${missingRequirements.length === 1 ? 'is' : 'are'} not set` : 'Claude provider configuration is complete';
+      return { provider: 'claude', status: missingRequirements.length ? 'missing' : 'configured', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null, missingRequirements };
+    },
+    prepareExecution(options = {}) {
+      const configuration = this.detectConfiguration({ env, model: options.model });
+      if (configuration.status !== 'configured') {
+        throw new ReviewError('Claude provider configuration is incomplete', 'provider-configuration', EXIT_CODES.PROVIDER, {
+          stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false,
+          provider: 'claude', transmissionState: 'not-attempted', missingRequirements: configuration.missingRequirements
+        });
+      }
+      return { ...options, model: options.model ?? env.LINMAS_EVAL_MODEL, authMode: 'api-key', modelVerified: false };
     },
     create({ model } = {}) {
       const resolvedModel = model ?? env.LINMAS_EVAL_MODEL;
-      if (!env.ANTHROPIC_API_KEY) throw new ReviewError('Claude credentials are not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
-      if (!resolvedModel) throw new ReviewError('Claude model is required', 'provider-configuration', EXIT_CODES.PROVIDER);
+      if (!env.ANTHROPIC_API_KEY) throw new ReviewError('Claude credentials are not configured', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'claude', transmissionState: 'not-attempted', missingRequirements: ['ANTHROPIC_API_KEY'] });
+      if (!resolvedModel) throw new ReviewError('Claude model is required', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'claude', transmissionState: 'not-attempted', missingRequirements: ['LINMAS_EVAL_MODEL'] });
       return createClaudeRunner({ apiKey: env.ANTHROPIC_API_KEY, model: resolvedModel, fetchImpl });
     }
   };
@@ -61,13 +73,13 @@ export function createProviderRegistry({
         : !binaryAvailable
           ? 'codex .cmd/.bat shims are unsupported without a shell; install a direct executable'
           : 'codex binary is available; authentication and model are verified at execution';
-      return { provider: 'codex', status: binaryAvailable ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null };
+      return { provider: 'codex', status: binaryAvailable ? 'configured' : 'missing', reason, defaultModel: source.LINMAS_EVAL_MODEL ?? null, missingRequirements: binaryAvailable ? [] : ['CODEX_BINARY'] };
     },
     async discoverCapabilities({ includeModels = false, signal, timeoutMs } = {}) {
       const binary = binaryLookup('codex', { env, platform });
-      if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
+      if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['CODEX_BINARY'] });
       if (!isDirectExecutable(binary, platform) && binary !== true) {
-        throw new ReviewError('Codex .cmd/.bat shims are unsupported without a shell; install a direct executable', 'provider-configuration', EXIT_CODES.PROVIDER);
+        throw new ReviewError('Codex .cmd/.bat shims are unsupported without a shell; install a direct executable', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['CODEX_DIRECT_EXECUTABLE'] });
       }
       try {
         const probe = createCodexCapabilityProbeImpl({
@@ -105,9 +117,9 @@ export function createProviderRegistry({
     create({ model, timeoutMs, cwd } = {}) {
       const resolvedModel = model ?? env.LINMAS_EVAL_MODEL;
       const binary = binaryLookup('codex', { env, platform });
-      if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER);
-      if (!isDirectExecutable(binary, platform) && binary !== true) throw new ReviewError('Codex .cmd/.bat shims are unsupported without a shell; install a direct executable', 'provider-configuration', EXIT_CODES.PROVIDER);
-      if (!resolvedModel) throw new ReviewError('Codex model is required', 'provider-configuration', EXIT_CODES.PROVIDER);
+      if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['CODEX_BINARY'] });
+      if (!isDirectExecutable(binary, platform) && binary !== true) throw new ReviewError('Codex .cmd/.bat shims are unsupported without a shell; install a direct executable', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['CODEX_DIRECT_EXECUTABLE'] });
+      if (!resolvedModel) throw new ReviewError('Codex model is required', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['LINMAS_EVAL_MODEL'] });
       return createManagedCodexRunner({ model: resolvedModel, command: typeof binary === 'string' ? binary : 'codex', spawnImpl, timeoutMs, cwd });
     }
   };
@@ -175,7 +187,7 @@ function createResolvedRunner(provider, providerId, options) {
 }
 
 function providerConfiguration(message) {
-  return new ReviewError(message, 'provider-configuration', EXIT_CODES.PROVIDER);
+  return new ReviewError(message, 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, transmissionState: 'not-attempted' });
 }
 
 function translateProviderError(error, providerId = null) {
@@ -185,12 +197,15 @@ function translateProviderError(error, providerId = null) {
   }
   const failureClass = error && typeof error === 'object' ? error.failureClass : undefined;
   const normalization = failureClass === 'normalization-failed';
+  const responseInvalid = failureClass === 'provider-response-invalid';
   const message = error instanceof Error && error.message ? error.message : String(error ?? 'provider execution failed');
-  return new ReviewError(message, normalization ? 'normalization' : failureClass ?? 'provider-transport', normalization ? EXIT_CODES.CONTRACT : EXIT_CODES.PROVIDER, {
-    stage: error?.stage ?? (normalization ? 'normalization' : 'provider-execution'),
+  return new ReviewError(message, normalization ? 'normalization' : responseInvalid ? 'provider-response-invalid' : failureClass ?? 'provider-transport', normalization ? EXIT_CODES.CONTRACT : EXIT_CODES.PROVIDER, {
+    stage: error?.stage ?? (normalization || responseInvalid ? 'normalization' : 'provider-execution'),
     reasonCode: error?.reasonCode ?? null,
     retryable: typeof error?.retryable === 'boolean' ? error.retryable : null,
     provider: error?.provider ?? providerId,
-    transmissionState: error?.transmissionState ?? 'unknown'
+    transmissionState: error?.transmissionState ?? 'unknown',
+    missingRequirements: error?.missingRequirements ?? null,
+    httpStatus: error?.httpStatus ?? null
   });
 }

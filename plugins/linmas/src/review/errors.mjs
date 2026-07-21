@@ -12,5 +12,12 @@ export class ReviewError extends Error {
     this.retryable = metadata.retryable ?? null;
     this.provider = metadata.provider ?? null;
     this.transmissionState = metadata.transmissionState ?? null;
+    this.missingRequirements = metadata.missingRequirements ?? null;
+    this.field = metadata.field ?? null;
+    this.allowedValues = metadata.allowedValues ?? null;
+    this.transmissionAttempted = metadata.transmissionAttempted ?? null;
+    this.providerResponseReceived = metadata.providerResponseReceived ?? null;
+    this.capsuleWritten = metadata.capsuleWritten ?? null;
+    this.httpStatus = metadata.httpStatus ?? null;
   }
 }

@@ -95,14 +95,19 @@ for (const provider of providers) {
     );
   });
 
-  for (const [name, rawResponse] of [['malformed output', '{'], ['oversized output', JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['x'.repeat(16 * 1024 + 1)] })]]) {
-    test(`${provider} ${name} remains a normalization error`, async () => {
+  test(`${provider} malformed output is a provider response error`, async () => {
+    await assert.rejects(
+      runReview(args(provider), dependencies(provider, { rawResponse: '{' })),
+      (error) => error instanceof ReviewError && error.category === 'provider-response-invalid' && error.exitCode === EXIT_CODES.PROVIDER
+    );
+  });
+
+  test(`${provider} oversized normalized output remains a contract error`, async () => {
       await assert.rejects(
-        runReview(args(provider), dependencies(provider, { rawResponse })),
+        runReview(args(provider), dependencies(provider, { rawResponse: JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['x'.repeat(16 * 1024 + 1)] }) })),
         (error) => error instanceof ReviewError && error.category === 'normalization' && error.exitCode === EXIT_CODES.CONTRACT
       );
-    });
-  }
+  });
 }
 
 test('fake-only execution does not read or mutate installation manifests', async () => {

@@ -184,7 +184,7 @@ test('cancels an active Codex process through AbortSignal', async () => {
     const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ delay: 100 }, calls) });
     const running = runner.run({ ...request, signal: controller.signal });
     controller.abort();
-    await assert.rejects(running, (error) => assertProviderError(error, 'provider-transport'));
+    await assert.rejects(running, (error) => assertProviderError(error, 'provider-cancelled'));
     assert.equal(calls[0].child.killedWith, 'SIGTERM');
   });
 });
@@ -227,7 +227,7 @@ test('abort sends SIGTERM then SIGKILL when child ignores SIGTERM', async () => 
     const controller = new AbortController();
     const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl, killGraceMs: 1 }).run({ ...request, signal: controller.signal });
     controller.abort();
-    await assert.rejects(runner, (error) => assertProviderError(error, 'provider-transport'));
+    await assert.rejects(runner, (error) => assertProviderError(error, 'provider-cancelled'));
     assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
   });
 });
@@ -265,7 +265,7 @@ test('escalates cancellation when the child ignores SIGTERM', async () => {
     const controller = new AbortController();
     const running = createCodexRunner({ model: 'm', ...paths, spawnImpl, killGraceMs: 1 }).run({ ...request, signal: controller.signal });
     controller.abort();
-    await assert.rejects(running, (error) => assertProviderError(error, 'provider-transport'));
+    await assert.rejects(running, (error) => assertProviderError(error, 'provider-cancelled'));
     assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
   });
 });
@@ -315,7 +315,7 @@ test('registry uses injected binary lookup and removes its private schema direct
   };
   const registry = createProviderRegistry({ env: { LINMAS_EVAL_MODEL: 'codex-model' }, binaryLookup, spawnImpl });
   const descriptor = registry.get('codex');
-  assert.deepEqual(descriptor.detectConfiguration(), { provider: 'codex', status: 'configured', reason: 'codex binary is available; authentication and model are verified at execution', defaultModel: 'codex-model' });
+  assert.deepEqual(descriptor.detectConfiguration(), { provider: 'codex', status: 'configured', reason: 'codex binary is available; authentication and model are verified at execution', defaultModel: 'codex-model', missingRequirements: [] });
   const runner = resolveProvider(registry, 'codex', {});
   const result = await runner.run(request);
   assert.equal(result.rawResponse, validJson);
@@ -369,7 +369,7 @@ test('bounded output read rejects response exceeding limit', async () => {
     assert.equal(Buffer.byteLength(payload, 'utf8'), MAX_RESPONSE_BYTES + 1);
     const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ lastMessage: payload }) });
     await assert.rejects(runner.run(request), (error) => {
-      assertProviderError(error, 'provider-transport');
+      assertProviderError(error, 'provider-response-invalid');
       assert.match(error.message, /Codex response exceeds/);
       return true;
     });

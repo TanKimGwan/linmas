@@ -18,7 +18,7 @@ import { writeProofBundle } from '../src/proof/write-bundle.mjs';
 import { normalizeProviderResponse } from '../src/review/normalize-response.mjs';
 import { toPublicReviewError } from '../src/review/public-error.mjs';
 import { prepareProviderExecution, createProviderRegistry } from '../src/providers/registry.mjs';
-import { PUBLIC_SKILL_IDS } from '../src/core/skill-catalog.mjs';
+import { PUBLIC_SKILL_IDS, SPECIALIST_IDENTIFIERS, resolveSkill } from '../src/core/skill-catalog.mjs';
 import { LINMAS_VERSION } from '../src/core/version.mjs';
 
 export const SERVER_NAME = 'linmas';
@@ -146,7 +146,7 @@ const TOOL_DEFINITIONS = Object.freeze([
       properties: {
         input_text: boundedStringSchema(MAX_INPUT_BYTES),
         input_path: relativePathSchema('Local input file to send after explicit consent.'),
-        skill_name: { type: 'string', enum: SPECIALIST_SKILL_IDS },
+        skill_name: { type: 'string', enum: SPECIALIST_IDENTIFIERS },
         provider: { type: 'string', enum: PROVIDER_IDS },
         model: boundedStringSchema(512),
         policy_id: { type: 'string', enum: POLICY_IDS },
@@ -183,7 +183,10 @@ export function createLinmasDispatcher({
 
   return async function dispatchTool(name, rawArguments = {}) {
     const definition = TOOL_DEFINITIONS.find((tool) => tool.name === name);
-    if (!definition) throw toolError('invalid_input', 'unknown tool');
+    if (!definition) throw toolError('unknown_tool', 'unknown tool', undefined, {
+      stage: 'argument-validation',
+      reasonCode: 'TOOL_UNSUPPORTED'
+    });
     const args = validateToolArguments(definition, rawArguments);
     const timeoutMs = args.timeout_ms ?? TOOL_TIMEOUTS[definition.kind].defaultMs;
     const operation = (signal) => {
@@ -194,7 +197,10 @@ export function createLinmasDispatcher({
         case 'linmas_proof_verify': return proofVerify(args, signal);
         case 'linmas_proof_create': return proofCreate(args, signal);
         case 'linmas_review_execute': return reviewExecute(args, pluginRoot, registry, env, signal);
-        default: throw toolError('invalid_input', 'unknown tool');
+        default: throw toolError('unknown_tool', 'unknown tool', undefined, {
+          stage: 'argument-validation',
+          reasonCode: 'TOOL_UNSUPPORTED'
+        });
       }
     };
     return boundedOutput(await withTimeout(operation, timeoutMs));
@@ -205,7 +211,7 @@ function inputSchema({ input = false, specialist = false } = {}) {
   const properties = {
     input_text: boundedStringSchema(MAX_INPUT_BYTES),
     input_path: relativePathSchema('Local input file inside workspace_root.'),
-    ...(specialist ? { skill_name: { type: 'string', enum: SPECIALIST_SKILL_IDS } } : {})
+    ...(specialist ? { skill_name: { type: 'string', enum: SPECIALIST_IDENTIFIERS } } : {})
   };
   return commonSchema({
     required: ['workspace_root'],
@@ -262,11 +268,11 @@ function validateToolArguments(definition, value) {
     throw toolError('input_too_large', 'arguments exceed the bounded MCP frame limit');
   }
   const allowed = new Set(Object.keys(definition.inputSchema.properties));
-  for (const key of Object.keys(value)) if (!allowed.has(key)) throw toolError('invalid_input', `unknown input field: ${key}`);
-  for (const key of definition.inputSchema.required ?? []) if (!Object.hasOwn(value, key)) throw toolError('invalid_input', `missing input field: ${key}`);
+  for (const key of Object.keys(value)) if (!allowed.has(key)) throw toolError('input_field_unsupported', `unknown input field: ${key}`, undefined, { field: key, stage: 'argument-validation', reasonCode: 'UNKNOWN_FIELD' });
+  for (const key of definition.inputSchema.required ?? []) if (!Object.hasOwn(value, key)) throw toolError('input_field_required', `missing input field: ${key}`, undefined, { field: key, stage: 'argument-validation', reasonCode: 'REQUIRED_FIELD_MISSING' });
   const workspace = value.workspace_root;
   boundedString(workspace, 'workspace_root', MAX_PATH_LENGTH);
-  if (!path.isAbsolute(workspace) || hasTraversal(workspace)) throw toolError('invalid_path', 'workspace_root must be an absolute path without traversal');
+  if (!path.isAbsolute(workspace) || hasTraversal(workspace)) throw toolError('invalid_path', 'workspace_root must be an absolute path without traversal', undefined, { stage: 'workspace-validation', reasonCode: 'WORKSPACE_ROOT_INVALID' });
   if (value.timeout_ms !== undefined && (!Number.isSafeInteger(value.timeout_ms) || value.timeout_ms < 100 || value.timeout_ms > TOOL_TIMEOUTS[definition.kind].maxMs)) {
     throw toolError('invalid_input', 'timeout_ms is outside the bounded tool limit');
   }
@@ -274,10 +280,19 @@ function validateToolArguments(definition, value) {
     if (value[key] !== undefined) validatePortableRelativePath(value[key], key);
   }
   if (value.input_text !== undefined) boundedString(value.input_text, 'input_text', MAX_INPUT_BYTES);
-  if (value.skill_name !== undefined && !SPECIALIST_SKILL_IDS.includes(value.skill_name)) throw toolError('invalid_input', 'skill_name must identify a Linmas specialist');
-  if (value.provider !== undefined && !PROVIDER_IDS.includes(value.provider)) throw toolError('invalid_input', 'provider is unsupported');
+  if (value.skill_name !== undefined) {
+    const skill = resolveSkill(value.skill_name);
+    if (!skill || skill.kind !== 'specialist') {
+      throw toolError('specialist_unsupported', 'skill_name must identify a Linmas specialist', undefined, {
+        field: 'skill_name', stage: 'argument-validation', reasonCode: 'SPECIALIST_UNSUPPORTED',
+        allowedValues: SPECIALIST_SKILL_IDS
+      });
+    }
+    value = { ...value, skill_name: skill.skillId };
+  }
+  if (value.provider !== undefined && !PROVIDER_IDS.includes(value.provider)) throw toolError('provider_unsupported', 'provider is unsupported', undefined, { field: 'provider', stage: 'argument-validation', reasonCode: 'PROVIDER_UNSUPPORTED', allowedValues: PROVIDER_IDS });
   if (value.model !== undefined) boundedString(value.model, 'model', 512);
-  if (value.policy_id !== undefined && !POLICY_IDS.includes(value.policy_id)) throw toolError('invalid_input', 'policy_id is unsupported');
+  if (value.policy_id !== undefined && !POLICY_IDS.includes(value.policy_id)) throw toolError('policy_unsupported', 'policy_id is unsupported', undefined, { field: 'policy_id', stage: 'argument-validation', reasonCode: 'POLICY_UNSUPPORTED', allowedValues: POLICY_IDS });
   if (value.policy_id !== undefined && value.policy_path !== undefined) throw toolError('invalid_input', 'provide exactly one policy_id or policy_path');
   if (definition.name === 'linmas_policy_evaluate' && value.policy_id === undefined && value.policy_path === undefined) throw toolError('invalid_input', 'policy_id or policy_path is required');
   if (definition.name === 'linmas_policy_evaluate' && value.policy_id === undefined && value.policy_path === undefined) throw toolError('invalid_input', 'policy_id or policy_path is required');
@@ -304,9 +319,9 @@ function validateProofCreateArguments(value) {
 }
 
 function validateReviewExecuteArguments(value) {
-  if (typeof value.confirm_transmission !== 'boolean') throw toolError('invalid_input', 'confirm_transmission must be boolean');
-  if (!value.input_text && !value.input_path) throw toolError('invalid_input', 'provide exactly one input_text or input_path');
-  if (value.input_text !== undefined && value.input_path !== undefined) throw toolError('invalid_input', 'provide exactly one input_text or input_path');
+  if (typeof value.confirm_transmission !== 'boolean') throw toolError('input_field_invalid', 'confirm_transmission must be boolean', undefined, { field: 'confirm_transmission', stage: 'argument-validation', reasonCode: 'FIELD_TYPE_INVALID' });
+  if (!value.input_text && !value.input_path) throw toolError('input_source_invalid', 'provide exactly one input_text or input_path', undefined, { stage: 'argument-validation', reasonCode: 'INPUT_SOURCE_REQUIRED' });
+  if (value.input_text !== undefined && value.input_path !== undefined) throw toolError('input_source_invalid', 'provide exactly one input_text or input_path', undefined, { stage: 'argument-validation', reasonCode: 'INPUT_SOURCE_CONFLICT' });
   if (value.policy_id !== undefined && value.policy_path !== undefined) throw toolError('invalid_input', 'provide exactly one policy_id or policy_path');
 }
 
@@ -442,101 +457,137 @@ async function proofCreate(args, signal) {
 }
 
 async function reviewExecute(args, pluginRoot, registry, env, signal) {
-  const workspace = await validateWorkspaceRoot(args.workspace_root);
-  throwIfAborted(signal);
-  const preview = providerPreview(args.provider, args.model, env, registry);
-  if (!args.confirm_transmission) {
+  const transmission = { state: 'not-attempted' };
+  const states = ['not-attempted', 'attempted', 'response-received', 'normalized', 'capsule-written'];
+  const advanceTransmission = (state) => {
+    if (states.indexOf(state) > states.indexOf(transmission.state)) transmission.state = state;
+  };
+  const annotateFailure = (error) => {
+    if (error && typeof error === 'object') {
+      const errorState = states.includes(error.transmissionState) ? error.transmissionState : 'not-attempted';
+      const finalState = states.indexOf(errorState) > states.indexOf(transmission.state) ? errorState : transmission.state;
+      error.transmissionState = finalState;
+      error.transmissionAttempted = finalState !== 'not-attempted';
+      error.providerResponseReceived = ['response-received', 'normalized', 'capsule-written'].includes(finalState);
+      error.capsuleWritten = finalState === 'capsule-written';
+      error.stage ??= finalState === 'not-attempted' ? 'provider-preflight' : 'provider-execution';
+    }
+    return error;
+  };
+
+  try {
+    const workspace = await validateWorkspaceRoot(args.workspace_root);
+    throwIfAborted(signal);
+    const preview = providerPreview(args.provider, args.model, env, registry);
+    if (!args.confirm_transmission) {
+      return {
+        status: 'prepared',
+        operation: 'review_execute',
+        dataLeavesMachine: false,
+        transmissionRequired: true,
+        humanReviewRequired: true,
+        reviewState: 'needs_human_review',
+        transmissionState: transmission.state,
+        transmissionAttempted: false,
+        providerResponseReceived: false,
+        capsuleWritten: false,
+        provider: preview
+      };
+    }
+
+    const execution = await withDeadlineSignal(signal, async (executionSignal) => prepareProviderExecution(registry, args.provider, {
+      model: args.model,
+      cwd: workspace,
+      signal: executionSignal,
+      capabilityTimeoutMs: args.timeout_ms ?? TOOL_TIMEOUTS.transmit.defaultMs
+    }));
+    const executionMetadata = { ...execution.metadata };
+    throwIfAborted(signal);
+    const input = await awaitWithAbort(signal, () => readReviewInput(args, workspace));
+    throwIfAborted(signal);
+    const request = prepareReview({ input, skillName: args.skill_name });
+    throwIfAborted(signal);
+    const capsuleTarget = args.capsule_path
+      ? await awaitWithAbort(signal, async () => preflightCapsuleDestination(await prepareNewFile(workspace, args.capsule_path, 'capsule'), { cwd: workspace }))
+      : null;
+    throwIfAborted(signal);
+    const policy = args.policy_id || args.policy_path ? await awaitWithAbort(signal, () => loadPolicyForArguments(args, workspace, pluginRoot)) : null;
+    throwIfAborted(signal);
+    const runner = execution.createRunner();
+    advanceTransmission('attempted');
+    const runResult = await withDeadlineSignal(signal, (executionSignal) => runner.run({
+      system: 'Return only ReviewResult schemaVersion 1 JSON.',
+      user: JSON.stringify(request),
+      signal: executionSignal
+    }));
+    throwIfAborted(signal);
+    advanceTransmission('response-received');
+    const review = normalizeProviderResponse(runResult, { caseId: 'review/linmas-mcp', specialist: request.specialist });
+    throwIfAborted(signal);
+    advanceTransmission('normalized');
+    review.modelMetadata.requestId = null;
+    let policyResult = null;
+    if (policy) {
+      throwIfAborted(signal);
+      policyResult = evaluatePolicy(policy, review);
+      throwIfAborted(signal);
+    }
+    if (capsuleTarget) {
+      throwIfAborted(signal);
+      const capsule = buildReviewCapsule({
+        input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
+        execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
+        review,
+        policyResult
+      });
+      throwIfAborted(signal);
+      try {
+        throwIfAborted(signal);
+        await writeReviewCapsule(capsuleTarget, capsule, { signal });
+        throwIfAborted(signal);
+      } catch (error) {
+        if (signal?.aborted) await fs.rm(capsuleTarget.path, { force: true }).catch(() => {});
+        throw error;
+      }
+      advanceTransmission('capsule-written');
+      throwIfAborted(signal);
+    }
     return {
-      status: 'prepared',
+      status: 'executed',
       operation: 'review_execute',
-      dataLeavesMachine: false,
-      transmissionRequired: true,
+      dataLeavesMachine: true,
+      transmissionConfirmed: true,
       humanReviewRequired: true,
       reviewState: 'needs_human_review',
-      provider: preview
-    };
-  }
-  const input = await awaitWithAbort(signal, () => readReviewInput(args, workspace));
-  throwIfAborted(signal);
-  const request = prepareReview({ input, skillName: args.skill_name });
-  throwIfAborted(signal);
-  const capsuleTarget = args.capsule_path
-    ? await awaitWithAbort(signal, async () => preflightCapsuleDestination(await prepareNewFile(workspace, args.capsule_path, 'capsule'), { cwd: workspace }))
-    : null;
-  throwIfAborted(signal);
-  const policy = args.policy_id || args.policy_path ? await awaitWithAbort(signal, () => loadPolicyForArguments(args, workspace, pluginRoot)) : null;
-  throwIfAborted(signal);
-  const execution = await withDeadlineSignal(signal, async (executionSignal) => prepareProviderExecution(registry, args.provider, {
-    model: args.model,
-    cwd: workspace,
-    signal: executionSignal,
-    capabilityTimeoutMs: args.timeout_ms ?? TOOL_TIMEOUTS.transmit.defaultMs
-  }));
-  const executionMetadata = { ...execution.metadata };
-  throwIfAborted(signal);
-  const runner = execution.createRunner();
-  const runResult = await withDeadlineSignal(signal, (executionSignal) => runner.run({
-    system: 'Return only ReviewResult schemaVersion 1 JSON.',
-    user: JSON.stringify(request),
-    signal: executionSignal
-  }));
-  throwIfAborted(signal);
-  const review = normalizeProviderResponse(runResult, { caseId: 'review/linmas-mcp', specialist: request.specialist });
-  throwIfAborted(signal);
-  review.modelMetadata.requestId = null;
-  let policyResult = null;
-  if (policy) {
-    throwIfAborted(signal);
-    policyResult = evaluatePolicy(policy, review);
-    throwIfAborted(signal);
-  }
-  if (capsuleTarget) {
-    throwIfAborted(signal);
-    const capsule = buildReviewCapsule({
-      input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
-      execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
+      transmissionState: transmission.state,
+      transmissionAttempted: true,
+      providerResponseReceived: true,
+      capsuleWritten: transmission.state === 'capsule-written',
+      provider: {
+        provider: executionMetadata.provider,
+        model: executionMetadata.model,
+        authMode: executionMetadata.authMode,
+        modelVerified: executionMetadata.modelVerified === true
+      },
+      capsulePath: args.capsule_path ?? null,
       review,
-      policyResult
-    });
-    throwIfAborted(signal);
-    try {
-      throwIfAborted(signal);
-      await writeReviewCapsule(capsuleTarget, capsule, { signal });
-      throwIfAborted(signal);
-    } catch (error) {
-      if (signal?.aborted) await fs.rm(capsuleTarget.path, { force: true }).catch(() => {});
-      throw error;
-    }
-    throwIfAborted(signal);
+      policy: policyResult
+    };
+  } catch (error) {
+    throw annotateFailure(error);
   }
-  return {
-    status: 'executed',
-    operation: 'review_execute',
-    dataLeavesMachine: true,
-    transmissionConfirmed: true,
-    humanReviewRequired: true,
-    reviewState: 'needs_human_review',
-    provider: {
-      provider: executionMetadata.provider,
-      model: executionMetadata.model,
-      authMode: executionMetadata.authMode,
-      modelVerified: executionMetadata.modelVerified === true
-    },
-    capsulePath: args.capsule_path ?? null,
-    review,
-    policy: policyResult
-  };
 }
 
 function providerPreview(provider, model, env, registry) {
   const descriptor = registry.get(provider);
-  const configuration = descriptor?.detectConfiguration?.({ env }) ?? { status: 'unknown', defaultModel: null };
+  const configuration = descriptor?.detectConfiguration?.({ env, model }) ?? { status: 'unknown', defaultModel: null, missingRequirements: [] };
   return {
     provider,
     model: model ?? configuration.defaultModel ?? 'provider default',
     authMode: configuration.status === 'configured' ? 'configured' : 'unavailable',
     modelVerified: false,
-    configurationStatus: configuration.status
+    configurationStatus: configuration.status,
+    missingRequirements: Array.isArray(configuration.missingRequirements) ? configuration.missingRequirements : []
   };
 }
 
@@ -739,9 +790,10 @@ function hasTraversal(value) {
   return value.split(/[\\/]/u).some((segment) => segment === '..');
 }
 
-function toolError(code, message, cause = undefined) {
+function toolError(code, message, cause = undefined, metadata = {}) {
   const error = new Error(message, cause === undefined ? undefined : { cause });
   error.toolCode = code;
+  Object.assign(error, metadata);
   return error;
 }
 
@@ -756,7 +808,8 @@ function jsonRpcResult(id, result) {
 
 function jsonRpcToolError(id, error, transmitting = false) {
   const safe = safeError(error, { transmitting });
-  return { jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: safe.message }], structuredContent: { status: 'needs_human_review', error: safe } } };
+  const envelope = { status: 'needs_human_review', error: safe };
+  return { jsonrpc: '2.0', id, result: { isError: true, content: [{ type: 'text', text: JSON.stringify(envelope) }], structuredContent: envelope } };
 }
 
 export function createStdioServer({ dispatcher = createLinmasDispatcher() } = {}) {
