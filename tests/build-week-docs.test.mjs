@@ -124,6 +124,8 @@ test('README badges use renderable SVG endpoints and static release metadata sta
     }
   }
   assert.doesNotMatch(text, /img\.shields\.io/, 'README badges must not depend on the failing third-party proxy');
+  assert.match(text, /badgen\.net\/npm\/dt\/linmas/, 'README should show total npm downloads');
+  assert.match(text, /badgen\.net\/npm\/dw\/linmas/, 'README should show weekly npm downloads');
   assert.match(read('assets/badges/npm.svg'), new RegExp(`npm: v${pkg.version.replaceAll('.', '\\.')}`));
   assert.match(read('assets/badges/release.svg'), new RegExp(`release: v${pkg.version.replaceAll('.', '\\.')}`));
 });
@@ -137,4 +139,11 @@ test('public docs describe Codex-first compatibility without overstating other a
     assert.match(text, /(?:Codex-first|Codex is the primary native integration|Codex adalah integrasi native utama)/i, `${file} must keep Codex as the primary integration`);
     assert.match(text, /(?:portable|portabel)[\s\S]{0,400}(?:manual|native integration|integrasi native)/i, `${file} must distinguish portability from native integration`);
   }
+});
+
+test('README documents Hermes Agent compatibility through portable skills', () => {
+  const text = read('README.md');
+  assert.match(text, /Hermes Agent/i);
+  assert.match(text, /Hermes Agent[\s\S]{0,300}Compatible/i);
+  assert.match(text, /SKILL\.md[\s\S]{0,200}Hermes/i);
 });

@@ -10,6 +10,8 @@
   <p>
     <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml/badge.svg?branch=main"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.6.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm total downloads" src="https://badgen.net/npm/dt/linmas.svg?label=total%20downloads"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/linmas.svg?label=weekly%20downloads"></a>
     <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.6.0"><img alt="release v0.6.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
     <a href="LICENSE"><img alt="License: Apache-2.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/license.svg"></a>
     <img alt="Node.js 24+" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/node.svg">
@@ -62,6 +64,7 @@ Linmas is **Codex-first for OpenAI Build Week 2026** and designed to remain port
 | --- | --- | --- |
 | Codex | **Primary / native** | Git marketplace plugin, eleven skills, six native MCP tools, managed skill directory, and provider-backed review. |
 | Claude Code | **Verified compatible** | Managed installation of eleven skills and Claude API provider-backed review. |
+| [Hermes Agent](https://hermes-agent.nousresearch.com/docs/) | **Compatible** | Linmas `SKILL.md` files follow the open Agent Skills structure and can be loaded through Hermes's skills workflow. Hermes-specific MCP configuration remains a separate optional integration. |
 | Gemini CLI and other coding agents | **Portable / manual** | The Markdown skill instructions can be imported or adapted where the agent supports equivalent instructions. Linmas does not yet provide a Gemini-specific installer, provider adapter, or MCP registration. |
 
 “Portable / manual” means the defensive instructions can be reused; it does not mean native integration has been verified. New native hosts must have deterministic detection, install/uninstall tests, safety-boundary parity, and a maintenance owner before Linmas labels them verified.
