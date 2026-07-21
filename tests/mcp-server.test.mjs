@@ -59,9 +59,10 @@ async function setup() {
   return root;
 }
 
-test('MCP discovery exposes six bounded tools with strict schemas', () => {
+test('MCP discovery exposes seven bounded tools with strict schemas', () => {
   const tools = listTools();
   assert.deepEqual(tools.map((tool) => tool.name), [
+    'linmas_review_decide',
     'linmas_review_prepare',
     'linmas_review_compare',
     'linmas_policy_evaluate',
@@ -423,10 +424,63 @@ test('stdio protocol returns discovery, tool invocation, and redacted error enve
   assert.equal(initialized.result.serverInfo.name, 'linmas');
   assert.equal(initialized.result.serverInfo.version, SERVER_VERSION);
   const listed = await server.handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
-  assert.equal(listed.result.tools.length, 6);
+  assert.equal(listed.result.tools.length, 7);
   const called = await server.handle({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'linmas_review_prepare', arguments: {} } });
   assert.equal(called.result.structuredContent.status, 'prepared');
   const failed = await server.handle({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'linmas_review_execute', arguments: {} } });
   assert.equal(failed.result.isError, true);
   assert.doesNotMatch(failed.result.content[0].text, /ghp_|authorization|secret|stderr|token/i);
+});
+
+test('human review decision uses text fallback when the host cannot elicit', async () => {
+  const server = createStdioServer({ dispatcher: createLinmasDispatcher() });
+  const response = await server.handle({
+    jsonrpc: '2.0', id: 5, method: 'tools/call',
+    params: { name: 'linmas_review_decide', arguments: {
+      workspace_root: '/tmp/linmas-review-decision-test',
+      review_result: { schemaVersion: 1, findings: [{ id: 'sql-1', severity: 'High' }] }
+    } }
+  });
+  const interaction = response.result.structuredContent.reviewInteraction;
+  assert.equal(interaction.channel, 'text_fallback');
+  assert.equal(interaction.status, 'input_required');
+  assert.deepEqual(interaction.options.map((option) => option.id), ['fix_requested', 'continue_with_note', 'manual_review_required', 'custom_instruction']);
+});
+
+test('MCP form elicitation routes the response while the tool call is pending', async () => {
+  const outbound = [];
+  const server = createStdioServer({
+    dispatcher: createLinmasDispatcher(),
+    sendRequest: (message) => outbound.push(message)
+  });
+  const initialized = await server.handle({
+    jsonrpc: '2.0', id: 1, method: 'initialize',
+    params: { protocolVersion: '2025-11-25', capabilities: { elicitation: { form: {} } } }
+  });
+  assert.equal(initialized.result.serverInfo.name, 'linmas');
+  const call = server.handle({
+    jsonrpc: '2.0', id: 6, method: 'tools/call',
+    params: { name: 'linmas_review_decide', arguments: {
+      workspace_root: '/tmp/linmas-review-decision-test',
+      review_result: { schemaVersion: 1, findings: [{ id: 'sql-1', severity: 'High' }] }
+    } }
+  });
+  for (let attempt = 0; attempt < 20 && outbound.length === 0; attempt += 1) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(outbound.length, 1);
+  assert.equal(outbound[0].method, 'elicitation/create');
+  assert.equal(outbound[0].params.mode, 'form');
+  assert.ok(outbound[0].params.requestedSchema.properties.disposition);
+  await server.handle({ jsonrpc: '2.0', id: outbound[0].id, result: { action: 'accept', content: { disposition: 'manual_review_required' } } });
+  const response = await call;
+  assert.equal(response.result.structuredContent.reviewInteraction.disposition, 'manual_review_required');
+  assert.equal(server.pendingRequestCount, 0);
+});
+
+test('Critical/High continuation requires explicit risk acknowledgement', async () => {
+  const dispatch = createLinmasDispatcher();
+  await assert.rejects(dispatch('linmas_review_decide', {
+    workspace_root: '/tmp/linmas-review-decision-test',
+    review_result: { schemaVersion: 1, findings: [{ id: 'critical-1', severity: 'Critical' }] },
+    decision: { disposition: 'continue_with_note' }
+  }), /risk acknowledgement/i);
 });
