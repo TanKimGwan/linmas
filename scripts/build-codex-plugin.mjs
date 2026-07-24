@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,22 +57,14 @@ function hasTraversalSegment(rawTarget) {
   return rawTarget.split(/[\\/]/u).some((segment) => segment === '..');
 }
 
-async function assertNoSymlinkAncestors(targetPath) {
-  const ancestors = [];
-  let current = targetPath;
-
-  while (true) {
-    ancestors.push(current);
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-
-  for (const ancestor of ancestors.reverse()) {
-    const stat = await lstatIfExists(ancestor);
-    if (stat?.isSymbolicLink()) {
-      fail(`unsafe target: symlink path component is not allowed: ${ancestor}`);
-    }
+async function canonicalParentDirectory(parentPath) {
+  // Canonicalize inherited prefixes (e.g. macOS /var -> /private/var) so benign
+  // system symlinks are accepted; the build then writes through the canonical
+  // path so output lands exactly where it was inspected.
+  try {
+    return await fs.realpath(parentPath);
+  } catch {
+    fail(`unsafe target: target parent could not be resolved: ${parentPath}`);
   }
 }
 
@@ -108,15 +101,21 @@ export async function resolveSafeTarget(rawTarget) {
     fail('unsafe target: existing target must be a directory');
   }
 
-  await assertNoSymlinkAncestors(targetPath);
-
   const parentPath = path.dirname(targetPath);
   const parentStat = await lstatIfExists(parentPath);
+  if (parentStat?.isSymbolicLink()) {
+    fail(`unsafe target: symlink path component is not allowed: ${parentPath}`);
+  }
   if (!parentStat?.isDirectory()) {
     fail(`unsafe target: target parent must be an existing directory: ${parentPath}`);
   }
 
-  return targetPath;
+  const canonicalTarget = path.join(await canonicalParentDirectory(parentPath), path.basename(targetPath));
+  if (canonicalTarget === REPOSITORY_ROOT) {
+    fail('unsafe target: repository root is not a plugin target');
+  }
+
+  return canonicalTarget;
 }
 
 async function assertCanonicalManifest() {
@@ -405,8 +404,19 @@ async function main() {
   console.log(`Skills copied: ${EXPECTED_SKILLS.length}`);
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
-if (invokedPath === fileURLToPath(import.meta.url)) {
+// Compare via realpath so a symlinked invocation path (e.g. macOS /var ->
+// /private/var) still matches the module URL node resolves for the entry file.
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(modulePath);
+  } catch {
+    return path.resolve(process.argv[1]) === path.resolve(modulePath);
+  }
+}
+
+if (isMainModule()) {
   main().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
