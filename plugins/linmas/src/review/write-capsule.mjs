@@ -6,11 +6,17 @@ import { validateReviewCapsule } from './validate-capsule.mjs';
 
 export async function preflightCapsuleDestination(destination, { cwd = process.cwd(), fsApi = fs } = {}) {
   if (typeof destination !== 'string' || !destination.trim() || destination.includes('\0')) throw capsuleInput('capsule destination is invalid');
-  const resolvedPath = path.resolve(cwd, destination);
-  const parent = path.dirname(resolvedPath);
-  await assertNoSymlinkPath(parent, fsApi);
-  const parentStat = await safeLstat(parent, fsApi, 'capsule destination parent does not exist');
+  const requested = path.resolve(cwd, destination);
+  const requestedParent = path.dirname(requested);
+  const parentStat = await safeLstat(requestedParent, fsApi, 'capsule destination parent does not exist');
+  if (parentStat.isSymbolicLink()) throw capsuleInput('capsule destination parent cannot contain a symlink');
   if (!parentStat.isDirectory()) throw capsuleInput('capsule destination parent must be a directory');
+  // Canonicalize inherited prefixes (e.g. macOS /var -> /private/var) so benign
+  // system symlinks are accepted, then re-check and write through the canonical
+  // path so the capsule lands exactly where it was inspected.
+  const parent = await canonicalParent(requestedParent, fsApi);
+  await assertNoSymlinkPath(parent, fsApi);
+  const resolvedPath = path.join(parent, path.basename(requested));
   try {
     await fsApi.lstat(resolvedPath);
     throw capsuleInput('capsule destination already exists');
@@ -78,6 +84,14 @@ async function assertNoSymlinkPath(target, fsApi) {
     current = path.join(current, segment);
     const stat = await safeLstat(current, fsApi, 'capsule destination parent does not exist');
     if (stat.isSymbolicLink()) throw capsuleInput('capsule destination parent cannot contain a symlink');
+  }
+}
+
+async function canonicalParent(target, fsApi) {
+  try { return await fsApi.realpath(target); }
+  catch (cause) {
+    if (cause?.code === 'ENOENT') throw capsuleInput('capsule destination parent does not exist', cause);
+    throw capsuleInput('capsule destination could not be inspected', cause);
   }
 }
 

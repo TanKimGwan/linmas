@@ -82,6 +82,45 @@ test('applyInstallPlan performs backups when necessary', () => {
   }
 });
 
+test('applyInstallPlan refuses to write through a symlinked skills root', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-install-'));
+  try {
+    const sourceDir = path.join(tmp, 'repo', 'skills', 'secure-code-reviewer');
+    const targetRoot = path.join(tmp, '.claude');
+    const installRoot = path.join(targetRoot, 'skills');
+    const manifestPath = path.join(targetRoot, 'linmas-manifest.json');
+
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.writeFileSync(path.join(sourceDir, 'SKILL.md'), '# skill\n');
+
+    // Attacker plants a symlink: ~/.claude/skills -> /some/dir/outside the host root.
+    const outside = path.join(tmp, 'outside');
+    fs.mkdirSync(outside, { recursive: true });
+    fs.mkdirSync(targetRoot, { recursive: true });
+    fs.symlinkSync(outside, installRoot);
+
+    const plan = [{
+      host: 'claude',
+      skill: { name: 'secure-code-reviewer', description: 'desc', sourceDir, skillFile: path.join(sourceDir, 'SKILL.md') },
+      destinationDir: path.join(installRoot, 'secure-code-reviewer'),
+      existingState: 'missing',
+      backupDir: null,
+      willWrite: true
+    }];
+
+    const manifests = new Map([['claude', readManifest(manifestPath, 'claude')]]);
+    const manifestPathByHost = new Map([['claude', manifestPath]]);
+
+    assert.throws(() => {
+      applyInstallPlan(plan, manifests, manifestPathByHost);
+    }, /refusing to write outside root/);
+    // Nothing should have been written into the symlink target.
+    assert.equal(fs.existsSync(path.join(outside, 'secure-code-reviewer')), false);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('applyInstallPlan throws error when destination is outside host root', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-install-'));
   try {

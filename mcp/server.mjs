@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -798,26 +799,19 @@ async function loadPolicyForArguments(args, workspace, pluginRoot) {
 }
 
 async function validateWorkspaceRoot(rawRoot) {
-  const root = path.resolve(rawRoot);
-  if (BROAD_ROOTS.has(root) || root === path.parse(root).root) throw toolError('invalid_path', 'workspace_root is too broad');
+  const requested = path.resolve(rawRoot);
+  if (BROAD_ROOTS.has(requested) || requested === path.parse(requested).root) throw toolError('invalid_path', 'workspace_root is too broad');
   let stat;
-  try { stat = await fs.lstat(root); } catch { throw toolError('invalid_path', 'workspace_root is not accessible'); }
+  try { stat = await fs.lstat(requested); } catch { throw toolError('invalid_path', 'workspace_root is not accessible'); }
   if (stat.isSymbolicLink()) throw toolError('invalid_path', 'workspace_root must not resolve through a symlink');
   if (!stat.isDirectory()) throw toolError('invalid_path', 'workspace_root must be a regular directory');
-  await assertNoSymlinkPathComponents(root);
-  try { await fs.realpath(root); } catch { throw toolError('invalid_path', 'workspace_root could not be resolved'); }
+  // Canonicalize inherited prefixes (e.g. macOS /var -> /private/var) so benign
+  // system symlinks are accepted; all later workspace-relative checks and writes
+  // then operate on the canonical root, so paths land exactly where inspected.
+  let root;
+  try { root = await fs.realpath(requested); } catch { throw toolError('invalid_path', 'workspace_root could not be resolved'); }
+  if (BROAD_ROOTS.has(root) || root === path.parse(root).root) throw toolError('invalid_path', 'workspace_root is too broad');
   return root;
-}
-
-async function assertNoSymlinkPathComponents(target) {
-  const filesystemRoot = path.parse(target).root;
-  let current = filesystemRoot;
-  for (const segment of target.slice(filesystemRoot.length).split(path.sep).filter(Boolean)) {
-    current = path.join(current, segment);
-    let stat;
-    try { stat = await fs.lstat(current); } catch { throw toolError('invalid_path', 'workspace_root is not accessible'); }
-    if (stat.isSymbolicLink()) throw toolError('invalid_path', 'workspace_root must not resolve through a symlink');
-  }
 }
 
 async function resolveExisting(workspace, rawPath, label, { directory = false } = {}) {
@@ -1099,7 +1093,18 @@ export async function readBoundedJsonLines(input, { maxBytes = MAX_MCP_LINE_BYTE
   }
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
-if (invokedPath === path.resolve(fileURLToPath(import.meta.url)) && process.argv.includes('--stdio')) {
+// Compare via realpath so a symlinked invocation path (e.g. macOS /var ->
+// /private/var) still matches the module URL node resolves for the entry file.
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(modulePath);
+  } catch {
+    return path.resolve(process.argv[1]) === path.resolve(modulePath);
+  }
+}
+
+if (isMainModule() && process.argv.includes('--stdio')) {
   runStdio().catch(() => { process.exitCode = 1; });
 }
