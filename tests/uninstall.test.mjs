@@ -6,6 +6,12 @@ import path from 'node:path';
 import { planUninstall, formatUninstallPreview, applyUninstallPlan, retryUninstallCleanup } from '../src/core/uninstall-skills.mjs';
 import { writeManifest } from '../src/core/manifest.mjs';
 
+const POSIX_DESTRUCTIVE_TEST = {
+  skip: process.platform === 'win32'
+    ? 'POSIX descriptor-relative destructive implementation; Windows fail-closed behavior has dedicated tests'
+    : false
+};
+
 function createCommittedCleanupFixture(tmp, { nestedParent = false } = {}) {
   const hostRoot = path.join(tmp, '.claude');
   const installRoot = path.join(hostRoot, 'skills');
@@ -98,7 +104,7 @@ test('formatUninstallPreview matches expectations', () => {
   assert.equal(output, 'Linmas uninstall preview:\n- claude: remove secure-code-reviewer from /tmp/.claude/skills/secure-code-reviewer\n');
 });
 
-test('applyUninstallPlan deletes the files and updates manifest', () => {
+test('applyUninstallPlan deletes the files and updates manifest', POSIX_DESTRUCTIVE_TEST, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-'));
   try {
     const installRoot = path.join(tmp, '.claude', 'skills');
@@ -141,7 +147,7 @@ test('applyUninstallPlan deletes the files and updates manifest', () => {
   }
 });
 
-test('applyUninstallPlan rolls back every host when any manifest write fails', () => {
+test('applyUninstallPlan rolls back every host when any manifest write fails', POSIX_DESTRUCTIVE_TEST, () => {
   for (const failAt of [1, 2]) {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `linmas-uninstall-rollback-${failAt}-`));
     try {
@@ -195,7 +201,7 @@ test('applyUninstallPlan rolls back every host when any manifest write fails', (
   }
 });
 
-test('F-007 cleanup failure reports a committed uninstall with retry diagnostics', async () => {
+test('F-007 cleanup failure reports a committed uninstall with retry diagnostics', POSIX_DESTRUCTIVE_TEST, async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-cleanup-warning-'));
   try {
     const installRoot = path.join(tmp, '.claude', 'skills');
@@ -254,7 +260,7 @@ test('F-007 cleanup failure reports a committed uninstall with retry diagnostics
   }
 });
 
-test('F-001 cleanup retry rejects install-root substitution without external mutation', () => {
+test('F-001 cleanup retry rejects install-root substitution without external mutation', POSIX_DESTRUCTIVE_TEST, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-retry-root-swap-'));
   try {
     const fixture = createCommittedCleanupFixture(tmp);
@@ -324,7 +330,7 @@ test('F-007 cleanup retry rejects forged paths and valid-looking foreign backups
   }
 });
 
-test('F-007 cleanup reference is bounded, opaque, and bound to the original backup identity', () => {
+test('F-007 cleanup reference is bounded, opaque, and bound to the original backup identity', POSIX_DESTRUCTIVE_TEST, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-retry-identity-'));
   try {
     const { warning } = createCommittedCleanupFixture(tmp);
@@ -359,7 +365,7 @@ test('F-007 cleanup reference is bounded, opaque, and bound to the original back
   }
 });
 
-test('F-007 cleanup retry refuses a replacement directory with the original valid backup name', () => {
+test('F-007 cleanup retry refuses a replacement directory with the original valid backup name', POSIX_DESTRUCTIVE_TEST, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-retry-replaced-backup-'));
   try {
     const { warning } = createCommittedCleanupFixture(tmp);
@@ -376,7 +382,7 @@ test('F-007 cleanup retry refuses a replacement directory with the original vali
   }
 });
 
-test('F-001 post-commit parent substitution cannot redirect descriptor-anchored cleanup', () => {
+test('F-001 post-commit parent substitution cannot redirect descriptor-anchored cleanup', POSIX_DESTRUCTIVE_TEST, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-post-commit-parent-swap-'));
   try {
     const hostRoot = path.join(tmp, '.claude');
@@ -427,7 +433,7 @@ test('F-001 post-commit parent substitution cannot redirect descriptor-anchored 
   }
 });
 
-test('F-007 post-commit cleanup does not adopt a replacement backup identity', () => {
+test('F-007 post-commit cleanup does not adopt a replacement backup identity', POSIX_DESTRUCTIVE_TEST, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-post-commit-backup-swap-'));
   try {
     const hostRoot = path.join(tmp, '.claude');
@@ -619,7 +625,7 @@ test('F-001 inherited fix blocks an intermediate symlink escape before mutation'
   }
 });
 
-test('F-001 parent substitution after preflight cannot mutate an external skill', () => {
+test('F-001 parent substitution after preflight cannot mutate an external skill', POSIX_DESTRUCTIVE_TEST, () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-uninstall-parent-swap-'));
   try {
     const hostRoot = path.join(tmp, '.claude');

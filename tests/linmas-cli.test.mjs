@@ -11,6 +11,7 @@ import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const cliPath = path.join(rootDir, 'bin', 'linmas.mjs');
+const WINDOWS_SAFE_FILESYSTEM_ERROR = /secure destructive filesystem operations are unavailable on Windows/i;
 
 function homeEnv(home) {
   return { ...process.env, HOME: home, USERPROFILE: home };
@@ -244,10 +245,18 @@ test('uninstall uses injected host registry paths and removes its manifest entry
   }));
 
   const io = createPromptIO(['yes']);
-  assert.equal(await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], io, dependencies), 0);
+  const code = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], io, dependencies);
   assert.equal(reads(), 1);
-  assert.equal(fs.existsSync(skillPath), false);
-  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills, []);
+  if (process.platform === 'win32') {
+    assert.equal(code, 1);
+    assert.match(io.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+    assert.equal(fs.existsSync(skillPath), true);
+    assert.equal(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills.length, 1);
+  } else {
+    assert.equal(code, 0);
+    assert.equal(fs.existsSync(skillPath), false);
+    assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills, []);
+  }
 });
 
 test('list and review do not read the injected host registry', async (t) => {
@@ -429,10 +438,18 @@ test('run uninstall command performs dry-run preview or actual uninstall', async
     const uninstallIo = createPromptIO(['yes']);
     const uninstallCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo);
 
-    assert.equal(uninstallCode, 0);
     assert.match(uninstallIo.getStdout(), /Linmas uninstall preview:/);
-    assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
-    assert.equal(fs.existsSync(skillPath), false);
+    if (process.platform === 'win32') {
+      assert.equal(uninstallCode, 1);
+      assert.doesNotMatch(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.match(uninstallIo.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+      assert.equal(fs.existsSync(skillPath), true);
+      assert.equal(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills.length, 1);
+    } else {
+      assert.equal(uninstallCode, 0);
+      assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.equal(fs.existsSync(skillPath), false);
+    }
   } finally {
     os.homedir = originalHomedir;
     fs.rmSync(tempHome, { recursive: true, force: true });
@@ -500,12 +517,20 @@ test('run uninstall command with multi-host target selection and correct flow or
     const uninstallIo = createPromptIO(['claude', 'yes']);
     const code = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo);
 
-    assert.equal(code, 0);
     assert.match(uninstallIo.getStdout(), /Linmas uninstall preview:/);
     assert.match(uninstallIo.getStdout(), /- claude: remove security-operations-lead/);
     assert.doesNotMatch(uninstallIo.getStdout(), /- codex: remove security-operations-lead/);
-    assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
-    assert.equal(fs.existsSync(claudeSkillPath), false);
+    if (process.platform === 'win32') {
+      assert.equal(code, 1);
+      assert.doesNotMatch(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.match(uninstallIo.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+      assert.equal(fs.existsSync(claudeSkillPath), true);
+      assert.equal(JSON.parse(fs.readFileSync(claudeManifestPath, 'utf8')).skills.length, 1);
+    } else {
+      assert.equal(code, 0);
+      assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.equal(fs.existsSync(claudeSkillPath), false);
+    }
     assert.equal(fs.existsSync(codexSkillPath), true);
   } finally {
     os.homedir = originalHomedir;
@@ -626,12 +651,18 @@ test('direct CLI uninstall reprompts on invalid target input', () => {
       encoding: 'utf8'
     });
 
-    assert.equal(result.status, 0);
     assert.match(result.stdout, /Choose uninstall target: claude, codex, or both/);
     assert.match(result.stdout, /Invalid uninstall target\./);
     assert.match(result.stdout, /- claude: remove security-operations-lead/);
     assert.doesNotMatch(result.stdout, /- codex: remove security-operations-lead/);
-    assert.equal(fs.existsSync(claudeSkillPath), false);
+    if (process.platform === 'win32') {
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, WINDOWS_SAFE_FILESYSTEM_ERROR);
+      assert.equal(fs.existsSync(claudeSkillPath), true);
+    } else {
+      assert.equal(result.status, 0);
+      assert.equal(fs.existsSync(claudeSkillPath), false);
+    }
     assert.equal(fs.existsSync(codexSkillPath), true);
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });

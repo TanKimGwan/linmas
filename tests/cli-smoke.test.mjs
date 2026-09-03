@@ -32,7 +32,7 @@ test('NEW-001 declared CLI entrypoint is tracked, executable, and runnable', () 
   const stat = fs.lstatSync(entrypoint);
   assert.equal(stat.isFile(), true);
   assert.equal(stat.isSymbolicLink(), false);
-  assert.notEqual(stat.mode & 0o111, 0);
+  if (process.platform !== 'win32') assert.notEqual(stat.mode & 0o111, 0);
 
   const tracked = spawnSync('git', ['ls-files', '--error-unmatch', declaredTarget], {
     cwd: rootDir,

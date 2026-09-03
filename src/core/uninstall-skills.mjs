@@ -7,6 +7,14 @@ import { matchesSkillIdentifier } from './skill-catalog.mjs';
 
 const UNINSTALL_BACKUP_NAME = /^\..+\.linmas-uninstall\.[1-9]\d*\.[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.tmp$/i;
 const cleanupCapabilities = new WeakMap();
+export const SAFE_FILESYSTEM_OPERATION_UNAVAILABLE = 'SAFE_FILESYSTEM_OPERATION_UNAVAILABLE';
+
+function assertSecureDestructiveFilesystem(platform) {
+  if (platform !== 'win32') return;
+  const error = new Error(`${SAFE_FILESYSTEM_OPERATION_UNAVAILABLE}: secure destructive filesystem operations are unavailable on Windows without handle-relative mutation support`);
+  error.code = SAFE_FILESYSTEM_OPERATION_UNAVAILABLE;
+  throw error;
+}
 
 export function planUninstall({ manifests, detections, skillName, uninstallAll }) {
   if (!uninstallAll && !skillName) {
@@ -291,7 +299,11 @@ function removeIdentityBoundBackup({ parentAnchor, backupName, backupIdentity, r
   }
 }
 
-export function retryUninstallCleanup(cleanupWarning, { removeBackupImpl = fs.rmSync } = {}) {
+export function retryUninstallCleanup(cleanupWarning, {
+  removeBackupImpl = fs.rmSync,
+  platform = process.platform
+} = {}) {
+  assertSecureDestructiveFilesystem(platform);
   const capability = cleanupCapability(cleanupWarning);
   const backupPath = path.resolve(capability.installRoot, capability.backupRelativePath);
   const { backupName } = cleanupRelativePath(capability.installRoot, backupPath);
@@ -344,7 +356,8 @@ function rollbackUninstall(journal, previousManifestFiles) {
 export function applyUninstallPlan(plan, manifests, manifestPathByHost, {
   writeManifestImpl = writeManifest,
   removeBackupImpl = fs.rmSync,
-  beforeFirstRename
+  beforeFirstRename,
+  platform = process.platform
 } = {}) {
   const removed = [];
   const cleanupWarnings = [];
@@ -367,6 +380,7 @@ export function applyUninstallPlan(plan, manifests, manifestPathByHost, {
       const manifestPath = manifestPathByHost.get(item.host);
       if (typeof manifestPath !== 'string' || !manifestPath) throw new Error(`No manifest path for host: ${item.host}`);
       assertInsideRoot(item.installRoot, item.skillPath);
+      assertSecureDestructiveFilesystem(platform);
 
       if (!previousManifestValues.has(item.host)) {
         previousManifestValues.set(item.host, structuredClone(manifests.get(item.host)));

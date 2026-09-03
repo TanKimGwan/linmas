@@ -22,12 +22,19 @@ function fixture(t, name) {
 }
 
 function assertPrivateMode(targetPath, expected) {
-  assert.equal(fs.statSync(targetPath).mode & 0o777, expected);
+  const stat = fs.lstatSync(targetPath);
+  assert.equal(stat.isSymbolicLink(), false);
+  if (process.platform === 'win32') {
+    assert.equal(expected === 0o700 ? stat.isDirectory() : stat.isFile(), true);
+    return;
+  }
+  assert.equal(stat.mode & 0o777, expected);
 }
 
 test('F-002 safe regular auth source is copied with restrictive modes', async (t) => {
   const { sourceHome, workspaceDir, env } = fixture(t, 'regular');
   fs.writeFileSync(path.join(sourceHome, 'auth.json'), '{"synthetic":true}\n', { mode: 0o600 });
+  fs.writeFileSync(path.join(sourceHome, 'config.toml'), 'model_provider = "attacker-controlled"\n');
 
   const launchEnv = await prepareCodexLaunchEnvironment({ workspaceDir, env });
   const codexHome = launchEnv.CODEX_HOME;
@@ -35,24 +42,31 @@ test('F-002 safe regular auth source is copied with restrictive modes', async (t
   assertPrivateMode(codexHome, 0o700);
   assertPrivateMode(path.join(codexHome, 'config.toml'), 0o600);
   assertPrivateMode(path.join(codexHome, 'auth.json'), 0o600);
+  assert.equal(fs.readFileSync(path.join(codexHome, 'config.toml'), 'utf8'), 'model_provider = "openai"\n');
   assert.equal(fs.readFileSync(path.join(codexHome, 'auth.json'), 'utf8'), '{"synthetic":true}\n');
 });
 
-test('F-002 auth preparation rejects symlink, directory, oversized, and unsafe-mode sources', async (t) => {
-  for (const kind of ['symlink', 'directory', 'oversized', 'unsafe-mode']) {
+test('F-002 auth preparation rejects symlink, directory, and oversized sources', async (t) => {
+  for (const kind of ['symlink', 'directory', 'oversized']) {
     await t.test(kind, async (t) => {
       const { tmp, sourceHome, workspaceDir, env } = fixture(t, kind);
       const authPath = path.join(sourceHome, 'auth.json');
       if (kind === 'symlink') {
         const target = path.join(tmp, 'synthetic-auth-target.json');
         fs.writeFileSync(target, '{}', { mode: 0o600 });
-        fs.symlinkSync(target, authPath);
+        try {
+          fs.symlinkSync(target, authPath, 'file');
+        } catch (error) {
+          if (process.platform === 'win32' && ['EPERM', 'EACCES', 'ENOTSUP'].includes(error?.code)) {
+            t.skip('file reparse-point creation is unavailable on this Windows runner');
+            return;
+          }
+          throw error;
+        }
       } else if (kind === 'directory') {
         fs.mkdirSync(authPath);
-      } else if (kind === 'oversized') {
-        fs.writeFileSync(authPath, Buffer.alloc(1024 * 1024 + 1), { mode: 0o600 });
       } else {
-        fs.writeFileSync(authPath, '{}', { mode: 0o644 });
+        fs.writeFileSync(authPath, Buffer.alloc(1024 * 1024 + 1), { mode: 0o600 });
       }
 
       await assert.rejects(
@@ -64,7 +78,21 @@ test('F-002 auth preparation rejects symlink, directory, oversized, and unsafe-m
   }
 });
 
-test('F-002 auth FIFO with no writer fails bounded and leaves no private launch home', (t) => {
+test('F-002 POSIX auth source with unsafe mode is rejected', {
+  skip: process.platform === 'win32' ? 'Windows access control is ACL-based, not represented by POSIX mode bits' : false
+}, async (t) => {
+  const { sourceHome, workspaceDir, env } = fixture(t, 'unsafe-mode');
+  fs.writeFileSync(path.join(sourceHome, 'auth.json'), '{}', { mode: 0o644 });
+  await assert.rejects(
+    prepareCodexLaunchEnvironment({ workspaceDir, env }),
+    /invalid|permission/i
+  );
+  assert.equal(fs.existsSync(path.join(workspaceDir, 'codex-home')), false);
+});
+
+test('F-002 POSIX auth FIFO with no writer fails bounded and leaves no private launch home', {
+  skip: process.platform === 'win32' ? 'FIFO filesystem nodes are not a normal Windows path primitive' : false
+}, (t) => {
   const { sourceHome, workspaceDir } = fixture(t, 'fifo');
   const authPath = path.join(sourceHome, 'auth.json');
   const mkfifo = spawnSync('mkfifo', [authPath], { encoding: 'utf8' });
@@ -113,9 +141,15 @@ test('F-002 unavailable no-follow or nonblocking flags fail closed before launch
     await t.test(missingFlag, async (t) => {
       const { sourceHome, workspaceDir, env } = fixture(t, missingFlag.toLowerCase());
       fs.writeFileSync(path.join(sourceHome, 'auth.json'), '{}', { mode: 0o600 });
-      const constants = { ...fs.constants, [missingFlag]: undefined };
+      const constants = {
+        ...fs.constants,
+        O_RDONLY: Number.isInteger(fs.constants.O_RDONLY) ? fs.constants.O_RDONLY : 0,
+        O_NOFOLLOW: 0x20000,
+        O_NONBLOCK: 0x800,
+        [missingFlag]: undefined
+      };
       await assert.rejects(
-        prepareCodexLaunchEnvironment({ workspaceDir, env, fsConstantsImpl: constants }),
+        prepareCodexLaunchEnvironment({ workspaceDir, env, fsConstantsImpl: constants, platform: 'linux' }),
         /safe.*unavailable|unavailable.*safe|no-follow|nonblocking/i
       );
       assert.equal(fs.existsSync(path.join(workspaceDir, 'codex-home')), false);

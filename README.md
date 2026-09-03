@@ -314,9 +314,11 @@ Codex contributed as the provider-native review engine, implementation collabora
 ## Platform and runtime
 
 - Node.js `>=24` is required.
-- The offline workflow is provider-independent and deterministic.
+- The offline workflow and package entrypoint are provider-independent and tested on Linux and Windows.
 - The verified live evidence was collected on Linux.
 - Codex executable discovery covers native POSIX and Windows layouts; unsafe Windows `.cmd` and `.bat` shims are rejected.
+- Codex authentication isolation is cross-platform: POSIX uses no-follow/nonblocking descriptor reads, while Windows validates file identity before reading only from the opened descriptor. User `config.toml` content is never inherited by the isolated launch.
+- Destructive uninstall and cleanup fail closed on Windows with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`. Node.js 24 does not expose the handle-relative Windows rename/delete primitive needed to preserve Linmas's anti-substitution invariant; install, list, doctor, offline review, and package execution remain available.
 - The native MCP stdio path is verified on Linux with Node.js 24+. Native Windows MCP and a successful live Windows provider run are not currently claimed.
 
 ## Native MCP plugin
@@ -402,7 +404,7 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 | `linmas onboard` | Inspect host and Codex account capabilities. |
 | `linmas doctor` | Diagnose managed installations and duplicates. |
 | `linmas install <skill>` | Install one canonical skill; add `--dry-run` to preflight. |
-| `linmas uninstall <skill>` | Remove a Linmas-managed skill. |
+| `linmas uninstall <skill>` | Remove a Linmas-managed skill on supported POSIX filesystems; Windows fails closed before mutation. |
 | `linmas review ...` | Prepare locally or execute an explicit provider review. |
 | `linmas review compare before.json after.json` | Compare two capsules offline. |
 | `linmas proof create <source> --bundle <dir>` | Record human decisions and create a portable proof bundle. |
@@ -424,6 +426,7 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 - Codex Security adapter input must be a completed sealed scan directory; findings-only JSON is not treated as verified evidence.
 - Live review transmits the explicit input to the selected provider after confirmation.
 - No claim is made that a read-only sandbox limits provider reads to the Linmas input.
+- Windows destructive uninstall and cleanup are unavailable until a handle-relative native implementation can authenticate the object being mutated; Linmas does not fall back to lexical path deletion.
 - Native MCP support is bounded to the documented Node.js 24+ Linux-verified path; Codex fresh-task discovery requires a separately verified host reinstall and is not implied by direct stdio validation.
 
 ## Contributing, security, and license
