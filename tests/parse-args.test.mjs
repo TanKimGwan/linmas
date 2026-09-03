@@ -81,3 +81,45 @@ test('parses proof create and verify subcommands without changing legacy review 
   assert.equal(verify.output, 'json');
   assert.equal(verify.allowedSigners, 'allowed');
 });
+
+test('rejects options outside each command schema', () => {
+  for (const argv of [
+    ['node', 'linmas', 'list', '--provider', 'codex'],
+    ['node', 'linmas', 'install', '--providre', 'codex'],
+    ['node', 'linmas', 'review', '--providre', 'codex'],
+    ['node', 'linmas', 'proof', 'verify', 'bundle', '--bundle', 'other']
+  ]) {
+    assert.throws(() => parseArgv(argv), /unknown option/i);
+  }
+});
+
+test('rejects a missing option value', () => {
+  assert.throws(
+    () => parseArgv(['node', 'linmas', 'review', '--provider']),
+    /argument missing|requires a value/i
+  );
+  assert.throws(
+    () => parseArgv(['node', 'linmas', 'review', '--provider=']),
+    /provider.*non-empty|non-empty.*provider/i
+  );
+});
+
+test('rejects duplicate singleton options', () => {
+  assert.throws(
+    () => parseArgv(['node', 'linmas', 'review', '--provider', 'codex', '--provider', 'claude']),
+    /duplicate option.*provider/i
+  );
+});
+
+test('rejects unexpected positional arguments', () => {
+  assert.throws(
+    () => parseArgv(['node', 'linmas', 'review', 'compare', 'before.json', 'after.json', 'extra.json']),
+    /unexpected.*argument/i
+  );
+});
+
+test('preserves option terminator semantics for dash-prefixed positionals', () => {
+  const args = parseArgv(['node', 'linmas', 'install', '--', '--literal-skill-name']);
+  assert.equal(args.skillName, '--literal-skill-name');
+  assert.equal(args.installAll, false);
+});

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +13,7 @@ import { preflightCapsuleDestination, writeReviewCapsule } from '../src/review/w
 import { validateReviewCapsule } from '../src/review/validate-capsule.mjs';
 import { evaluatePolicy } from '../src/policy/evaluate-policy.mjs';
 import { loadPolicyPack } from '../src/policy/load-pack.mjs';
-import { loadProofEvidence } from '../src/proof/load-evidence.mjs';
+import { loadProofEvidence, sha256 } from '../src/proof/load-evidence.mjs';
 import { buildDecisionReceipt } from '../src/proof/validate-receipt.mjs';
 import { verifyProofBundle } from '../src/proof/verify-bundle.mjs';
 import { writeProofBundle } from '../src/proof/write-bundle.mjs';
@@ -37,6 +38,7 @@ export const TOOL_TIMEOUTS = Object.freeze({
   transmit: { defaultMs: 120_000, maxMs: 180_000 }
 });
 export const ELICITATION_TIMEOUT_MS = 120_000;
+const MAX_REVIEW_REFERENCES = 64;
 
 const SPECIALIST_SKILL_IDS = Object.freeze(
   PUBLIC_SKILL_IDS.filter((skillId) => skillId !== 'linmas-security-domain-router')
@@ -54,9 +56,10 @@ const TOOL_DEFINITIONS = Object.freeze([
     description: 'Ask for and record a bounded human disposition after findings are available. This never approves a review or bypasses transmission and write consent.',
     kind: 'read',
     inputSchema: commonSchema({
-      required: ['workspace_root', 'review_result'],
+      required: ['workspace_root', 'review_handle', 'capsule_digest'],
       properties: {
-        review_result: { type: 'object', description: 'Validated review result containing findings; sensitive source content is not required.' },
+        review_handle: boundedStringSchema(64),
+        capsule_digest: { type: 'string', pattern: '^[a-f0-9]{64}$' },
         decision: {
           type: 'object',
           additionalProperties: false,
@@ -206,6 +209,14 @@ export function createLinmasDispatcher({
   providerRegistryFactory = createProviderRegistry
 } = {}) {
   const registry = providerRegistry ?? providerRegistryFactory({ env });
+  const reviewReferences = new Map();
+  const rememberReview = (capsule) => {
+    const handle = randomUUID();
+    const capsuleDigest = sha256(Buffer.from(JSON.stringify(capsule)));
+    if (reviewReferences.size >= MAX_REVIEW_REFERENCES) reviewReferences.delete(reviewReferences.keys().next().value);
+    reviewReferences.set(handle, { capsuleDigest, review: structuredClone(capsule.review) });
+    return { handle, capsuleDigest };
+  };
 
   return async function dispatchTool(name, rawArguments = {}, context = {}) {
     const definition = TOOL_DEFINITIONS.find((tool) => tool.name === name);
@@ -218,12 +229,12 @@ export function createLinmasDispatcher({
     const operation = (signal) => {
       switch (name) {
         case 'linmas_review_prepare': return reviewPrepare(args);
-        case 'linmas_review_decide': return reviewDecide(args, context.elicit);
+        case 'linmas_review_decide': return reviewDecide(args, context.elicit, reviewReferences);
         case 'linmas_review_compare': return reviewCompare(args, signal);
         case 'linmas_policy_evaluate': return policyEvaluate(args, pluginRoot, signal);
         case 'linmas_proof_verify': return proofVerify(args, signal);
         case 'linmas_proof_create': return proofCreate(args, signal);
-        case 'linmas_review_execute': return reviewExecute(args, pluginRoot, registry, env, signal);
+        case 'linmas_review_execute': return reviewExecute(args, pluginRoot, registry, env, signal, rememberReview);
         default: throw toolError('unknown_tool', 'unknown tool', undefined, {
           stage: 'argument-validation',
           reasonCode: 'TOOL_UNSUPPORTED'
@@ -330,17 +341,8 @@ function validateToolArguments(definition, value) {
 }
 
 function validateReviewDecisionArguments(value) {
-  object(value.review_result, 'review_result');
-  if (!Array.isArray(value.review_result.findings) || value.review_result.findings.length > 256) {
-    throw toolError('invalid_input', 'review_result.findings must be an array with at most 256 items');
-  }
-  for (const finding of value.review_result.findings) {
-    object(finding, 'review_result.finding');
-    boundedString(finding.id, 'review_result.finding.id', 512);
-    if (typeof finding.severity !== 'string' || !['Critical', 'High', 'Medium', 'Low', 'Info'].includes(finding.severity)) {
-      throw toolError('invalid_input', 'review_result.finding.severity is invalid');
-    }
-  }
+  boundedString(value.review_handle, 'review_handle', 64);
+  if (typeof value.capsule_digest !== 'string' || !/^[a-f0-9]{64}$/.test(value.capsule_digest)) throw toolError('invalid_input', 'capsule_digest must be a SHA-256 digest');
   if (value.decision !== undefined) {
     object(value.decision, 'decision');
     exactKeys(value.decision, ['disposition', 'risk_acknowledged', 'rationale', 'custom_instruction'].filter((key) => Object.hasOwn(value.decision, key)), 'decision');
@@ -404,7 +406,7 @@ function reviewSeverityCounts(reviewResult) {
   return counts;
 }
 
-function reviewDecisionRecord({ args, decision, channel, status = 'selected', rationale = null, customInstruction = null }) {
+function reviewDecisionRecord({ args, decision, channel, status = 'selected', rationale = null, customInstruction = null, riskAcknowledged = false }) {
   const counts = reviewSeverityCounts(args.review_result);
   return {
     status,
@@ -420,12 +422,12 @@ function reviewDecisionRecord({ args, decision, channel, status = 'selected', ra
       unresolvedFindings: counts,
       riskAcceptance: {
         required: counts.Critical > 0 || counts.High > 0,
-        acknowledged: decision === 'continue_with_note' ? true : false,
+        acknowledged: riskAcknowledged === true,
         rationale
       },
       finalResponseNoteRequired: decision === 'continue_with_note',
       customInstruction,
-      mayContinue: decision === 'continue_with_note' && (counts.Critical === 0 && counts.High === 0 || Boolean(rationale))
+      mayContinue: decision === 'continue_with_note' && (counts.Critical === 0 && counts.High === 0 || riskAcknowledged === true && Boolean(rationale))
     }
   };
 }
@@ -442,7 +444,11 @@ function decisionSchema({ includeFix }) {
   };
 }
 
-async function reviewDecide(args, elicit) {
+async function reviewDecide(args, elicit, reviewReferences) {
+  const reference = reviewReferences.get(args.review_handle);
+  if (!reference) throw toolError('invalid_input', 'review reference is unknown or expired');
+  if (reference.capsuleDigest !== args.capsule_digest) throw toolError('invalid_input', 'capsule digest does not match the review reference');
+  args = { ...args, review_result: structuredClone(reference.review) };
   const counts = reviewSeverityCounts(args.review_result);
   const hasFindings = args.review_result.findings.length > 0;
   if (args.decision) return finalizeReviewDecision(args, args.decision, 'text_fallback');
@@ -496,7 +502,7 @@ async function reviewDecide(args, elicit) {
       }
     });
     if (risk?.action !== 'accept' || risk.content?.risk_acknowledged !== true || !risk.content?.rationale) return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', status: risk?.action === 'cancel' ? 'cancelled' : 'declined' });
-    return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', rationale: risk.content.rationale });
+    return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', rationale: risk.content.rationale, riskAcknowledged: true });
   }
   return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form' });
 }
@@ -506,7 +512,7 @@ function finalizeReviewDecision(args, decision, channel) {
   if (decision.disposition === 'continue_with_note' && (reviewSeverityCounts(args.review_result).Critical > 0 || reviewSeverityCounts(args.review_result).High > 0)) {
     if (decision.risk_acknowledged !== true || !decision.rationale) throw toolError('risk_acknowledgement_required', 'Critical/High findings require explicit risk acknowledgement and rationale');
   }
-  return reviewDecisionRecord({ args, decision: decision.disposition, channel, rationale: decision.rationale ?? null, customInstruction: decision.custom_instruction ?? null });
+  return reviewDecisionRecord({ args, decision: decision.disposition, channel, rationale: decision.rationale ?? null, customInstruction: decision.custom_instruction ?? null, riskAcknowledged: decision.risk_acknowledged === true });
 }
 
 async function reviewCompare(args) {
@@ -626,7 +632,7 @@ async function proofCreate(args, signal) {
   };
 }
 
-async function reviewExecute(args, pluginRoot, registry, env, signal) {
+async function reviewExecute(args, pluginRoot, registry, env, signal, rememberReview) {
   const transmission = { state: 'not-attempted' };
   const states = ['not-attempted', 'attempted', 'response-received', 'normalized', 'capsule-written'];
   const advanceTransmission = (state) => {
@@ -702,14 +708,13 @@ async function reviewExecute(args, pluginRoot, registry, env, signal) {
       policyResult = evaluatePolicy(policy, review);
       throwIfAborted(signal);
     }
+    const capsule = buildReviewCapsule({
+      input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
+      execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
+      review,
+      policyResult
+    });
     if (capsuleTarget) {
-      throwIfAborted(signal);
-      const capsule = buildReviewCapsule({
-        input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
-        execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
-        review,
-        policyResult
-      });
       throwIfAborted(signal);
       try {
         throwIfAborted(signal);
@@ -722,6 +727,8 @@ async function reviewExecute(args, pluginRoot, registry, env, signal) {
       advanceTransmission('capsule-written');
       throwIfAborted(signal);
     }
+    throwIfAborted(signal);
+    const reviewReference = rememberReview(capsule);
     return {
       status: 'executed',
       operation: 'review_execute',
@@ -740,6 +747,7 @@ async function reviewExecute(args, pluginRoot, registry, env, signal) {
         modelVerified: executionMetadata.modelVerified === true
       },
       capsulePath: args.capsule_path ?? null,
+      reviewReference,
       review,
       policy: policyResult
     };

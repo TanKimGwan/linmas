@@ -17,3 +17,31 @@ test('validateReviewResult rejects missing verification, unknown status, and dup
   const duplicate = structuredClone(good); duplicate.findings.push(structuredClone(duplicate.findings[0]));
   assert.throws(() => validateReviewResult(duplicate), /duplicate finding id/);
 });
+
+test('F-012 deterministic checks reject a duplicated ID', () => {
+  const duplicate = structuredClone(good);
+  duplicate.deterministicChecks = [
+    { id: 'security regression test', completed: true },
+    { id: 'security regression test', completed: false }
+  ];
+  assert.throws(() => validateReviewResult(duplicate), /duplicate deterministic check id/);
+});
+
+test('F-013 actual NUL is rejected from every bounded ReviewResult text surface', () => {
+  const mutations = [
+    (value) => { value.caseId = 'case\0id'; },
+    (value) => { value.modelMetadata.provider = 'provider\0id'; },
+    (value) => { value.modelMetadata.model = 'model\0id'; },
+    (value) => { value.modelMetadata.generatedAt = 'time\0value'; },
+    (value) => { value.modelMetadata.requestId = 'request\0id'; },
+    (value) => { value.scopeAndAssumptions[0] = 'scope\0value'; },
+    (value) => { value.findings[0].evidence = 'evidence\0value'; },
+    (value) => { value.deterministicChecks = ['check\0id']; },
+    (value) => { value.safetyBoundary.statement = 'Human review remains required.\0'; }
+  ];
+  for (const mutate of mutations) {
+    const value = structuredClone(good);
+    mutate(value);
+    assert.throws(() => validateReviewResult(value), /NUL/);
+  }
+});

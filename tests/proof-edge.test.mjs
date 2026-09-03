@@ -17,11 +17,11 @@ import { run as runCli } from '../bin/linmas.mjs';
 
 const safetyBoundary = { satisfied: true, humanReviewRequired: true, statement: 'Human review remains required.' };
 
-function capsule() {
+function capsule({ findings = [] } = {}) {
   return buildReviewCapsule({
     input: { source: 'fixture.diff', bytes: 3, sha256: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' },
     execution: { mode: 'offline-fixture', provider: 'fixture', authMode: 'unavailable', model: 'fixture', modelVerified: false },
-    review: { schemaVersion: 1, caseId: 'edge', specialist: 'secure-code-reviewer', modelMetadata: { provider: 'fixture', model: 'fixture', usage: null, requestId: null }, scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary },
+    review: { schemaVersion: 1, caseId: 'edge', specialist: 'secure-code-reviewer', modelMetadata: { provider: 'fixture', model: 'fixture', usage: null, requestId: null }, scopeAndAssumptions: ['fixture'], findings, deterministicChecks: [], safetyBoundary },
     policyResult: null,
     now: new Date('2026-07-19T00:00:00.000Z')
   });
@@ -92,7 +92,11 @@ test('proof CLI exposes verify output and rejects malformed proof invocations', 
     const jsonArgs = parseArgv(['node', 'linmas', 'proof', 'verify', bundle, '--output', 'json']);
     assert.equal((await runProof(jsonArgs, { io })).exitCode, 0);
     assert.match(output.join(''), /"integrity": "valid"/);
-    await assert.rejects(runProof(parseArgv(['node', 'linmas', 'proof', 'verify', bundle, '--signing-key', 'key']), { io }), /only valid/);
+    assert.throws(
+      () => parseArgv(['node', 'linmas', 'proof', 'verify', bundle, '--signing-key', 'key']),
+      /unknown option.*signing-key/i
+    );
+    await assert.rejects(runProof({ ...textArgs, signingKey: 'key' }, { io }), /only valid/);
     await assert.rejects(runProof({ proofErrors: ['unknown'] }, { io }), /unknown/);
     await assert.rejects(runProof({ proofAction: 'create', proofSource: 'x', proofBundle: null, proofErrors: [] }, { io }), /requires source/);
     await assert.rejects(runProof({ proofAction: 'verify', proofSource: null, proofErrors: [] }, { io }), /requires a bundle/);
@@ -123,7 +127,11 @@ test('receipt validation fails closed for malformed and contradictory fields', (
     (value) => { value.safetyBoundary.statement = 'Review is optional.'; },
     (value) => { value.safetyBoundary.extra = true; }
   ];
-  for (const mutate of mutations) assert.throws(() => validateDecisionReceipt(mutate(structuredClone(valid))), /proof receipt/);
+  for (const mutate of mutations) {
+    const mutated = structuredClone(valid);
+    mutate(mutated);
+    assert.throws(() => validateDecisionReceipt(mutated), /proof receipt/);
+  }
   const withFinding = buildDecisionReceipt({ subject: valid.subject, reviewer: valid.reviewer, findings: [{ id: 'F', disposition: 'false-positive', rationale: 'checked' }], statement: 'No action is recorded.', now: new Date('2026-07-19T00:00:00.000Z') });
   const findingMutations = [
     (value) => { value.findings[0].id = ''; },
@@ -133,7 +141,117 @@ test('receipt validation fails closed for malformed and contradictory fields', (
     (value) => { value.summary.overallDisposition = 'accepted-risk'; },
     (value) => { value.summary.statement = 'Approved.'; }
   ];
-  for (const mutate of findingMutations) assert.throws(() => validateDecisionReceipt(mutate(structuredClone(withFinding))), /proof receipt/);
+  for (const mutate of findingMutations) {
+    const mutated = structuredClone(withFinding);
+    mutate(mutated);
+    assert.throws(() => validateDecisionReceipt(mutated), /proof receipt/);
+  }
+});
+
+test('F-012 decision receipt rejects a duplicated finding ID specifically', () => {
+  const receipt = buildDecisionReceipt({
+    subject: { kind: 'linmas-review-capsule', sha256: 'a'.repeat(64) },
+    reviewer: { label: 'Tan', principal: null },
+    findings: [{ id: 'F-012', disposition: 'false-positive', rationale: 'fixture' }],
+    statement: 'No action is recorded.', now: new Date('2026-09-03T00:00:00.000Z')
+  });
+  receipt.findings.push(structuredClone(receipt.findings[0]));
+  assert.throws(() => validateDecisionReceipt(receipt), /duplicated/);
+});
+
+test('F-003 writer rejects missing, unknown, and duplicated finding identities before creating a bundle', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-proof-findings-'));
+  try {
+    const finding = {
+      id: 'F-003', status: 'Confirmed finding', severity: 'High', evidence: 'fixture',
+      affectedSurface: 'proof', preconditions: 'synthetic', remediation: 'bind IDs', verification: 'regression'
+    };
+    const capsulePath = path.join(root, 'capsule.json');
+    await fs.writeFile(capsulePath, `${JSON.stringify(capsule({ findings: [finding] }), null, 2)}\n`);
+    const source = await loadCapsuleEvidence(capsulePath);
+    const makeReceipt = (findings) => buildDecisionReceipt({
+      subject: { kind: source.kind, sha256: source.sourceSha256 },
+      reviewer: { label: 'Tan', principal: null }, findings,
+      statement: 'Human action remains recorded.', now: new Date('2026-09-03T00:00:00.000Z')
+    });
+    const cases = [
+      ['missing', makeReceipt([])],
+      ['unknown', makeReceipt([{ id: 'F-UNKNOWN', disposition: 'needs-more-evidence', rationale: 'fixture' }])]
+    ];
+    const duplicated = makeReceipt([{ id: 'F-003', disposition: 'needs-more-evidence', rationale: 'fixture' }]);
+    duplicated.findings.push(structuredClone(duplicated.findings[0]));
+    cases.push(['duplicate', duplicated]);
+
+    for (const [name, receipt] of cases) {
+      const destination = path.join(root, name);
+      await assert.rejects(writeProofBundle(destination, source, receipt), /finding|duplicat|match/i);
+      await assert.rejects(fs.lstat(destination), { code: 'ENOENT' });
+    }
+
+    const duplicateSource = { ...source, findings: [...source.findings, structuredClone(source.findings[0])] };
+    await assert.rejects(writeProofBundle(path.join(root, 'duplicate-source'), duplicateSource, makeReceipt([
+      { id: 'F-003', disposition: 'needs-more-evidence', rationale: 'fixture' }
+    ])), /finding|duplicat|match/i);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('F-003 verifier rejects a hash-valid bundle whose receipt finding set differs from source', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-proof-verify-findings-'));
+  try {
+    const finding = {
+      id: 'F-003', status: 'Confirmed finding', severity: 'High', evidence: 'fixture',
+      affectedSurface: 'proof', preconditions: 'synthetic', remediation: 'bind IDs', verification: 'regression'
+    };
+    const capsulePath = path.join(root, 'capsule.json');
+    await fs.writeFile(capsulePath, `${JSON.stringify(capsule({ findings: [finding] }), null, 2)}\n`);
+    const source = await loadCapsuleEvidence(capsulePath);
+    const receipt = buildDecisionReceipt({
+      subject: { kind: source.kind, sha256: source.sourceSha256 }, reviewer: { label: 'Tan', principal: null },
+      findings: [{ id: 'F-003', disposition: 'needs-more-evidence', rationale: 'fixture' }],
+      statement: 'More evidence is needed.', now: new Date('2026-09-03T00:00:00.000Z')
+    });
+    const bundle = path.join(root, 'bundle');
+    await writeProofBundle(bundle, source, receipt);
+
+    const receiptPath = path.join(bundle, 'decision-receipt.json');
+    const tampered = JSON.parse(await fs.readFile(receiptPath, 'utf8'));
+    tampered.findings[0].id = 'F-UNKNOWN';
+    const bytes = Buffer.from(`${JSON.stringify(tampered, null, 2)}\n`);
+    await fs.writeFile(receiptPath, bytes);
+    const manifestPath = path.join(bundle, 'manifest.json');
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    const artifact = manifest.artifacts.find((entry) => entry.path === 'decision-receipt.json');
+    artifact.bytes = bytes.byteLength;
+    artifact.sha256 = sha256(bytes);
+    manifest.receipt.sha256 = artifact.sha256;
+    await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    await assert.rejects(verifyProofBundle(bundle), /finding|match/i);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('F-009 failed lock contender preserves the foreign lock byte-for-byte', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-proof-lock-'));
+  try {
+    const capsulePath = path.join(root, 'capsule.json');
+    await fs.writeFile(capsulePath, `${JSON.stringify(capsule(), null, 2)}\n`);
+    const source = await loadCapsuleEvidence(capsulePath);
+    const receipt = buildDecisionReceipt({
+      subject: { kind: source.kind, sha256: source.sourceSha256 }, reviewer: { label: 'Tan', principal: null },
+      findings: [], statement: 'No action is recorded.', now: new Date('2026-09-03T00:00:00.000Z')
+    });
+    const lockPath = path.join(root, '.bundle.lock');
+    await fs.writeFile(lockPath, 'foreign-writer\n');
+
+    await assert.rejects(writeProofBundle(path.join(root, 'bundle'), source, receipt), /could not be written|EEXIST/);
+    assert.equal(await fs.readFile(lockPath, 'utf8'), 'foreign-writer\n');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 test('verifier rejects manifest shape and artifact binding changes', async () => {

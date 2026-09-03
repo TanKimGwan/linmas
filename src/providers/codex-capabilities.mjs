@@ -1,6 +1,10 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
 import { LINMAS_VERSION } from '../core/version.mjs';
+import { codexCapabilityArgs, prepareCodexLaunchEnvironment, sanitizeCodexDiagnostic } from './codex-launch.mjs';
 
 const MAX_STDOUT_BYTES = 1024 * 1024;
 const MAX_STDERR_BYTES = 64 * 1024;
@@ -30,44 +34,66 @@ export function createCodexCapabilityProbe({
   command = 'codex',
   spawnImpl = spawn,
   timeoutMs = 5000,
-  killGraceMs = 500
+  killGraceMs = 500,
+  env = process.env,
+  tempRoot = os.tmpdir(),
+  removeImpl = fs.rm
 } = {}) {
   return {
     async read({ includeModels = false, signal } = {}) {
-      if (signal?.aborted) throw classified('provider-transport', 'Codex capability discovery cancelled', signal.reason);
-
-      let child;
+      let launchDir;
+      let launchFailure;
       try {
-        child = spawnImpl(command, ['app-server', '--stdio'], { shell: false, stdio: ['pipe', 'pipe', 'pipe'] });
-      } catch (cause) {
-        throw startFailure(cause);
-      }
+        launchDir = await fs.mkdtemp(path.join(tempRoot, 'linmas-codex-capability-'));
+        const launchEnv = await prepareCodexLaunchEnvironment({ workspaceDir: launchDir, env });
+        if (signal?.aborted) throw classified('provider-transport', 'Codex capability discovery cancelled', signal.reason);
 
-      const session = createSession(child, { timeoutMs, signal });
-      let primaryFailure;
-      try {
-        await session.request('initialize', {
-          clientInfo: { name: 'linmas', version: LINMAS_VERSION },
-          capabilities: { experimentalApi: true }
-        });
-        session.notify('initialized');
-
-        const accountResult = await session.request('account/read', { refreshToken: false });
-        const account = classifyAccount(accountResult);
-        const models = includeModels ? await readModels(session) : null;
-        return { ...account, models };
-      } catch (cause) {
-        primaryFailure = cause instanceof ReviewError
-          ? cause
-          : classified('provider-configuration', 'Codex capability discovery failed', cause);
-        throw primaryFailure;
-      } finally {
-        session.dispose();
+        let child;
         try {
-          await stopChild(child, { killGraceMs });
+          child = spawnImpl(command, codexCapabilityArgs(), { shell: false, stdio: ['pipe', 'pipe', 'pipe'], env: launchEnv });
         } catch (cause) {
-          if (primaryFailure) primaryFailure.cleanupCause = cause;
-          else throw classified('provider-transport', 'Codex capability process could not be stopped', cause);
+          throw startFailure(cause);
+        }
+
+        const session = createSession(child, { timeoutMs, signal });
+        let primaryFailure;
+        try {
+          await session.request('initialize', {
+            clientInfo: { name: 'linmas', version: LINMAS_VERSION },
+            capabilities: { experimentalApi: true }
+          });
+          session.notify('initialized');
+
+          const accountResult = await session.request('account/read', { refreshToken: false });
+          const account = classifyAccount(accountResult);
+          const models = includeModels ? await readModels(session) : null;
+          return { ...account, models };
+        } catch (cause) {
+          primaryFailure = cause instanceof ReviewError
+            ? cause
+            : classified('provider-configuration', 'Codex capability discovery failed', cause);
+          throw primaryFailure;
+        } finally {
+          session.dispose();
+          try {
+            await stopChild(child, { killGraceMs });
+          } catch (cause) {
+            if (primaryFailure) primaryFailure.cleanupCause = cause;
+            else throw classified('provider-transport', 'Codex capability process could not be stopped', cause);
+          }
+        }
+      } catch (cause) {
+        launchFailure = cause instanceof ReviewError
+          ? cause
+          : classified('provider-configuration', 'Codex isolated configuration could not be prepared', cause);
+        throw launchFailure;
+      } finally {
+        if (launchDir) {
+          try { await removeImpl(launchDir, { recursive: true, force: true }); }
+          catch (cause) {
+            if (launchFailure) launchFailure.cleanupCause = cause;
+            else throw classified('provider-configuration', 'Codex isolated configuration could not be removed', cause);
+          }
         }
       }
     }
@@ -174,6 +200,9 @@ function classifyAccount(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.requiresOpenaiAuth !== 'boolean') {
     throw classified('provider-configuration', 'Codex account response is malformed');
   }
+  if (value.account === null && value.requiresOpenaiAuth === false) {
+    return { authMode: 'not-required', requiresOpenaiAuth: false };
+  }
   if (value.account === null) throw classified('provider-authentication', 'Codex is not authenticated');
   if (!value.account || typeof value.account !== 'object' || Array.isArray(value.account)) {
     throw classified('provider-configuration', 'Codex account response is malformed');
@@ -256,9 +285,5 @@ function safeProtocolError(value) {
 }
 
 function sanitize(value) {
-  return String(value ?? '')
-    .replace(/authorization\s*[:=]\s*(?:bearer\s+)?\S+/gi, 'Authorization=[redacted]')
-    .replace(/(api[_-]?key|token|password|secret)\s*[:=]\s*\S+/gi, '$1=[redacted]')
-    .replace(/[\r\n]+/g, ' ')
-    .slice(0, 512);
+  return sanitizeCodexDiagnostic(value, { singleLine: true });
 }
