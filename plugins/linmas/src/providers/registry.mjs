@@ -85,6 +85,7 @@ export function createProviderRegistry({
         const probe = createCodexCapabilityProbeImpl({
           command: typeof binary === 'string' ? binary : 'codex',
           spawnImpl,
+          env,
           ...(timeoutMs === undefined ? {} : { timeoutMs })
         });
         if (!probe || typeof probe.read !== 'function') throw providerConfiguration('Codex capability probe is invalid');
@@ -120,7 +121,7 @@ export function createProviderRegistry({
       if (!binary) throw new ReviewError('Codex binary is not configured', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['CODEX_BINARY'] });
       if (!isDirectExecutable(binary, platform) && binary !== true) throw new ReviewError('Codex .cmd/.bat shims are unsupported without a shell; install a direct executable', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['CODEX_DIRECT_EXECUTABLE'] });
       if (!resolvedModel) throw new ReviewError('Codex model is required', 'provider-configuration', EXIT_CODES.PROVIDER, { stage: 'provider-preflight', reasonCode: 'CONFIGURATION_MISSING', retryable: false, provider: 'codex', transmissionState: 'not-attempted', missingRequirements: ['LINMAS_EVAL_MODEL'] });
-      return createManagedCodexRunner({ model: resolvedModel, command: typeof binary === 'string' ? binary : 'codex', spawnImpl, timeoutMs, cwd });
+      return createManagedCodexRunner({ model: resolvedModel, command: typeof binary === 'string' ? binary : 'codex', spawnImpl, timeoutMs, cwd, env });
     }
   };
   return new Map([['claude', claude], ['codex', codex]]);

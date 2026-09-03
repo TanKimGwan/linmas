@@ -47,7 +47,8 @@ export function validateDecisionReceipt(value) {
     object(finding, field);
     exact(finding, FINDING_FIELDS, field);
     bounded(finding.id, `${field}.id`);
-    if (!ids.add(finding.id)) fail(`${field}.id is duplicated`);
+    if (ids.has(finding.id)) fail(`${field}.id is duplicated`);
+    ids.add(finding.id);
     if (!DISPOSITIONS.includes(finding.disposition)) fail(`${field}.disposition is invalid`);
     bounded(finding.rationale, `${field}.rationale`);
   }
@@ -61,6 +62,26 @@ export function validateDecisionReceipt(value) {
 
   exactSafety(value.safetyBoundary, 'receipt.safetyBoundary');
   return structuredClone(value);
+}
+
+export function assertReceiptFindingsMatchSource(sourceFindings, receiptFindings) {
+  const sourceIds = uniqueIds(sourceFindings, 'source.findings');
+  const receiptIds = uniqueIds(receiptFindings, 'receipt.findings');
+  if (sourceIds.size !== receiptIds.size || [...sourceIds].some((id) => !receiptIds.has(id))) {
+    fail('finding IDs must exactly match the proof source');
+  }
+}
+
+function uniqueIds(findings, field) {
+  if (!Array.isArray(findings)) fail(`${field} must be an array`);
+  const ids = new Set();
+  for (const [index, finding] of findings.entries()) {
+    const id = finding?.id;
+    bounded(id, `${field}[${index}].id`);
+    if (ids.has(id)) fail(`${field}[${index}].id is duplicated`);
+    ids.add(id);
+  }
+  return ids;
 }
 
 function exactSafety(value, field) {

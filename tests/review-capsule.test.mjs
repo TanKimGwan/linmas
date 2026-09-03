@@ -68,10 +68,18 @@ test('distinguishes live and offline capsules without inventing policy decisions
   assert.deepEqual(live.policy, { status: 'not-evaluated', result: null });
 
   const offline = build({
-    execution: { mode: 'offline-fixture', provider: 'fixture', authMode: 'unavailable', model: 'fixture-result', modelVerified: false }
+    execution: { mode: 'offline-fixture', provider: 'fixture', authMode: 'unavailable', model: 'fixture-result', modelVerified: false },
+    review: { ...review, modelMetadata: { ...review.modelMetadata, provider: 'fixture', model: 'fixture-result' } }
   });
   assert.equal(offline.execution.mode, 'offline-fixture');
   assert.equal(offline.execution.authMode, 'unavailable');
+});
+
+test('F-002 live capsule accepts execution where provider authentication is not required', () => {
+  const capsule = build({
+    execution: { mode: 'live', provider: 'codex', authMode: 'not-required', model: 'gpt-5.6-sol', modelVerified: true }
+  });
+  assert.equal(capsule.execution.authMode, 'not-required');
 });
 
 test('capsule whitelists execution metadata and removes private request identifiers', () => {
@@ -101,6 +109,22 @@ test('evaluated capsule rejects unknown fields throughout the policy result cont
     const capsule = structuredClone(valid);
     mutate(capsule);
     assert.throws(() => validateReviewCapsule(capsule), /unknown field/);
+  }
+});
+
+test('F-008 capsule rejects contradictory provider, model, case, and specialist provenance', () => {
+  const valid = build({ policyResult });
+  assert.equal(validateReviewCapsule(valid).kind, 'linmas-review-capsule');
+  const mutations = [
+    [(capsule) => { capsule.execution.provider = 'claude'; }, /provider.*match|match.*provider/i],
+    [(capsule) => { capsule.execution.model = 'other-model'; }, /model.*match|match.*model/i],
+    [(capsule) => { capsule.policy.result.review.caseId = 'other/case'; }, /caseId.*match|match.*caseId/i],
+    [(capsule) => { capsule.policy.result.review.specialist = 'cloud-hardening-architect'; }, /specialist.*match|match.*specialist/i]
+  ];
+  for (const [mutate, expected] of mutations) {
+    const capsule = structuredClone(valid);
+    mutate(capsule);
+    assert.throws(() => validateReviewCapsule(capsule), expected);
   }
 });
 

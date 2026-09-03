@@ -59,6 +59,34 @@ async function setup() {
   return root;
 }
 
+function reviewFinding(id, severity) {
+  return {
+    id, status: 'Confirmed finding', severity, evidence: 'Synthetic evidence.',
+    affectedSurface: 'Synthetic surface.', preconditions: 'Synthetic precondition.',
+    remediation: 'Apply a synthetic fix.', verification: 'Run the regression test.'
+  };
+}
+
+async function decisionContext(findings) {
+  const root = await setup();
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: async () => ({
+      provider: 'codex', model: 'fixture-model', usage: null, requestId: 'private',
+      rawResponse: JSON.stringify({
+        schemaVersion: 1, scopeAndAssumptions: ['fixture'], findings,
+        deterministicChecks: [], safetyBoundary
+      })
+    }) })
+  }]]);
+  const dispatch = createLinmasDispatcher({ providerRegistry });
+  const executed = await dispatch('linmas_review_execute', {
+    workspace_root: root, input_text: 'synthetic fixture', skill_name: 'secure-code-reviewer',
+    provider: 'codex', model: 'fixture-model', confirm_transmission: true
+  });
+  return { root, dispatch, reference: executed.reviewReference, review: executed.review };
+}
+
 test('MCP discovery exposes seven bounded tools with strict schemas', () => {
   const tools = listTools();
   assert.deepEqual(tools.map((tool) => tool.name), [
@@ -433,24 +461,29 @@ test('stdio protocol returns discovery, tool invocation, and redacted error enve
 });
 
 test('human review decision uses text fallback when the host cannot elicit', async () => {
-  const server = createStdioServer({ dispatcher: createLinmasDispatcher() });
-  const response = await server.handle({
-    jsonrpc: '2.0', id: 5, method: 'tools/call',
-    params: { name: 'linmas_review_decide', arguments: {
-      workspace_root: '/tmp/linmas-review-decision-test',
-      review_result: { schemaVersion: 1, findings: [{ id: 'sql-1', severity: 'High' }] }
-    } }
-  });
-  const interaction = response.result.structuredContent.reviewInteraction;
-  assert.equal(interaction.channel, 'text_fallback');
-  assert.equal(interaction.status, 'input_required');
-  assert.deepEqual(interaction.options.map((option) => option.id), ['fix_requested', 'continue_with_note', 'manual_review_required', 'custom_instruction']);
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('sql-1', 'High')]);
+  try {
+    const server = createStdioServer({ dispatcher: dispatch });
+    const response = await server.handle({
+      jsonrpc: '2.0', id: 5, method: 'tools/call',
+      params: { name: 'linmas_review_decide', arguments: {
+        workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest
+      } }
+    });
+    const interaction = response.result.structuredContent.reviewInteraction;
+    assert.equal(interaction.channel, 'text_fallback');
+    assert.equal(interaction.status, 'input_required');
+    assert.deepEqual(interaction.options.map((option) => option.id), ['fix_requested', 'continue_with_note', 'manual_review_required', 'custom_instruction']);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 test('MCP form elicitation routes the response while the tool call is pending', async () => {
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('sql-1', 'High')]);
   const outbound = [];
   const server = createStdioServer({
-    dispatcher: createLinmasDispatcher(),
+    dispatcher: dispatch,
     sendRequest: (message) => outbound.push(message)
   });
   const initialized = await server.handle({
@@ -461,8 +494,9 @@ test('MCP form elicitation routes the response while the tool call is pending', 
   const call = server.handle({
     jsonrpc: '2.0', id: 6, method: 'tools/call',
     params: { name: 'linmas_review_decide', arguments: {
-      workspace_root: '/tmp/linmas-review-decision-test',
-      review_result: { schemaVersion: 1, findings: [{ id: 'sql-1', severity: 'High' }] }
+      workspace_root: root,
+      review_handle: reference.handle,
+      capsule_digest: reference.capsuleDigest
     } }
   });
   for (let attempt = 0; attempt < 20 && outbound.length === 0; attempt += 1) await new Promise((resolve) => setImmediate(resolve));
@@ -474,13 +508,69 @@ test('MCP form elicitation routes the response while the tool call is pending', 
   const response = await call;
   assert.equal(response.result.structuredContent.reviewInteraction.disposition, 'manual_review_required');
   assert.equal(server.pendingRequestCount, 0);
+  await fs.rm(root, { recursive: true, force: true });
 });
 
 test('Critical/High continuation requires explicit risk acknowledgement', async () => {
-  const dispatch = createLinmasDispatcher();
-  await assert.rejects(dispatch('linmas_review_decide', {
-    workspace_root: '/tmp/linmas-review-decision-test',
-    review_result: { schemaVersion: 1, findings: [{ id: 'critical-1', severity: 'Critical' }] },
-    decision: { disposition: 'continue_with_note' }
-  }), /risk acknowledgement/i);
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('critical-1', 'Critical')]);
+  try {
+    await assert.rejects(dispatch('linmas_review_decide', {
+      workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest,
+      decision: { disposition: 'continue_with_note' }
+    }), /risk acknowledgement/i);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('F-006 decision gate rejects tampered review references and uses immutable severity', async () => {
+  const { root, dispatch, reference, review } = await decisionContext([reviewFinding('critical-1', 'Critical')]);
+  try {
+    await assert.rejects(dispatch('linmas_review_decide', {
+      workspace_root: root, review_handle: reference.handle, capsule_digest: '0'.repeat(64),
+      decision: { disposition: 'continue_with_note', risk_acknowledged: true, rationale: 'fixture' }
+    }), /digest|reference/i);
+    await assert.rejects(dispatch('linmas_review_decide', {
+      workspace_root: root, review_handle: 'unknown-review-handle', capsule_digest: reference.capsuleDigest,
+      decision: { disposition: 'continue_with_note', risk_acknowledged: true, rationale: 'fixture' }
+    }), /reference|handle/i);
+    const reviewMutations = [
+      ['finding ID', (value) => { value.findings[0].id = 'tampered-id'; }],
+      ['finding severity', (value) => { value.findings[0].severity = 'Low'; }],
+      ['review result', (value) => { value.caseId = 'tampered/result'; }]
+    ];
+    for (const [label, mutate] of reviewMutations) {
+      const tampered = structuredClone(review);
+      mutate(tampered);
+      await assert.rejects(dispatch('linmas_review_decide', {
+        workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest,
+        review_result: tampered,
+        decision: { disposition: 'continue_with_note' }
+      }), /unknown input field: review_result/, `${label} must not be caller-controlled`);
+    }
+
+    const accepted = await dispatch('linmas_review_decide', {
+      workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest,
+      decision: { disposition: 'continue_with_note', risk_acknowledged: true, rationale: 'Explicit synthetic acknowledgement.' }
+    });
+    assert.equal(accepted.reviewInteraction.unresolvedFindings.Critical, 1);
+    assert.equal(accepted.reviewInteraction.riskAcceptance.acknowledged, true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('F-006 continue_with_note does not invent risk acknowledgement', async () => {
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('low-1', 'Low')]);
+  try {
+    const result = await dispatch('linmas_review_decide', {
+      workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest,
+      decision: { disposition: 'continue_with_note' }
+    });
+    assert.equal(result.reviewInteraction.riskAcceptance.required, false);
+    assert.equal(result.reviewInteraction.riskAcceptance.acknowledged, false);
+    assert.equal(result.reviewInteraction.mayContinue, true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });

@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { validateDecisionReceipt } from './validate-receipt.mjs';
+import { assertReceiptFindingsMatchSource, validateDecisionReceipt } from './validate-receipt.mjs';
 import { renderProofReports } from './render-report.mjs';
 import { sha256 } from './load-evidence.mjs';
 import { ProofError } from './errors.mjs';
@@ -13,6 +13,8 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
   throwIfAborted(signal);
   if (!source || !Array.isArray(source.evidenceFiles) || !source.kind || !source.sourceSha256) throw inputError('proof source is invalid');
   if (validatedReceipt.subject.kind !== source.kind || validatedReceipt.subject.sha256 !== source.sourceSha256) throw inputError('receipt does not bind to proof source');
+  try { assertReceiptFindingsMatchSource(source.findings, validatedReceipt.findings); }
+  catch (cause) { throw inputError(`receipt finding binding is invalid: ${cause.message}`, cause); }
   const requested = path.resolve(destination);
   const requestedParent = path.dirname(requested);
   const parentStat = await safeLstat(requestedParent, fsApi);
@@ -87,8 +89,10 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
     if (cause instanceof ProofError) throw cause;
     throw new ProofError(`proof bundle could not be written: ${cause.message}`, 'write', 2);
   } finally {
-    try { await lock?.close(); } catch {}
-    try { await fsApi.rm(lockPath, { force: true }); } catch {}
+    if (lock) {
+      try { await lock.close(); } catch {}
+      try { await fsApi.rm(lockPath, { force: true }); } catch {}
+    }
     if (committed && signal?.aborted) {
       try { await fsApi.rm(resolved, { recursive: true, force: true }); } catch {}
     }

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { EXIT_CODES, ReviewError } from '../review/errors.mjs';
+import { codexExecutionArgs, prepareCodexLaunchEnvironment, sanitizeCodexDiagnostic } from './codex-launch.mjs';
 
 const MAX_STDERR_BYTES = 64 * 1024;
 export const MAX_RESPONSE_BYTES = 1024 * 1024;
@@ -62,11 +63,7 @@ export const REVIEW_RESULT_SCHEMA = Object.freeze({
   }
 });
 
-function codexArgs(model, schemaPath, outputPath) {
-  return ['exec', '--model', model, '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--output-schema', schemaPath, '--output-last-message', outputPath, '-'];
-}
-
-export function createManagedCodexRunner({ model, command = 'codex', spawnImpl, timeoutMs, cwd, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
+export function createManagedCodexRunner({ model, command = 'codex', spawnImpl, timeoutMs, cwd, env = process.env, tempRoot = os.tmpdir(), removeImpl = fs.rm } = {}) {
   return {
     id: 'codex', model,
     async run(request) {
@@ -74,10 +71,11 @@ export function createManagedCodexRunner({ model, command = 'codex', spawnImpl, 
       let failure;
       try {
         tempDir = await fs.mkdtemp(path.join(tempRoot, 'linmas-codex-'));
+        const launchEnv = await prepareCodexLaunchEnvironment({ workspaceDir: tempDir, env });
         const schemaPath = path.join(tempDir, 'review-result.schema.json');
         const outputPath = path.join(tempDir, 'last-message.json');
         await fs.writeFile(schemaPath, JSON.stringify(REVIEW_RESULT_SCHEMA), { mode: 0o600 });
-        return await createCodexRunner({ model, command, schemaPath, outputPath, cwd: tempDir, spawnImpl, timeoutMs }).run(request);
+        return await createCodexRunner({ model, command, schemaPath, outputPath, cwd: tempDir, env: launchEnv, spawnImpl, timeoutMs }).run(request);
       } catch (cause) {
         failure = cause instanceof ReviewError
           ? cause
@@ -96,7 +94,7 @@ export function createManagedCodexRunner({ model, command = 'codex', spawnImpl, 
   };
 }
 
-export function createCodexRunner({ model, command = 'codex', schemaPath, outputPath, cwd = path.dirname(schemaPath), spawnImpl = spawn, timeoutMs = 60000, killGraceMs = 5000 } = {}) {
+export function createCodexRunner({ model, command = 'codex', schemaPath, outputPath, cwd = path.dirname(schemaPath), env = process.env, spawnImpl = spawn, timeoutMs = 60000, killGraceMs = 5000 } = {}) {
   if (!model || !schemaPath || !outputPath) throw classified('provider-configuration', 'Codex model, schemaPath, and outputPath are required');
   return {
     id: 'codex', model,
@@ -104,7 +102,7 @@ export function createCodexRunner({ model, command = 'codex', schemaPath, output
       if (signal?.aborted) throw classified('provider-transport', 'Codex invocation cancelled', signal.reason);
       let child;
       try {
-        child = spawnImpl(command, codexArgs(model, schemaPath, outputPath), { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'] });
+        child = spawnImpl(command, codexExecutionArgs({ model, schemaPath, outputPath }), { cwd, shell: false, stdio: ['pipe', 'ignore', 'pipe'], env });
       } catch (cause) {
         throw classified(cause?.code === 'ENOENT' ? 'provider-configuration' : 'provider-transport', 'Codex invocation failed to start', cause);
       }
@@ -215,12 +213,5 @@ function classified(category, message, cause, metadata = {}) {
 }
 
 function sanitize(value) {
-  const redacted = value
-    .replace(/authorization\s*[:=]\s*(?:bearer\s+)?\S+/gi, 'Authorization=[redacted]')
-    .replace(/(api[_-]?key|token|password|secret)\s*[:=]\s*\S+/gi, '$1=[redacted]')
-    .replace(/\b(?:gh[pousr]_|github_pat_)[A-Za-z0-9_]+\b/g, '[redacted-github-token]')
-    .replace(/\bAKIA[0-9A-Z]{16}\b/g, '[redacted-aws-key]')
-    .replace(/-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/g, '[redacted-private-key]');
-  if (redacted.length <= 512) return redacted;
-  return `${redacted.slice(0, 240)}\n...[diagnostic truncated]...\n${redacted.slice(-240)}`;
+  return sanitizeCodexDiagnostic(value);
 }

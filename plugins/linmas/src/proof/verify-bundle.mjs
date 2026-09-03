@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { validateDecisionReceipt } from './validate-receipt.mjs';
+import { assertReceiptFindingsMatchSource, validateDecisionReceipt } from './validate-receipt.mjs';
 import { loadCapsuleEvidence, sha256 } from './load-evidence.mjs';
 import { loadCodexSecurityEvidence } from './load-codex-scan.mjs';
 import { ProofError } from './errors.mjs';
@@ -31,16 +31,19 @@ export async function verifyProofBundle(bundlePath, { fsApi = fs, allowedSigners
   try { receipt = validateDecisionReceipt(JSON.parse(receiptBytes.toString('utf8'))); } catch (cause) { throw contractError(`receipt is invalid: ${cause.message}`, cause); }
   if (receipt.subject.kind !== manifest.source.kind || receipt.subject.sha256 !== manifest.source.sha256) throw contractError('receipt source binding is invalid');
   const evidencePath = manifest.source.kind === 'linmas-review-capsule' ? 'evidence/review-capsule.json' : null;
+  let source;
   if (evidencePath) {
     const evidence = artifactMap.get(evidencePath);
     if (!evidence || sha256(evidence) !== manifest.source.sha256) throw contractError('source evidence binding is invalid');
     const tempPath = path.join(root, evidencePath);
-    await loadCapsuleEvidence(tempPath, { fsApi });
+    source = await loadCapsuleEvidence(tempPath, { fsApi });
   } else if (manifest.source.kind === 'codex-security-scan') {
     const evidenceRoot = path.join(root, 'evidence', 'codex-security');
-    const loaded = await loadCodexSecurityEvidence(evidenceRoot, { fsApi });
-    if (loaded.sourceSha256 !== manifest.source.sha256) throw contractError('Codex source evidence binding is invalid');
+    source = await loadCodexSecurityEvidence(evidenceRoot, { fsApi });
+    if (source.sourceSha256 !== manifest.source.sha256) throw contractError('Codex source evidence binding is invalid');
   }
+  try { assertReceiptFindingsMatchSource(source.findings, receipt.findings); }
+  catch (cause) { throw contractError(`receipt finding binding is invalid: ${cause.message}`, cause); }
   let signature = 'unsigned';
   let identity = 'self-asserted';
   if (manifest.signature) {

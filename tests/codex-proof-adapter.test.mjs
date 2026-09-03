@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { loadCodexSecurityEvidence } from '../src/proof/load-codex-scan.mjs';
 import { buildDecisionReceipt } from '../src/proof/validate-receipt.mjs';
+import { runProof } from '../src/proof/run-proof.mjs';
 import { writeProofBundle } from '../src/proof/write-bundle.mjs';
 import { verifyProofBundle } from '../src/proof/verify-bundle.mjs';
 
@@ -76,4 +77,28 @@ test('rejects a Codex scan when a listed artifact hash changes', async () => {
     await fs.writeFile(path.join(scanRoot, 'findings.json'), `${JSON.stringify(changed, null, 2)}\n`);
     await assert.rejects(loadCodexSecurityEvidence(scanRoot), /hash mismatch/i);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+test('F-004 rejects an additional sealed-scan artifact before any bundle is created', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-codex-extra-artifact-'));
+  try {
+    const { scanRoot } = await makeScan(root);
+    const extraBytes = Buffer.from('synthetic extra evidence\n');
+    await fs.writeFile(path.join(scanRoot, 'extra-evidence.txt'), extraBytes);
+    const manifestPath = path.join(scanRoot, 'scan-manifest.json');
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    manifest.scan.artifacts.push({
+      path: 'extra-evidence.txt', sha256: digest(extraBytes), mediaType: 'text/plain'
+    });
+    await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    const answers = ['Synthetic reviewer', '4', 'More evidence is required.', 'Review remains required.', 'yes'];
+    const io = { isTTY: true, stdout: { write() {} }, async readLine() { return answers.shift() ?? null; } };
+    await assert.rejects(runProof({
+      proofAction: 'create', proofSource: 'scan', proofBundle: 'bundle', proofErrors: [], signingKey: null
+    }, { cwd: root, io }), /additional|noncanonical|unsupported/i);
+    await assert.rejects(fs.lstat(path.join(root, 'bundle')), { code: 'ENOENT' });
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });

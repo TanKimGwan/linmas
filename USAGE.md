@@ -11,6 +11,8 @@ Linmas is a Codex-first defensive security review toolkit for AI-assisted softwa
 
 Linmas does not require an OpenAI API key for subscription-first Codex use. Codex owns provider authentication. Live review is opt-in and requires explicit confirmation before input leaves the machine.
 
+The deterministic offline workflow, declared CLI entrypoint, and isolated Codex launch preparation are tested on Linux and Windows. Destructive uninstall and cleanup are not available on Windows: Node.js 24 does not expose a handle-relative Windows mutation primitive that can preserve Linmas's anti-substitution invariant. Those operations return `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE` before filesystem or manifest mutation instead of using an unsafe path-based fallback.
+
 ## Choose an installation path
 
 | Path | Best for | What it installs |
@@ -233,6 +235,10 @@ linmas review \
 ```
 
 Do not use live review with secrets or data you are not authorized to transmit.
+
+### Windows uninstall contract
+
+`linmas uninstall` dry-run remains available on Windows and does not mutate data. A confirmed destructive uninstall fails closed with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`; the managed skill and manifest remain unchanged. Use a supported POSIX environment for destructive uninstall, or remove the installation only through a separately reviewed native Windows implementation. Do not replace this guard with a `realpath`/`lstat` check followed by path-based rename or deletion.
 
 ## Use Linmas in Codex
 
@@ -484,6 +490,10 @@ Install Node.js 24 or newer and verify it:
 ```bash
 node --version
 ```
+
+### Windows uninstall reports `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`
+
+This is the expected fail-closed security contract. Linmas will not delete or rename by lexical path when Node cannot bind the destructive operation to an authenticated Windows filesystem handle. The dry-run preview, non-destructive commands, and offline review remain available.
 
 ### ChatGPT cannot find Linmas in its plugin catalog
 

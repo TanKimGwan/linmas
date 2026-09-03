@@ -8,6 +8,7 @@ import path from 'node:path';
 import { REVIEW_RESULT_SCHEMA, MAX_RESPONSE_BYTES, createCodexRunner, createManagedCodexRunner } from '../src/providers/codex-cli.mjs';
 import { createProviderRegistry, resolveProvider } from '../src/providers/registry.mjs';
 import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
+import { run as runCli } from '../bin/linmas.mjs';
 
 const validJson = '{"schemaVersion":1}';
 const request = { system: 'Return ReviewResult JSON.', user: 'review this input' };
@@ -57,7 +58,7 @@ test('runs Codex read-only with supported pinned flags and reads the final messa
     const runner = createCodexRunner({ model: 'codex-model', schemaPath, outputPath, spawnImpl: fakeSpawn({}, calls) });
     const result = await runner.run(request);
     assert.equal(calls[0].command, 'codex');
-    assert.deepEqual(calls[0].args, ['exec', '--model', 'codex-model', '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--ephemeral', '--ignore-user-config', '--ignore-rules', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
+    assert.deepEqual(calls[0].args, ['exec', '-c', 'model_provider="openai"', '--model', 'codex-model', '--sandbox', 'read-only', '-c', 'approval_policy="never"', '--skip-git-repo-check', '--ephemeral', '--ignore-rules', '--output-schema', schemaPath, '--output-last-message', outputPath, '-']);
     assert.equal(calls[0].options.shell, false);
     assert.equal(calls[0].child.stdin.read().toString(), 'Return ReviewResult JSON.\n\nreview this input');
     assert.equal(result.provider, 'codex');
@@ -146,6 +147,66 @@ test('redacts common credential forms from Codex stderr', async () => {
       assert.doesNotMatch(error.message, /hunter2|ghp_|AKIAIOSFODNN7EXAMPLE/);
       return true;
     });
+  });
+});
+
+test('F-005 runner redacts header, env, JSON, token-shape, and multiline credentials', async () => {
+  await withPaths(async (paths) => {
+    const sentinels = [
+      'HEADER_SENTINEL', 'ENV_SENTINEL', 'SINGLE_JSON_SENTINEL',
+      'DOUBLE_JSON_SENTINEL', 'SPACE_SENTINEL',
+      'ghp_012345678901234567890123456789012345', 'AKIA0123456789ABCDEF',
+      'PRIVATE_SENTINEL'
+    ];
+    const stderr = [
+      'Authorization: Bearer HEADER_SENTINEL',
+      'API_KEY=ENV_SENTINEL',
+      "'Authorization':'SINGLE_JSON_SENTINEL'",
+      '\"api_key\" : \"DOUBLE_JSON_SENTINEL\"',
+      'password = SPACE_SENTINEL',
+      sentinels[5],
+      sentinels[6],
+      '-----BEGIN PRIVATE KEY-----',
+      'PRIVATE_SENTINEL',
+      '-----END PRIVATE KEY-----'
+    ].join('\n');
+    const runner = createCodexRunner({ model: 'm', ...paths, spawnImpl: fakeSpawn({ code: 1, stderr }) });
+    await assert.rejects(runner.run(request), (error) => {
+      for (const sentinel of sentinels) assert.doesNotMatch(error.message, new RegExp(sentinel));
+      return true;
+    });
+  });
+});
+
+test('F-005 CLI output does not expose quoted JSON credentials from Codex stderr', async () => {
+  await withPaths(async (paths) => {
+    const inputPath = path.join(path.dirname(paths.schemaPath), 'input.diff');
+    await writeFile(inputPath, 'synthetic diff');
+    const providerRegistry = new Map([['codex', {
+      async prepareExecution(options) {
+        return { ...options, model: 'm', authMode: 'not-required', modelVerified: true };
+      },
+      create() {
+        return createCodexRunner({
+          model: 'm', ...paths,
+          spawnImpl: fakeSpawn({ code: 1, stderr: '"Authorization":"Bearer CLI_AUTH_SENTINEL" \'api_key\':\'CLI_API_SENTINEL\'' })
+        });
+      }
+    }]]);
+    let stdout = '';
+    let stderr = '';
+    const code = await runCli([
+      'node', 'linmas', 'review', '--skill', 'secure-code-reviewer', '--input', inputPath,
+      '--provider', 'codex', '--model', 'm', '--yes'
+    ], {
+      isTTY: false,
+      stdin: { async *[Symbol.asyncIterator]() {} },
+      stdout: { write(value) { stdout += value; } },
+      stderr: { write(value) { stderr += value; } }
+    }, { providerRegistry });
+
+    assert.equal(code, EXIT_CODES.PROVIDER);
+    assert.doesNotMatch(`${stdout}\n${stderr}`, /CLI_AUTH_SENTINEL|CLI_API_SENTINEL/);
   });
 });
 
