@@ -8,7 +8,7 @@ import { listSkills } from '../src/core/list-skills.mjs';
 import { detectHosts } from '../src/core/detect-hosts.mjs';
 import { readManifest } from '../src/core/manifest.mjs';
 import { formatDoctorReport } from '../src/core/doctor.mjs';
-import { formatOnboarding } from '../src/core/onboard.mjs';
+import { formatOnboarding, inspectCodexCapability } from '../src/core/onboard.mjs';
 import { selectSkills, selectTargets, planInstall, formatInstallPreview, formatInstallSummary, applyInstallPlan, promptForInstallChoices, promptForInstallTarget, promptForInstallConfirmation } from '../src/core/install-skills.mjs';
 import { createTimestamp } from '../src/core/fs-utils.mjs';
 import { planUninstall, formatUninstallPreview, applyUninstallPlan, promptForUninstallChoices, promptForUninstallTarget, promptForUninstallConfirmation } from '../src/core/uninstall-skills.mjs';
@@ -26,7 +26,13 @@ const rootDir = path.resolve(__dirname, '..');
 const modulePath = fileURLToPath(import.meta.url);
 
 export async function run(argv, io = process, dependencies = {}) {
-  const args = parseArgv(argv);
+  let args;
+  try {
+    args = parseArgv(argv);
+  } catch (error) {
+    io.stderr.write(`Error: ${error.message}\n`);
+    return 2;
+  }
   let hostRegistry;
   const getDetections = () => detectHosts({ registry: hostRegistry ||= dependencies.hostRegistry || (dependencies.createHostRegistry ?? createHostRegistry)() });
 
@@ -52,15 +58,29 @@ export async function run(argv, io = process, dependencies = {}) {
 
   if (args.command === 'doctor' || args.command === 'onboard') {
     const detections = getDetections();
-    const manifests = detections.map((item) => readManifest(item.manifestPath, item.host));
+    const manifests = [];
+    const manifestErrors = [];
+    for (const item of detections) {
+      try {
+        manifests.push(readManifest(item.manifestPath, item.host));
+      } catch {
+        manifestErrors.push({
+          host: item.host,
+          reason: 'manifest could not be parsed or validated'
+        });
+      }
+    }
 
     if (args.command === 'doctor') {
-      io.stdout.write(formatDoctorReport(detections, manifests));
-      return 0;
+      io.stdout.write(formatDoctorReport(detections, manifests, new Set(), manifestErrors));
+      return manifestErrors.length > 0 ? 1 : 0;
     }
 
     const skills = listSkills(rootDir);
-    io.stdout.write(formatOnboarding(detections, skills, manifests));
+    const providerRegistry = dependencies.providerRegistry
+      || (dependencies.createProviderRegistry ?? createProviderRegistry)();
+    const capability = await inspectCodexCapability(providerRegistry);
+    io.stdout.write(formatOnboarding(detections, skills, manifests, capability, manifestErrors));
     return 0;
   }
 

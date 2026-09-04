@@ -6,10 +6,12 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { run } from '../bin/linmas.mjs';
+import { EXIT_CODES, ReviewError } from '../src/review/errors.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const cliPath = path.join(rootDir, 'bin', 'linmas.mjs');
+const WINDOWS_SAFE_FILESYSTEM_ERROR = /secure destructive filesystem operations are unavailable on Windows/i;
 
 function homeEnv(home) {
   return { ...process.env, HOME: home, USERPROFILE: home };
@@ -114,7 +116,11 @@ function injectedHostRegistry(tempHome) {
       get hostRegistry() {
         reads += 1;
         return registry;
-      }
+      },
+      providerRegistry: new Map([['codex', {
+        detectConfiguration() { return { status: 'configured', missingRequirements: [] }; },
+        async discoverCapabilities() { return { authMode: 'not-required', requiresOpenaiAuth: false }; }
+      }]])
     },
     reads() { return reads; }
   };
@@ -135,6 +141,73 @@ test('detect, doctor, and onboard use an injected host registry', async (t) => {
     assert.match(io.getStdout(), pattern);
   }
   assert.equal(reads(), 3);
+});
+
+test('doctor reports a malformed host manifest and continues with valid hosts', (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-doctor-invalid-'));
+  t.after(() => fs.rmSync(tempHome, { recursive: true, force: true }));
+  for (const host of ['claude', 'codex']) fs.mkdirSync(path.join(tempHome, `.${host}`, 'skills'), { recursive: true });
+  fs.writeFileSync(path.join(tempHome, '.claude', 'linmas-manifest.json'), '{invalid json}\n');
+  fs.writeFileSync(path.join(tempHome, '.codex', 'linmas-manifest.json'), JSON.stringify({
+    tool: 'linmas', version: '0.7.0', manifestVersion: 1, host: 'codex',
+    installedAt: '2026-09-03T00:00:00.000Z', skills: []
+  }));
+
+  const result = spawnSync(process.execPath, [cliPath, 'doctor'], {
+    cwd: rootDir,
+    env: homeEnv(tempHome),
+    encoding: 'utf8'
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /Linmas doctor report:/);
+  assert.match(result.stdout, /manifest claude: invalid/i);
+  assert.match(result.stdout, /manifest codex: 0 tracked skill/i);
+  assert.equal(result.stderr, '');
+  assert.doesNotMatch(result.stdout, /file:\/\/|node:internal|linmas-bug-remediation/);
+});
+
+test('onboard separates installation readiness from blocked Codex execution capability', async (t) => {
+  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-onboard-capability-'));
+  t.after(() => fs.rmSync(tempHome, { recursive: true, force: true }));
+  const adapter = fakeHostAdapter(tempHome);
+  const skillPath = path.join(adapter.getInstallRoot(), 'linmas-security-operations-lead');
+  fs.mkdirSync(skillPath, { recursive: true });
+  fs.writeFileSync(path.join(skillPath, 'SKILL.md'), '# installed\n');
+  fs.writeFileSync(adapter.getManifestPath(), JSON.stringify({
+    tool: 'linmas', version: '0.7.0', manifestVersion: 1, host: 'fake',
+    installedAt: '2026-09-03T00:00:00.000Z',
+    skills: [{ name: 'linmas-security-operations-lead', path: skillPath, backupPath: null }]
+  }));
+
+  let capabilityOptions;
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration() {
+      return { provider: 'codex', status: 'configured', missingRequirements: [] };
+    },
+    async discoverCapabilities(options) {
+      capabilityOptions = options;
+      throw new ReviewError('Authorization: Bearer ONBOARD_SECRET_SENTINEL', 'provider-authentication', EXIT_CODES.PROVIDER, {
+        stage: 'authentication', reasonCode: 'AUTHENTICATION_REQUIRED', provider: 'codex', transmissionState: 'not-attempted'
+      });
+    }
+  }]]);
+  const io = createMockIO();
+  const code = await run(['node', 'bin/linmas.mjs', 'onboard'], io, {
+    hostRegistry: new Map([['fake', adapter]]),
+    providerRegistry
+  });
+
+  assert.equal(code, 0);
+  assert.match(io.getStdout(), /Host installation: PASS/);
+  assert.match(io.getStdout(), /Skill installation: PASS/);
+  assert.match(io.getStdout(), /Codex execution capability: BLOCKED/);
+  assert.match(io.getStdout(), /Reason: Provider authentication failed\./);
+  assert.doesNotMatch(io.getStdout(), /ONBOARD_SECRET_SENTINEL|Authorization|Bearer/);
+  assert.equal(io.getStderr(), '');
+  assert.equal(capabilityOptions.includeModels, false);
+  assert.ok(capabilityOptions.timeoutMs > 0 && capabilityOptions.timeoutMs <= 5000);
+  assert.ok(capabilityOptions.signal instanceof AbortSignal);
 });
 
 test('install uses injected host registry paths and writes its manifest there', async (t) => {
@@ -172,10 +245,18 @@ test('uninstall uses injected host registry paths and removes its manifest entry
   }));
 
   const io = createPromptIO(['yes']);
-  assert.equal(await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], io, dependencies), 0);
+  const code = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], io, dependencies);
   assert.equal(reads(), 1);
-  assert.equal(fs.existsSync(skillPath), false);
-  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills, []);
+  if (process.platform === 'win32') {
+    assert.equal(code, 1);
+    assert.match(io.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+    assert.equal(fs.existsSync(skillPath), true);
+    assert.equal(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills.length, 1);
+  } else {
+    assert.equal(code, 0);
+    assert.equal(fs.existsSync(skillPath), false);
+    assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills, []);
+  }
 });
 
 test('list and review do not read the injected host registry', async (t) => {
@@ -205,6 +286,35 @@ test('run unknown command prints error and returns 1', async () => {
   assert.equal(code, 1);
   assert.equal(io.getStdout(), '');
   assert.match(io.getStderr(), /Unknown command: invalid-command/);
+});
+
+test('invalid command options fail before host discovery, provider work, or mutation', async () => {
+  const io = createMockIO();
+  let registryReads = 0;
+  const code = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead', '--dry-rnu'], io, {
+    get hostRegistry() {
+      registryReads += 1;
+      return new Map();
+    }
+  });
+
+  assert.equal(code, 2);
+  assert.equal(registryReads, 0);
+  assert.equal(io.getStdout(), '');
+  assert.match(io.getStderr(), /unknown option.*dry-rnu/i);
+
+  const reviewIo = createMockIO();
+  let providerReads = 0;
+  const reviewCode = await run(['node', 'bin/linmas.mjs', 'review', '--providre', 'codex'], reviewIo, {
+    get providerRegistry() {
+      providerReads += 1;
+      return new Map();
+    }
+  });
+  assert.equal(reviewCode, 2);
+  assert.equal(providerReads, 0);
+  assert.equal(reviewIo.getStdout(), '');
+  assert.match(reviewIo.getStderr(), /unknown option.*providre/i);
 });
 
 test('symlinked top-level entrypoint prints list output', () => {
@@ -328,10 +438,18 @@ test('run uninstall command performs dry-run preview or actual uninstall', async
     const uninstallIo = createPromptIO(['yes']);
     const uninstallCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo);
 
-    assert.equal(uninstallCode, 0);
     assert.match(uninstallIo.getStdout(), /Linmas uninstall preview:/);
-    assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
-    assert.equal(fs.existsSync(skillPath), false);
+    if (process.platform === 'win32') {
+      assert.equal(uninstallCode, 1);
+      assert.doesNotMatch(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.match(uninstallIo.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+      assert.equal(fs.existsSync(skillPath), true);
+      assert.equal(JSON.parse(fs.readFileSync(manifestPath, 'utf8')).skills.length, 1);
+    } else {
+      assert.equal(uninstallCode, 0);
+      assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.equal(fs.existsSync(skillPath), false);
+    }
   } finally {
     os.homedir = originalHomedir;
     fs.rmSync(tempHome, { recursive: true, force: true });
@@ -399,12 +517,20 @@ test('run uninstall command with multi-host target selection and correct flow or
     const uninstallIo = createPromptIO(['claude', 'yes']);
     const code = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo);
 
-    assert.equal(code, 0);
     assert.match(uninstallIo.getStdout(), /Linmas uninstall preview:/);
     assert.match(uninstallIo.getStdout(), /- claude: remove security-operations-lead/);
     assert.doesNotMatch(uninstallIo.getStdout(), /- codex: remove security-operations-lead/);
-    assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
-    assert.equal(fs.existsSync(claudeSkillPath), false);
+    if (process.platform === 'win32') {
+      assert.equal(code, 1);
+      assert.doesNotMatch(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.match(uninstallIo.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+      assert.equal(fs.existsSync(claudeSkillPath), true);
+      assert.equal(JSON.parse(fs.readFileSync(claudeManifestPath, 'utf8')).skills.length, 1);
+    } else {
+      assert.equal(code, 0);
+      assert.match(uninstallIo.getStdout(), /Uninstall completed\./);
+      assert.equal(fs.existsSync(claudeSkillPath), false);
+    }
     assert.equal(fs.existsSync(codexSkillPath), true);
   } finally {
     os.homedir = originalHomedir;
@@ -525,12 +651,18 @@ test('direct CLI uninstall reprompts on invalid target input', () => {
       encoding: 'utf8'
     });
 
-    assert.equal(result.status, 0);
     assert.match(result.stdout, /Choose uninstall target: claude, codex, or both/);
     assert.match(result.stdout, /Invalid uninstall target\./);
     assert.match(result.stdout, /- claude: remove security-operations-lead/);
     assert.doesNotMatch(result.stdout, /- codex: remove security-operations-lead/);
-    assert.equal(fs.existsSync(claudeSkillPath), false);
+    if (process.platform === 'win32') {
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, WINDOWS_SAFE_FILESYSTEM_ERROR);
+      assert.equal(fs.existsSync(claudeSkillPath), true);
+    } else {
+      assert.equal(result.status, 0);
+      assert.equal(fs.existsSync(claudeSkillPath), false);
+    }
     assert.equal(fs.existsSync(codexSkillPath), true);
   } finally {
     fs.rmSync(tempHome, { recursive: true, force: true });

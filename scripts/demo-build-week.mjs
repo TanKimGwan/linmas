@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { normalizeProviderResponse } from '../src/review/normalize-response.mjs';
@@ -146,8 +147,19 @@ function sanitizeError(error, rootDir) {
     .slice(0, 512);
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
-if (invokedPath === fileURLToPath(import.meta.url)) {
+// Compare via realpath so a symlinked invocation path (e.g. macOS /var ->
+// /private/var) still matches the module URL node resolves for the entry file.
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(modulePath);
+  } catch {
+    return path.resolve(process.argv[1]) === path.resolve(modulePath);
+  }
+}
+
+if (isMainModule()) {
   process.exitCode = await runBuildWeekDemo(process.argv.slice(2));
 }
 

@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { isStrictReleaseVersion } from './validate-package-version.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(SCRIPT_DIR, '..');
@@ -15,7 +17,7 @@ function fail(message) {
 }
 
 function isSemver(value) {
-  return /^[0-9]+\.[0-9]+\.[0-9]+$/.test(value);
+  return isStrictReleaseVersion(value);
 }
 
 function resolveVersion(argv, packageVersion) {
@@ -102,8 +104,19 @@ async function main() {
   }
 }
 
-const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
-if (invokedPath === fileURLToPath(import.meta.url)) {
+// Compare via realpath so a symlinked invocation path (e.g. macOS /var ->
+// /private/var) still matches the module URL node resolves for the entry file.
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  const modulePath = fileURLToPath(import.meta.url);
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(modulePath);
+  } catch {
+    return path.resolve(process.argv[1]) === path.resolve(modulePath);
+  }
+}
+
+if (isMainModule()) {
   main().catch((error) => fail(error.message));
 }
 

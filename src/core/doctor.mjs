@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { resolveSkill } from './skill-catalog.mjs';
 
-export function formatDoctorReport(detections, manifests, existingPaths = new Set()) {
+export function formatDoctorReport(detections, manifests, existingPaths = new Set(), manifestErrors = []) {
   const lines = ['Linmas doctor report:'];
 
   for (const detection of detections) {
@@ -38,6 +38,10 @@ export function formatDoctorReport(detections, manifests, existingPaths = new Se
     for (const names of identities.values()) {
       if (names.length > 1) lines.push(`  - duplicate canonical and legacy installations: ${names.join(', ')}`);
     }
+  }
+
+  for (const error of manifestErrors) {
+    lines.push(`- manifest ${error.host}: invalid (${error.reason})`);
   }
 
   return `${lines.join('\n')}\n`;

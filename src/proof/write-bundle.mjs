@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { validateDecisionReceipt } from './validate-receipt.mjs';
+import { assertReceiptFindingsMatchSource, validateDecisionReceipt } from './validate-receipt.mjs';
 import { renderProofReports } from './render-report.mjs';
 import { sha256 } from './load-evidence.mjs';
 import { ProofError } from './errors.mjs';
@@ -13,11 +13,19 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
   throwIfAborted(signal);
   if (!source || !Array.isArray(source.evidenceFiles) || !source.kind || !source.sourceSha256) throw inputError('proof source is invalid');
   if (validatedReceipt.subject.kind !== source.kind || validatedReceipt.subject.sha256 !== source.sourceSha256) throw inputError('receipt does not bind to proof source');
-  const resolved = path.resolve(destination);
-  const parent = path.dirname(resolved);
-  await assertNoSymlinkPath(parent, fsApi);
-  const parentStat = await safeLstat(parent, fsApi);
+  try { assertReceiptFindingsMatchSource(source.findings, validatedReceipt.findings); }
+  catch (cause) { throw inputError(`receipt finding binding is invalid: ${cause.message}`, cause); }
+  const requested = path.resolve(destination);
+  const requestedParent = path.dirname(requested);
+  const parentStat = await safeLstat(requestedParent, fsApi);
+  if (parentStat.isSymbolicLink()) throw inputError('proof bundle parent cannot contain a symlink');
   if (!parentStat.isDirectory()) throw inputError('proof bundle parent must be a directory');
+  // Canonicalize inherited prefixes (e.g. macOS /var -> /private/var) so benign
+  // system symlinks are accepted, then re-check and write through the canonical
+  // path so the bundle lands exactly where it was inspected.
+  const parent = await canonicalParent(requestedParent, fsApi);
+  await assertNoSymlinkPath(parent, fsApi);
+  const resolved = path.join(parent, path.basename(requested));
   try { await fsApi.lstat(resolved); throw inputError('proof bundle destination already exists'); } catch (error) { if (error instanceof ProofError) throw error; if (error?.code !== 'ENOENT') throw inputError('proof bundle destination could not be inspected', error); }
 
   const lockPath = path.join(parent, `.${path.basename(resolved)}.lock`);
@@ -81,8 +89,10 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
     if (cause instanceof ProofError) throw cause;
     throw new ProofError(`proof bundle could not be written: ${cause.message}`, 'write', 2);
   } finally {
-    try { await lock?.close(); } catch {}
-    try { await fsApi.rm(lockPath, { force: true }); } catch {}
+    if (lock) {
+      try { await lock.close(); } catch {}
+      try { await fsApi.rm(lockPath, { force: true }); } catch {}
+    }
     if (committed && signal?.aborted) {
       try { await fsApi.rm(resolved, { recursive: true, force: true }); } catch {}
     }
@@ -126,6 +136,14 @@ async function assertNoSymlinkPath(target, fsApi) {
     current = path.join(current, segment);
     const stat = await safeLstat(current, fsApi);
     if (stat.isSymbolicLink()) throw inputError('proof bundle parent cannot contain a symlink');
+  }
+}
+
+async function canonicalParent(target, fsApi) {
+  try { return await fsApi.realpath(target); }
+  catch (cause) {
+    if (cause?.code === 'ENOENT') throw cause;
+    throw inputError('proof bundle path could not be inspected', cause);
   }
 }
 

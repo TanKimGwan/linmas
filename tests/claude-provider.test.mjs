@@ -43,3 +43,124 @@ test('Claude runner rejects missing configuration and empty text', async () => {
   const empty = createClaudeRunner({ apiKey: 'k', model: 'm', fetchImpl: async () => new Response(JSON.stringify({ content: [] }), { status: 200 }) });
   await assert.rejects(empty.run({ system: 'x', user: 'y' }), (error) => error.failureClass === 'provider-response-invalid' && error.transmissionState === 'response-received');
 });
+
+test('F-010 Claude distinguishes internal timeout, caller cancellation, and transport failure', async () => {
+  const waitForAbort = async (_url, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+  });
+  const timedOut = createClaudeRunner({ apiKey: 'k', model: 'm', timeoutMs: 1, fetchImpl: waitForAbort });
+  await assert.rejects(timedOut.run({ system: 'x', user: 'y' }), (error) =>
+    error.failureClass === 'provider-timeout'
+      && error.reasonCode === 'EXECUTION_TIMEOUT'
+      && error.retryable === true
+  );
+
+  const controller = new AbortController();
+  const cancelled = createClaudeRunner({ apiKey: 'k', model: 'm', timeoutMs: 1000, fetchImpl: waitForAbort })
+    .run({ system: 'x', user: 'y', signal: controller.signal });
+  controller.abort(new Error('synthetic caller cancellation'));
+  await assert.rejects(cancelled, (error) =>
+    error.failureClass === 'provider-cancelled'
+      && error.reasonCode === 'EXECUTION_CANCELLED'
+      && error.retryable === false
+  );
+
+  const transport = createClaudeRunner({
+    apiKey: 'k', model: 'm',
+    fetchImpl: async () => { throw new Error('synthetic network failure'); }
+  });
+  await assert.rejects(transport.run({ system: 'x', user: 'y' }), (error) =>
+    error.failureClass === 'provider-transport'
+      && error.reasonCode === 'EXECUTION_FAILED'
+      && error.retryable === true
+  );
+});
+
+test('F-010 Claude preserves failure taxonomy while reading the response body', async (t) => {
+  const bodyAfterHeaders = (signal) => ({
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    json() {
+      return new Promise((resolve, reject) => {
+        if (signal.aborted) reject(signal.reason);
+        else signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    }
+  });
+
+  await t.test('internal timeout', async () => {
+    const runner = createClaudeRunner({
+      apiKey: 'k', model: 'm', timeoutMs: 1,
+      fetchImpl: async (_url, { signal }) => bodyAfterHeaders(signal)
+    });
+    await assert.rejects(runner.run({ system: 'x', user: 'y' }), (error) =>
+      error.failureClass === 'provider-timeout'
+        && error.reasonCode === 'EXECUTION_TIMEOUT'
+        && error.retryable === true
+        && error.stage === 'response-read'
+        && error.transmissionState === 'response-received'
+    );
+  });
+
+  await t.test('caller cancellation', async () => {
+    const controller = new AbortController();
+    const runner = createClaudeRunner({
+      apiKey: 'k', model: 'm', timeoutMs: 1000,
+      fetchImpl: async (_url, { signal }) => bodyAfterHeaders(signal)
+    });
+    const pending = runner.run({ system: 'x', user: 'y', signal: controller.signal });
+    controller.abort(new Error('synthetic caller cancellation'));
+    await assert.rejects(pending, (error) =>
+      error.failureClass === 'provider-cancelled'
+        && error.reasonCode === 'EXECUTION_CANCELLED'
+        && error.retryable === false
+        && error.stage === 'response-read'
+    );
+  });
+
+  await t.test('body transport rejection', async () => {
+    const runner = createClaudeRunner({
+      apiKey: 'k', model: 'm',
+      fetchImpl: async () => ({
+        ok: true, status: 200, headers: new Headers(),
+        async json() { throw new Error('synthetic body stream failure'); }
+      })
+    });
+    await assert.rejects(runner.run({ system: 'x', user: 'y' }), (error) =>
+      error.failureClass === 'provider-transport'
+        && error.reasonCode === 'RESPONSE_READ_FAILED'
+        && error.retryable === true
+        && error.stage === 'response-read'
+    );
+  });
+
+  await t.test('malformed JSON', async () => {
+    const runner = createClaudeRunner({
+      apiKey: 'k', model: 'm',
+      fetchImpl: async () => new Response('{not-json', { status: 200 })
+    });
+    await assert.rejects(runner.run({ system: 'x', user: 'y' }), (error) =>
+      error.failureClass === 'provider-response-invalid'
+        && error.reasonCode === 'RESPONSE_JSON_INVALID'
+        && error.retryable === false
+        && error.stage === 'response-read'
+    );
+  });
+});
+
+test('F-010 Claude classifies HTTP 408 and 504 as retryable timeouts', async () => {
+  for (const status of [408, 504]) {
+    const runner = createClaudeRunner({
+      apiKey: 'k', model: 'm',
+      fetchImpl: async () => new Response('{}', { status })
+    });
+    await assert.rejects(runner.run({ system: 'x', user: 'y' }), (error) =>
+      error.failureClass === 'provider-timeout'
+        && error.reasonCode === 'EXECUTION_TIMEOUT'
+        && error.retryable === true
+        && error.httpStatus === status
+        && error.transmissionState === 'response-received'
+    );
+  }
+});

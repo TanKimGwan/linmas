@@ -11,6 +11,8 @@ Linmas is a Codex-first defensive security review toolkit for AI-assisted softwa
 
 Linmas does not require an OpenAI API key for subscription-first Codex use. Codex owns provider authentication. Live review is opt-in and requires explicit confirmation before input leaves the machine.
 
+The deterministic offline workflow, declared CLI entrypoint, and isolated Codex launch preparation are tested on Linux and Windows. Destructive uninstall and cleanup are not available on Windows: Node.js 24 does not expose a handle-relative Windows mutation primitive that can preserve Linmas's anti-substitution invariant. Those operations return `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE` before filesystem or manifest mutation instead of using an unsafe path-based fallback.
+
 ## Choose an installation path
 
 | Path | Best for | What it installs |
@@ -66,21 +68,21 @@ node bin/linmas.mjs review --skill linmas-secure-code-reviewer --input patch.dif
 For a global CLI installation:
 
 ```bash
-npm install --global linmas@0.7.0
+npm install --global linmas@0.8.0
 linmas list
 ```
 
 For a one-time invocation without a global install:
 
 ```bash
-npx --yes linmas@0.7.0 list
-npx --yes linmas@0.7.0 review --skill linmas-secure-code-reviewer --input patch.diff
+npx --yes linmas@0.8.0 list
+npx --yes linmas@0.8.0 review --skill linmas-secure-code-reviewer --input patch.diff
 ```
 
 For a project-local dependency:
 
 ```bash
-npm install --save-dev linmas@0.7.0
+npm install --save-dev linmas@0.8.0
 npx linmas list
 ```
 
@@ -103,7 +105,7 @@ This is a public **GitHub repository marketplace**, not an entry in the global C
 On every computer where you want to use Linmas, run:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.8.0
 codex plugin add linmas@linmas
 codex plugin list
 ```
@@ -113,7 +115,7 @@ Then restart Codex completely and create a fresh task. If the plugin is still mi
 For a reproducible immutable release, pin the repository ref:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.8.0
 codex plugin add linmas@linmas
 ```
 
@@ -143,14 +145,27 @@ The native MCP server exposes exactly seven tools:
 | `linmas_policy_evaluate` | Deterministic local policy evaluation. |
 | `linmas_proof_verify` | Offline proof-bundle verification. |
 | `linmas_proof_create` | Local write only with `confirm_write=true`. |
-| `linmas_review_execute` | Provider transmission only with `confirm_transmission=true`. |
+| `linmas_review_execute` | Provider transmission only with `confirm_transmission=true`; returns the bound reference needed by `linmas_review_decide`. |
 
-To upgrade an existing marketplace installation:
+After `linmas_review_execute` returns, pass `reviewReference.handle` as `review_handle` and `reviewReference.capsuleDigest` as `capsule_digest` to `linmas_review_decide`. Do not send a caller-supplied `review_result`; the decision flow uses the bound process-local reference and exact digest.
+
+To refresh an existing marketplace installation that follows a moving ref such
+as `main`, run:
 
 ```bash
 codex plugin marketplace upgrade linmas
 codex plugin add linmas@linmas
+codex plugin marketplace list --json
+codex plugin list --json
 ```
+
+`marketplace upgrade` refreshes the configured ref; it does not change an
+immutable `v0.7.0` ref, and a second `marketplace add` with `--ref v0.8.0` is
+rejected while the old source is registered. For the pinned `v0.7.0` →
+`v0.8.0` migration, remove the installed plugin and old marketplace, re-add it
+with `--ref v0.8.0`, install the plugin again, and verify the configured ref and
+installed version as shown in the [0.8.0 release migration](releases/0.8.0.md#upgrade-070--080).
+Always restart Codex and start a fresh task after verification.
 
 To remove it:
 
@@ -166,20 +181,20 @@ This is a Codex plugin marketplace installation. It does not make Linmas appear 
 Install all eleven managed skills from the published package:
 
 ```bash
-npx --yes linmas@0.7.0 detect
-npx --yes linmas@0.7.0 install --all
+npx --yes linmas@0.8.0 detect
+npx --yes linmas@0.8.0 install --all
 ```
 
 Choose `Claude` when the interactive host prompt appears. Linmas writes managed skills under `~/.claude/skills` and records ownership in `~/.claude/linmas-manifest.json`. To install only one specialist:
 
 ```bash
-npx --yes linmas@0.7.0 install linmas-secure-code-reviewer
+npx --yes linmas@0.8.0 install linmas-secure-code-reviewer
 ```
 
 Verify the managed installation:
 
 ```bash
-npx --yes linmas@0.7.0 doctor
+npx --yes linmas@0.8.0 doctor
 ```
 
 Live Claude provider execution is a separate opt-in surface. It requires `ANTHROPIC_API_KEY`, an explicit model through `LINMAS_EVAL_MODEL` or the CLI, and confirmation before the named input leaves the machine. Installing skills does not transmit review data.
@@ -233,6 +248,10 @@ linmas review \
 ```
 
 Do not use live review with secrets or data you are not authorized to transmit.
+
+### Windows uninstall contract
+
+`linmas uninstall` dry-run remains available on Windows and does not mutate data. A confirmed destructive uninstall fails closed with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`; the managed skill and manifest remain unchanged. Use a supported POSIX environment for destructive uninstall, or remove the installation only through a separately reviewed native Windows implementation. Do not replace this guard with a `realpath`/`lstat` check followed by path-based rename or deletion.
 
 ## Use Linmas in Codex
 
@@ -455,7 +474,7 @@ codex plugin list
 Expected plugin entry:
 
 ```text
-linmas@linmas  installed, enabled  0.7.0
+linmas@linmas  installed, enabled  0.8.0
 ```
 
 If a new installation is not discovered in a current task, restart the Codex desktop/app-server and create a new task. Then ask Codex to list the Linmas skills or MCP tools.
@@ -464,12 +483,18 @@ If a new installation is not discovered in a current task, restart the Codex des
 
 ### `linmas@linmas` is not found
 
-The GitHub marketplace must be added separately on each computer. Add or refresh it, then retry the plugin installation:
+The GitHub marketplace must be added separately on each computer. If it is not
+configured yet, add a moving-ref source and install the plugin:
 
 ```bash
 codex plugin marketplace add TanKimGwan/linmas --ref main
 codex plugin add linmas@linmas
 ```
+
+If `linmas` is already configured, use `codex plugin marketplace upgrade linmas`
+instead of adding it a second time. If it is pinned to `v0.7.0`, follow the
+[pinned migration](releases/0.8.0.md#upgrade-070--080) so the old source is
+removed before it is re-added with `--ref v0.8.0`.
 
 If you were searching the Codex Plugins Directory, Linmas may not appear there yet because the public GitHub marketplace and the official global directory are separate distribution channels.
 
@@ -484,6 +509,10 @@ Install Node.js 24 or newer and verify it:
 ```bash
 node --version
 ```
+
+### Windows uninstall reports `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`
+
+This is the expected fail-closed security contract. Linmas will not delete or rename by lexical path when Node cannot bind the destructive operation to an authenticated Windows filesystem handle. The dry-run preview, non-destructive commands, and offline review remain available.
 
 ### ChatGPT cannot find Linmas in its plugin catalog
 

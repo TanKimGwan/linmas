@@ -20,14 +20,12 @@ export async function loadCodexSecurityEvidence(scanPath, { fsApi = fs } = {}) {
   const coverage = parseJson(coverageBytes, 'coverage.json');
   validateFindings(findings, manifest.scan.id);
   validateCoverage(coverage, manifest.scan.id);
-  const artifactByPath = new Map(manifest.scan.artifacts.map((artifact) => [artifact.path, artifact]));
   let total = 0;
   for (const artifact of manifest.scan.artifacts) {
     const bytes = await hashArtifact(root, artifact.path, artifact.sha256, fsApi);
     total += bytes;
     if (total > MAX_TOTAL_ARTIFACT_BYTES) throw contractError(`Codex scan artifacts exceed ${MAX_TOTAL_ARTIFACT_BYTES} bytes`);
   }
-  for (const required of ['findings.json', 'coverage.json']) if (!artifactByPath.has(required)) throw contractError(`${required} is missing from scan manifest artifacts`);
   return {
     kind: 'codex-security-scan',
     sourcePath: root,
@@ -72,6 +70,8 @@ function validateManifest(value) {
     if (typeof artifact.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(artifact.sha256)) throw contractError(`invalid hash for ${artifact.path}`);
     string(artifact.mediaType, 'scan.artifact.mediaType');
   }
+  for (const required of ['findings.json', 'coverage.json']) if (!paths.has(required)) throw contractError(`${required} is missing from scan manifest artifacts`);
+  if (paths.size !== 2) throw contractError('additional Codex scan artifacts are not supported');
 }
 
 function validateFindings(value, scanId) {

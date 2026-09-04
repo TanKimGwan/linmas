@@ -9,7 +9,7 @@ const POLICY_IDENTITY_FIELDS = new Set(['id', 'version']);
 const POLICY_REVIEW_FIELDS = new Set(['caseId', 'specialist']);
 const POLICY_RULE_FIELDS = new Set(['id', 'outcome', 'decision', 'reason']);
 const POLICY_DECISIONS = new Set(['pass', 'needs-review', 'blocked']);
-const AUTH_MODES = new Set(['chatgpt', 'apiKey', 'unverified', 'unavailable']);
+const AUTH_MODES = new Set(['chatgpt', 'apiKey', 'not-required', 'unverified', 'unavailable']);
 const CANONICAL_STATEMENT = 'Human review remains required.';
 const PRIVATE_KEYS = /^(?:email|accountId|planType|stderr|rawStderr|sessionId|token|apiKey|password|secret)$/i;
 
@@ -42,6 +42,8 @@ export function validateReviewCapsule(value) {
   canonicalSafety(value.review.safetyBoundary, 'review.safetyBoundary');
   const review = validateReviewResult(value.review, { source: 'capsule.review' });
   if (review.modelMetadata.requestId !== null) fail('private request identifiers are not allowed');
+  if (value.execution.provider !== review.modelMetadata.provider) fail('execution.provider must match review.modelMetadata.provider');
+  if (value.execution.model !== review.modelMetadata.model) fail('execution.model must match review.modelMetadata.model');
 
   object(value.policy, 'policy');
   exactFields(value.policy, POLICY_FIELDS, 'policy');
@@ -49,6 +51,8 @@ export function validateReviewCapsule(value) {
     if (value.policy.result !== null) fail('non-evaluated policy result must be null');
   } else if (value.policy.status === 'evaluated') {
     validatePolicyResult(value.policy.result);
+    if (value.policy.result.review.caseId !== review.caseId) fail('policy.result.review.caseId must match review.caseId');
+    if (value.policy.result.review.specialist !== review.specialist) fail('policy.result.review.specialist must match review.specialist');
   } else {
     fail('policy.status is invalid');
   }

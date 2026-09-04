@@ -9,10 +9,10 @@
 
   <p>
     <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.7.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.8.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm total downloads" src="https://badgen.net/npm/dt/linmas?label=total%20downloads"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/linmas?label=weekly%20downloads"></a>
-    <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.7.0"><img alt="release v0.7.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
+    <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.8.0"><img alt="release v0.8.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
     <a href="LICENSE"><img alt="License: Apache-2.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/license.svg"></a>
     <img alt="Node.js 24+" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/node.svg">
     <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex primary" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/codex.svg"></a>
@@ -273,7 +273,7 @@ Installation hosts and execution providers are independent:
 | Installation hosts | Claude Code and Codex managed skill directories |
 | Execution providers | Claude and Codex provider-native configuration |
 
-Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.7.0. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
+Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.8.0. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
 
 ```bash
 npx linmas list
@@ -314,9 +314,11 @@ Codex contributed as the provider-native review engine, implementation collabora
 ## Platform and runtime
 
 - Node.js `>=24` is required.
-- The offline workflow is provider-independent and deterministic.
+- The offline workflow and package entrypoint are provider-independent and tested on Linux and Windows.
 - The verified live evidence was collected on Linux.
 - Codex executable discovery covers native POSIX and Windows layouts; unsafe Windows `.cmd` and `.bat` shims are rejected.
+- Codex authentication isolation is cross-platform: POSIX uses no-follow/nonblocking descriptor reads, while Windows validates file identity before reading only from the opened descriptor. User `config.toml` content is never inherited by the isolated launch.
+- Destructive uninstall and cleanup fail closed on Windows with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`. Node.js 24 does not expose the handle-relative Windows rename/delete primitive needed to preserve Linmas's anti-substitution invariant; install, list, doctor, offline review, and package execution remain available.
 - The native MCP stdio path is verified on Linux with Node.js 24+. Native Windows MCP and a successful live Windows provider run are not currently claimed.
 
 ## Native MCP plugin
@@ -334,21 +336,32 @@ codex plugin list
 This is a public **GitHub repository marketplace**, not yet an entry in the global Codex/ChatGPT Plugins Directory. Therefore, Linmas will not automatically appear in search on another computer just because you are signed in to the same ChatGPT account. Add the marketplace once on each computer:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.7.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.8.0
 codex plugin add linmas@linmas
 codex plugin list
 ```
 
 After installation, restart Codex completely and create a new task. If `linmas@linmas` is still not listed, verify that the computer has Git, Node.js 24+, and network access to GitHub. The official Plugins Directory is a separate publication channel that requires OpenAI submission, review, and approval; GitHub and npm publication do not automatically add Linmas to that global catalog.
 
-To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.7.0`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
+To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.8.0`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
 
-To upgrade an existing marketplace installation:
+To refresh an existing marketplace installation that follows a moving ref such
+as `main`, run:
 
 ```bash
 codex plugin marketplace upgrade linmas
 codex plugin add linmas@linmas
+codex plugin marketplace list --json
+codex plugin list --json
 ```
+
+`marketplace upgrade` refreshes the configured ref; it does not change an
+immutable `v0.7.0` ref, and a second `marketplace add` with `--ref v0.8.0` is
+rejected while the old source is registered. For the pinned `v0.7.0` →
+`v0.8.0` migration, remove the installed plugin and old marketplace, re-add it
+with `--ref v0.8.0`, install the plugin again, and verify the configured ref and
+installed version as shown in the [0.8.0 release migration](releases/0.8.0.md#upgrade-070--080).
+Always restart Codex and start a fresh task after verification.
 
 The public marketplace tracks a ready-to-install plugin at `plugins/linmas`. Maintainers regenerate it from canonical sources and verify every file byte-for-byte:
 
@@ -376,9 +389,11 @@ The MCP server exposes exactly seven tools:
 | `linmas_policy_evaluate` | Offline deterministic policy evaluation. |
 | `linmas_proof_verify` | Offline proof-bundle verification. |
 | `linmas_proof_create` | Local write only after `confirm_write=true`. |
-| `linmas_review_execute` | Provider transmission only after `confirm_transmission=true`. |
+| `linmas_review_execute` | Provider transmission only after `confirm_transmission=true`; returns the bound reference needed by `linmas_review_decide`. |
 
 Tool results expose bounded status values such as `prepared`, `verified`, and `executed`, plus `humanReviewRequired=true`; every result remains `needs_human_review`. A prepared result does not call a provider or write output. Offline tools do not transmit data. A provider-backed review transmits only after explicit consent, and a proof bundle is written only after explicit write confirmation. Timeouts cancel provider work and prevent late normalization, policy evaluation, capsule creation, or final output writes.
+
+After `linmas_review_execute` returns, pass `reviewReference.handle` as `review_handle` and `reviewReference.capsuleDigest` as `capsule_digest` to `linmas_review_decide`. Do not send a caller-supplied `review_result`; the decision flow uses the bound process-local reference and exact digest.
 
 ### Interactive human-review gate
 
@@ -402,7 +417,7 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 | `linmas onboard` | Inspect host and Codex account capabilities. |
 | `linmas doctor` | Diagnose managed installations and duplicates. |
 | `linmas install <skill>` | Install one canonical skill; add `--dry-run` to preflight. |
-| `linmas uninstall <skill>` | Remove a Linmas-managed skill. |
+| `linmas uninstall <skill>` | Remove a Linmas-managed skill on supported POSIX filesystems; Windows fails closed before mutation. |
 | `linmas review ...` | Prepare locally or execute an explicit provider review. |
 | `linmas review compare before.json after.json` | Compare two capsules offline. |
 | `linmas proof create <source> --bundle <dir>` | Record human decisions and create a portable proof bundle. |
@@ -424,6 +439,7 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 - Codex Security adapter input must be a completed sealed scan directory; findings-only JSON is not treated as verified evidence.
 - Live review transmits the explicit input to the selected provider after confirmation.
 - No claim is made that a read-only sandbox limits provider reads to the Linmas input.
+- Windows destructive uninstall and cleanup are unavailable until a handle-relative native implementation can authenticate the object being mutated; Linmas does not fall back to lexical path deletion.
 - Native MCP support is bounded to the documented Node.js 24+ Linux-verified path; Codex fresh-task discovery requires a separately verified host reinstall and is not implied by direct stdio validation.
 
 ## Contributing, security, and license

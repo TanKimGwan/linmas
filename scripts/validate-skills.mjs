@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { PUBLIC_SKILL_IDS } from '../src/core/skill-catalog.mjs';
+import { validatePackageVersionConsistency } from './validate-package-version.mjs';
 
 const root = process.cwd();
 const skillsRoot = path.join(root, 'skills');
@@ -95,6 +96,13 @@ const safeSecretExamplePatterns = [
 ];
 
 const failures = [];
+
+try {
+  const versionCheck = validatePackageVersionConsistency(root);
+  console.log(`Version consistency passed: ${versionCheck.version}.`);
+} catch (error) {
+  fail(error.message);
+}
 
 function fail(message) {
   failures.push(message);

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { isStrictReleaseVersion } from './validate-package-version.mjs';
 
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 2) {
@@ -13,7 +14,7 @@ const tag = args.get('--tag') || '';
 const versionFile = args.get('--version-file') || 'package.json';
 const mainRef = args.get('--main-ref') || 'origin/main';
 
-if (!/^v\d+\.\d+\.\d+$/.test(tag)) {
+if (!tag.startsWith('v') || !isStrictReleaseVersion(tag.slice(1))) {
   console.error('invalid tag format');
   process.exit(1);
 }
@@ -28,6 +29,11 @@ try {
 
 if (typeof pkg?.version !== 'string') {
   console.error('package version must be a string');
+  process.exit(1);
+}
+
+if (!isStrictReleaseVersion(pkg.version)) {
+  console.error('package version must be a strict release SemVer string (x.y.z)');
   process.exit(1);
 }
 

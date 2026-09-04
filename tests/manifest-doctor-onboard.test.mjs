@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { readManifest, writeManifest, validateManifest } from '../src/core/manifest.mjs';
 import { preflightInstall, applyInstallPlan } from '../src/core/install-skills.mjs';
 import { copySkillDirectory } from '../src/core/fs-utils.mjs';
 import { formatDoctorReport } from '../src/core/doctor.mjs';
-import { formatOnboarding } from '../src/core/onboard.mjs';
+import { formatOnboarding, inspectCodexCapability } from '../src/core/onboard.mjs';
 
 test('readManifest returns an empty manifest when none exists', () => {
   const manifestPath = path.join(os.tmpdir(), 'linmas-missing-manifest.json');
@@ -145,12 +146,73 @@ test('formatOnboarding includes required user-facing details', () => {
     skills: [{ name: 'secure-code-reviewer', path: '/tmp/.claude/skills/secure-code-reviewer', backupPath: null }]
   }];
 
-  const output = formatOnboarding(detections, skills, manifests);
+  const output = formatOnboarding(detections, skills, manifests, {
+    status: 'PASS',
+    reason: 'Codex capability is available.'
+  });
 
   assert.match(output, /Installed skills:/);
   assert.match(output, /destination paths:/i);
+  assert.match(output, /Codex execution capability: PASS/);
   assert.match(output, /run `npx linmas doctor`/);
   assert.match(output, /find more docs/i);
+});
+
+test('inspectCodexCapability enforces its deadline when a provider ignores cancellation', async () => {
+  const startedAt = Date.now();
+  const result = await inspectCodexCapability(new Map([['codex', {
+    detectConfiguration() { return { status: 'configured', missingRequirements: [] }; },
+    async discoverCapabilities() {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return { authMode: 'chatgpt' };
+    }
+  }]]), { timeoutMs: 5 });
+
+  assert.equal(result.status, 'BLOCKED');
+  assert.match(result.reason, /timed out/i);
+  assert.ok(Date.now() - startedAt < 80);
+});
+
+test('F-015 capability deadline keeps a handle-free child alive until a bounded diagnostic', () => {
+  const onboardUrl = new URL('../src/core/onboard.mjs', import.meta.url).href;
+  const script = `
+    import { inspectCodexCapability } from ${JSON.stringify(onboardUrl)};
+    const result = await inspectCodexCapability(new Map([['codex', {
+      detectConfiguration() { return { status: 'configured', missingRequirements: [] }; },
+      discoverCapabilities() { return new Promise(() => {}); }
+    }]]), { timeoutMs: 20 });
+    process.stdout.write(JSON.stringify(result));
+  `;
+  const startedAt = Date.now();
+  const child = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    encoding: 'utf8',
+    timeout: 1000
+  });
+
+  assert.equal(child.error, undefined);
+  assert.equal(child.status, 0, child.stderr);
+  assert.notEqual(child.status, 13);
+  const result = JSON.parse(child.stdout);
+  assert.equal(result.status, 'BLOCKED');
+  assert.match(result.reason, /timed out/i);
+  assert.ok(Date.now() - startedAt < 1000);
+});
+
+test('F-015 capability deadline still aborts a cooperative provider', async () => {
+  let aborted = false;
+  const result = await inspectCodexCapability(new Map([['codex', {
+    detectConfiguration() { return { status: 'configured', missingRequirements: [] }; },
+    discoverCapabilities({ signal }) {
+      return new Promise((resolve, reject) => signal.addEventListener('abort', () => {
+        aborted = true;
+        reject(signal.reason);
+      }, { once: true }));
+    }
+  }]]), { timeoutMs: 5 });
+
+  assert.equal(aborted, true);
+  assert.equal(result.status, 'BLOCKED');
+  assert.match(result.reason, /timed out/i);
 });
 
 test('validateManifest rejects manifest with no host', () => {

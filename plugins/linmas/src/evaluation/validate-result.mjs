@@ -9,7 +9,7 @@ const MAX_TEXT = 16 * 1024;
 function boundedString(value, field, source) {
   const text = requiredString(value, field, source);
   if (text.length > MAX_TEXT) throw new Error(`${source}: ${field} exceeds ${MAX_TEXT} characters`);
-  if (text.includes('\\u0000')) throw new Error(`${source}: ${field} contains NUL`);
+  if (text.includes('\0')) throw new Error(`${source}: ${field} contains NUL`);
   return text;
 }
 const FINDING_FIELDS = new Set(['id', 'status', 'severity', 'evidence', 'affectedSurface', 'preconditions', 'remediation', 'verification']);
@@ -34,7 +34,9 @@ export function validateReviewResult(value, { source = '<result>' } = {}) {
   for (const key of Object.keys(value.modelMetadata)) if (!MODEL_FIELDS.has(key)) throw new Error(`${source}: unknown modelMetadata field ${key}`);
   for (const field of ['provider', 'model']) boundedString(value.modelMetadata[field], `modelMetadata.${field}`, source);
   if (value.modelMetadata.generatedAt !== undefined) boundedString(value.modelMetadata.generatedAt, 'modelMetadata.generatedAt', source);
-  if (!Array.isArray(value.scopeAndAssumptions) || !value.scopeAndAssumptions.every((item) => typeof item === 'string' && item.trim() && item.length <= MAX_TEXT)) throw new Error(`${source}: scopeAndAssumptions must be bounded strings`);
+  if (typeof value.modelMetadata.requestId === 'string') boundedString(value.modelMetadata.requestId, 'modelMetadata.requestId', source);
+  if (!Array.isArray(value.scopeAndAssumptions)) throw new Error(`${source}: scopeAndAssumptions must be bounded strings`);
+  for (const [index, item] of value.scopeAndAssumptions.entries()) boundedString(item, `scopeAndAssumptions[${index}]`, source);
   if (!Array.isArray(value.findings)) throw new Error(`${source}: findings must be an array`);
   const findingIds = new Set();
   for (const finding of value.findings) {
@@ -66,6 +68,9 @@ export function validateReviewResult(value, { source = '<result>' } = {}) {
     throw new Error(`${source}: safety boundary must require human review and must not contain contradictory clauses`);
   }
   const checkIds = new Set();
-  for (const check of checks) if (!checkIds.add(check.id)) throw new Error(`${source}: duplicate deterministic check id ${check.id}`);
+  for (const check of checks) {
+    if (checkIds.has(check.id)) throw new Error(`${source}: duplicate deterministic check id ${check.id}`);
+    checkIds.add(check.id);
+  }
   return structuredClone({ ...value, deterministicChecks: checks, safetyBoundary });
 }
