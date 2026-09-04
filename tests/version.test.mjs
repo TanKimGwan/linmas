@@ -3,11 +3,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { LINMAS_VERSION, loadLinmasVersion } from '../src/core/version.mjs';
 import { validatePackageVersionConsistency } from '../scripts/validate-package-version.mjs';
 
-const releaseRoot = path.resolve(new URL('..', import.meta.url).pathname);
+function repositoryRootFromModuleUrl(moduleUrl) {
+  return fileURLToPath(new URL('..', moduleUrl));
+}
+
+const releaseRoot = repositoryRootFromModuleUrl(import.meta.url);
 
 async function writeJson(filePath, value) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -78,6 +83,16 @@ test('REL-001 validates all five canonical surfaces and rejects every unsafe fix
     'plugins/linmas/.codex-plugin/plugin.json'
   ];
   const candidateBefore = await Promise.all(candidateFiles.map((file) => fs.readFile(path.join(releaseRoot, file))));
+
+  await t.test('repository-root derivation handles a Windows file URL', () => {
+    const syntheticModuleUrl = 'file:///D:/a/linmas/linmas/tests/version.test.mjs';
+    const derived = repositoryRootFromModuleUrl(syntheticModuleUrl);
+    const normalized = derived.replaceAll('\\', '/');
+
+    assert.equal(path.isAbsolute(derived), true);
+    assert.doesNotMatch(normalized, /^\/?D:\/.*\/D:\//i);
+    assert.match(normalized, /\/linmas\/?$/);
+  });
 
   await t.test('aligned five surfaces pass', async () => {
     await withVersionFixture((root) => {
