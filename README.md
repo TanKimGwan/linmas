@@ -63,12 +63,6 @@ npm run demo:proof
 
 The checked-in sample is [`examples/build-week/insecure-query.diff`](examples/build-week/insecure-query.diff). Both commands above use synthetic, offline fixtures and make no model call. The separate [live Codex path](#run-a-live-codex-review) is opt-in and sends only the explicitly named input after confirmation.
 
-### How Codex and GPT-5.6 were used
-
-- **In the working product:** Linmas uses Codex as a provider-native review engine and explicitly selects the account-visible `gpt-5.6-sol` model for the verified live path. GPT-5.6 reviews the supplied change; Linmas then validates the structured response before deterministic policy evaluation or Review Capsule creation.
-- **During implementation:** Codex accelerated implementation and verification of account/model discovery, the bounded provider workflow, strict response normalization, deterministic policy, portable evidence, and the offline demos.
-- **Human-owned decisions:** the maintainer chose the product scope, authorization and transmission boundaries, model, policy thresholds, evidence publication, privacy language, and final commits. Neither Codex output nor a passing Linmas policy is treated as approval.
-
 Key engineering decisions were deliberate:
 
 | Decision | Reason |
