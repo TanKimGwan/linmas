@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 import { runReview } from '../src/review/run-review.mjs';
 
 const providerResult = JSON.stringify({
@@ -15,7 +16,7 @@ const providerResult = JSON.stringify({
 });
 
 const fakeDependencies = {
-  rootDir: new URL('..', import.meta.url).pathname,
+  rootDir: fileURLToPath(new URL('..', import.meta.url)),
   providerRegistry: new Map([['fake', { create: () => ({ run: async () => ({ rawResponse: providerResult, provider: 'fake', model: 'test' }) }) }]]),
   loadPolicy: () => ({
     schemaVersion: 1,
