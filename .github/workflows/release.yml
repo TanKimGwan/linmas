@@ -39,13 +39,10 @@ jobs:
           NPM_VERSION="$NPM_VERSION" node -e 'const [major = 0, minor = 0, patch = 0] = (process.env.NPM_VERSION || "0.0.0").split(".").map(Number); const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))); if (!ok) { console.error(`npm ${process.env.NPM_VERSION} does not support trusted publishing`); process.exit(1); }'
       - name: Validate release tag input
         run: |
-          case "${RELEASE_TAG}" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *)
-              echo "::error::Invalid release tag: ${RELEASE_TAG}"
-              exit 1
-              ;;
-          esac
+          if [[ ! "${RELEASE_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Invalid release tag: ${RELEASE_TAG}"
+            exit 1
+          fi
       - run: npm ci
       - run: git fetch origin main
       - run: node scripts/verify-release-tag.mjs --tag "${RELEASE_TAG}" --version-file package.json --main-ref origin/main

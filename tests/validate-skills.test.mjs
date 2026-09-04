@@ -147,6 +147,29 @@ test('README separates installation hosts and execution providers', async () => 
   assert.match(text, /human review/i);
 });
 
+test('0.8.0 marketplace guidance distinguishes moving refs from pinned migration', async () => {
+  const releaseNotes = await readFile(path.join(rootDir, 'releases', '0.8.0.md'), 'utf8');
+  for (const text of [
+    'Existing moving-ref marketplace',
+    'Existing marketplace pinned to `v0.7.0`',
+    'marketplace upgrade` never repins',
+    'marketplace add` with a different ref is rejected',
+    'codex plugin remove linmas@linmas',
+    'codex plugin marketplace remove linmas',
+    'codex plugin marketplace add TanKimGwan/linmas --ref v0.8.0',
+    'ref = "v0.8.0"',
+    'version `0.8.0`',
+    'fresh task'
+  ]) assert.match(releaseNotes, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+
+  for (const file of ['README.md', 'USAGE.md', 'PANDUAN-PENGGUNAAN.md']) {
+    const text = await readFile(path.join(rootDir, file), 'utf8');
+    assert.match(text, /moving ref|ref bergerak/i);
+    assert.match(text, /does not change an[\s\S]*immutable `v0\.7\.0`|tidak mengubah ref immutable `v0\.7\.0`/i);
+    assert.match(text, /releases\/0\.8\.0\.md#upgrade-070--080/);
+  }
+});
+
 test('README defines policy decision limits', async () => {
   const text = await readFile(path.join(rootDir, 'README.md'), 'utf8');
   assert.match(text, /--policy baseline-appsec/);
@@ -360,6 +383,20 @@ test('validate-skills accepts CRLF frontmatter from Windows checkouts', async ()
 
     const { stdout, stderr } = await execFileAsync(process.execPath, ['scripts/validate-skills.mjs'], { cwd: tempDir });
     assert.match(stdout, /Validation passed\.\s+Validated 11 skills\./);
+    const lockPath = path.join(tempDir, 'package-lock.json');
+    const lock = JSON.parse(await readFile(lockPath, 'utf8'));
+    lock.version = '0.6.0';
+    lock.packages[''].version = '0.6.0';
+    await writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+    await assert.rejects(
+      execFileAsync(process.execPath, ['scripts/validate-skills.mjs'], { cwd: tempDir }),
+      (error) => {
+        assert.equal(error.code, 1);
+        assert.match(error.stderr, /Package version consistency failed: all canonical versions must match/);
+        assert.match(error.stderr, /package-lock\.json top-level="0\.6\.0"/);
+        return true;
+      }
+    );
     assert.equal(stderr, '');
   } finally {
     await rm(tempDir, { recursive: true, force: true });

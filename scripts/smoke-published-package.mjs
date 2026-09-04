@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { isStrictReleaseVersion } from './validate-package-version.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(SCRIPT_DIR, '..');
@@ -16,7 +17,7 @@ function fail(message) {
 }
 
 function isSemver(value) {
-  return /^[0-9]+\.[0-9]+\.[0-9]+$/.test(value);
+  return isStrictReleaseVersion(value);
 }
 
 function resolveVersion(argv, packageVersion) {
