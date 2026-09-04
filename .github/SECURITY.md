@@ -8,10 +8,11 @@ Do not open public issues for suspected vulnerabilities until maintainers confir
 
 ## Supported versions
 
-| Version | Supported |
-| --- | --- |
-| 0.1.x | Yes |
-| < 0.1.0 | No |
+Security fixes are provided for the current stable Linmas release published through the official GitHub Releases and npm package.
+
+Users should reproduce suspected security issues against the current stable release before reporting when practical.
+
+Older releases may receive fixes only at maintainer discretion. If an issue affects an older release, first check whether it remains reproducible on the current stable version.
 
 ## Security scope for Linmas
 
