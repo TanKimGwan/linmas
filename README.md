@@ -19,12 +19,11 @@
     <a href="#ai-agent-compatibility"><img alt="Claude Code compatible" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/claude-code.svg"></a>
     <a href="#ai-agent-compatibility"><img alt="Hermes Agent compatible" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/hermes-agent.svg"></a>
     <a href="#ai-agent-compatibility"><img alt="AI agent skills portable" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/agent-skills.svg"></a>
-    <a href="OPENAI_BUILD_WEEK_2026.md"><img alt="OpenAI Build Week 2026" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/openai-build-week.svg"></a>
     <img alt="Security: defensive only" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/security.svg">
   </p>
 </div>
 
-## See it in 60 seconds
+## Try it in 60 seconds
 
 From a clone of this repository, with Node.js 24 or newer:
 
@@ -33,9 +32,9 @@ npm ci
 npm run demo:judge
 ```
 
-The default judge demo is an **OFFLINE FIXTURE REPLAY — NO MODEL CALL**. It needs no provider credentials and makes no network call. It validates a synthetic SQL-injection change, replays a checked-in normalized result, evaluates the `baseline-appsec` policy, and validates the generated capsule in memory.
+The default offline demo is an **OFFLINE FIXTURE REPLAY — NO MODEL CALL**. It needs no provider credentials and makes no network call. It validates a synthetic SQL-injection change, replays a checked-in normalized result, evaluates the `baseline-appsec` policy, and validates the generated capsule in memory.
 
-What a judge sees:
+Example output:
 
 ```text
 LINMAS PROOF REVIEW
@@ -48,9 +47,11 @@ Capsule     Validated in memory
 
 This is a reproducible demonstration of the review pipeline, not a claim that a model was called during offline replay.
 
-## OpenAI Build Week 2026 submission
+## OpenAI Build Week 2026 — historical participation
 
-For the Devpost submission, Linmas targets the **Developer Tools** track as a defensive security review toolkit for AI-assisted software. Judges can test the project directly from this repository without credentials, a hosted account, or a rebuild:
+Linmas was previously included in the OpenAI Build Week 2026 hackathon. That participation has ended: this repository is not an active event submission, and event-specific instructions are no longer part of the current project guidance.
+
+The dated [Build Week implementation and reproducibility record](OPENAI_BUILD_WEEK_2026.md) remains available as historical context. The archived synthetic examples can still be run as a normal offline demonstration:
 
 ```bash
 git clone https://github.com/TanKimGwan/linmas.git
@@ -65,20 +66,20 @@ The checked-in sample is [`examples/build-week/insecure-query.diff`](examples/bu
 ### How Codex and GPT-5.6 were used
 
 - **In the working product:** Linmas uses Codex as a provider-native review engine and explicitly selects the account-visible `gpt-5.6-sol` model for the verified live path. GPT-5.6 reviews the supplied change; Linmas then validates the structured response before deterministic policy evaluation or Review Capsule creation.
-- **During implementation:** Codex accelerated implementation and verification of account/model discovery, the bounded provider workflow, strict response normalization, deterministic policy, portable evidence, and the offline judge demos.
+- **During implementation:** Codex accelerated implementation and verification of account/model discovery, the bounded provider workflow, strict response normalization, deterministic policy, portable evidence, and the offline demos.
 - **Human-owned decisions:** the maintainer chose the product scope, authorization and transmission boundaries, model, policy thresholds, evidence publication, privacy language, and final commits. Neither Codex output nor a passing Linmas policy is treated as approval.
 
 Key engineering decisions were deliberate:
 
 | Decision | Reason |
 |---|---|
-| Keep the default judge path offline | Judges get a deterministic run with no credentials or network dependency; the output clearly says that no model was called. |
+| Keep the default offline demo path | The demo is deterministic, needs no credentials or network dependency, and clearly says that no model was called. |
 | Separate live execution behind `--live --yes` | Review content cannot leave the machine through the demo without explicit intent. |
 | Validate model output before policy or evidence creation | Malformed provider output cannot bypass the Linmas result contract. |
 | Bind capsules to exact input bytes with SHA-256 | Review evidence stays tied to the input that was actually evaluated. |
 | Require human review for every result | A model finding, policy `pass`, or valid proof bundle is evidence, never automatic approval or certification. |
 
-See the [public Build Week implementation and reproducibility record](OPENAI_BUILD_WEEK_2026.md) for the dated baseline, feature commits, verified live configuration, architecture, commands, and limitations. Installation options, supported platforms, and the no-rebuild judge path are also summarized below and in the [usage guide](USAGE.md).
+See the [historical Build Week implementation and reproducibility record](OPENAI_BUILD_WEEK_2026.md) for the dated baseline, feature commits, verified live configuration, architecture, commands, and limitations. Current installation options and supported platforms are summarized below and in the [usage guide](USAGE.md).
 
 ## Documentation
 
@@ -91,7 +92,7 @@ GitHub's standard repository navigation exposes fixed tabs; these public usage g
 
 ## AI agent compatibility
 
-Linmas is **Codex-first for OpenAI Build Week 2026** and designed to remain portable across AI coding agents. The Codex plugin, native MCP tools, offline judge, and verified live-review evidence are the primary event path. Compatibility with other agents depends on the integration level below.
+Linmas remains **Codex-first as a native integration** while staying portable across AI coding agents. Codex was also the primary integration used in the historical OpenAI Build Week 2026 project; current compatibility with other agents depends on the integration level below.
 
 | AI agent or surface | Status | Supported integration |
 | --- | --- | --- |
@@ -122,13 +123,13 @@ This open-source project is independently developed. It is not affiliated with a
 
 ## Run a live Codex review
 
-If Codex is already usable on the machine, run the same synthetic case live:
+If Codex is already usable on the machine, run a synthetic case live:
 
 ```bash
 npm run demo:judge -- --live --yes
 ```
 
-Without `--model`, Linmas uses the single default reported by the current Codex account and fails closed if selection is ambiguous. To reproduce the verified Build Week model explicitly:
+Without `--model`, Linmas uses the single default reported by the current Codex account and fails closed if selection is ambiguous. For an explicit model selection:
 
 ```bash
 npm run demo:judge -- --live --yes --model gpt-5.6-sol
@@ -299,7 +300,7 @@ The skill files remain useful directly inside compatible coding agents. Each spe
 
 `linmas-secure-code-reviewer` emphasizes affected surface, preconditions, impact, remediation, and verification. Its deterministic checks are recommendations that run only when invoked. Optional repository policy can strengthen local review conventions but does not automatically filter every agent response or replace human review.
 
-## What changed for Build Week
+## Historical Build Week implementation notes
 
 | Before the Build Week implementation | Linmas Proof Review |
 |---|---|
@@ -307,9 +308,9 @@ The skill files remain useful directly inside compatible coding agents. Each spe
 | Provider output without portable evidence | Strict normalized result and exact-input Review Capsule |
 | Provider-specific credential assumptions | Codex-native ChatGPT subscription or Codex-managed API key discovery |
 | Individual review result | Deterministic policy and offline before/after comparison |
-| Manual product walkthrough | 60-second offline judge demo plus explicit live path |
+| Manual product walkthrough | 60-second offline demo plus explicit live path |
 
-Codex contributed as the provider-native review engine, implementation collaborator, and verification surface. Humans chose the scope, authorization boundaries, model, policy thresholds, safety contract, privacy language, publication scope, and final commits. See the [public Build Week evidence](OPENAI_BUILD_WEEK_2026.md) for the verifiable history and reproduction commands.
+Codex contributed as the provider-native review engine, implementation collaborator, and verification surface. Humans chose the scope, authorization boundaries, model, policy thresholds, safety contract, privacy language, publication scope, and final commits. See the [historical Build Week evidence](OPENAI_BUILD_WEEK_2026.md) for the verifiable history and reproduction commands.
 
 ## Platform and runtime
 
@@ -422,7 +423,7 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 | `linmas review compare before.json after.json` | Compare two capsules offline. |
 | `linmas proof create <source> --bundle <dir>` | Record human decisions and create a portable proof bundle. |
 | `linmas proof verify <dir>` | Verify bundle hashes and optional SSH signature offline. |
-| `npm run demo:judge` | Run the deterministic judge demo. |
+| `npm run demo:judge` | Run the deterministic offline demo. |
 | `npm run demo:proof` | Create and verify an ephemeral offline Proof Chain bundle. |
 | `npm run validate` | Validate package structure, skills, examples, and secrets. |
 | `npm run eval:offline` | Run checked-in evaluation cases without model calls. |
