@@ -3,13 +3,34 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const GIT_IGNORE_ENV = {
+  PATH: process.env.PATH ?? '/usr/bin:/bin',
+  HOME: '/tmp',
+  LANG: 'C.UTF-8',
+  LC_ALL: 'C.UTF-8',
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_TERMINAL_PROMPT: '0'
+};
 
 function read(relPath) {
   return fs.readFileSync(path.join(rootDir, relPath), 'utf8');
+}
+
+function isIgnoredByGit(relPath) {
+  const result = spawnSync('git', ['check-ignore', '--no-index', '--quiet', '--', relPath], {
+    cwd: rootDir,
+    env: GIT_IGNORE_ENV,
+    encoding: 'utf8'
+  });
+  if (result.error) throw result.error;
+  if (result.status === 0) return true;
+  if (result.status === 1) return false;
+  throw new Error(`git check-ignore failed for scoped documentation path (exit ${result.status})`);
 }
 
 function jobSection(text, name) {
@@ -200,8 +221,33 @@ test('release workflow skips provenance automatically on private repositories', 
 });
 
 test('internal planning docs stay out of the shared repo surface', () => {
-  const ignore = read('.gitignore');
-  assert.match(ignore, /^docs\//m);
+  const reviewedReplacementDocs = [
+    'docs/compatibility/COMPATIBILITY.md',
+    'docs/implementation/v0.9.0.md',
+    'docs/linmas-mcp-validation-runbook.md',
+    'docs/roadmap/versions/v0.9.0.md'
+  ];
+  const privateFutureDocs = [
+    'docs/roadmap/ROADMAP.md',
+    'docs/roadmap/versions/v0.10.0.md',
+    'docs/roadmap/versions/v0.11.0.md',
+    'docs/roadmap/versions/v0.12.0.md',
+    'docs/roadmap/versions/v0.13.0.md',
+    'docs/roadmap/versions/v0.14.0.md',
+    'docs/roadmap/versions/v0.15.0.md',
+    'docs/roadmap/versions/v0.16.0.md',
+    'docs/roadmap/versions/v0.17.0.md',
+    'docs/roadmap/versions/v0.18.0.md',
+    'docs/roadmap/versions/v1.0.0.md',
+    'docs/roadmap/versions/v1.1.0.md',
+    'docs/roadmap/versions/v1.2.0.md'
+  ];
+  const generatedEvidence = [
+    'docs/compatibility/evidence/v0.9.0-record.json',
+    'docs/compatibility/evidence/v0.9.0-snapshot.json'
+  ];
+  for (const relativePath of reviewedReplacementDocs) assert.equal(isIgnoredByGit(relativePath), false, `${relativePath} must be trackable`);
+  for (const relativePath of [...privateFutureDocs, ...generatedEvidence]) assert.equal(isIgnoredByGit(relativePath), true, `${relativePath} must remain ignored`);
   assert.equal(fs.existsSync(path.resolve('docs/superpowers/specs/2026-07-07-release-provenance-failure-analysis.md')), false);
 });
 

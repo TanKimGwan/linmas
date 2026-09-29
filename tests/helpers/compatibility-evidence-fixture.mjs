@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 import { PUBLIC_SKILL_IDS } from '../../src/core/skill-catalog.mjs';
 import { listTools } from '../../mcp/server.mjs';
@@ -55,6 +55,19 @@ function sha256(bytes) {
 
 function git(root, ...args) {
   return execFileSync('/usr/bin/git', args, { cwd: root, env: GIT_ENV, encoding: 'utf8' }).trim();
+}
+
+function isIgnoredByGit(root, relativePath) {
+  const result = spawnSync('/usr/bin/git', ['check-ignore', '--no-index', '--quiet', '--', relativePath], {
+    cwd: root,
+    env: GIT_ENV,
+    encoding: 'utf8'
+  });
+  if (result.error) throw result.error;
+  if (result.status === 0) return true;
+  if (result.status === 1) return false;
+  const detail = result.stderr.trim();
+  throw new Error(`git check-ignore failed for generated evidence path ${relativePath} (exit ${result.status})${detail ? `: ${detail}` : ''}`);
 }
 
 function writeJson(root, relativePath, value) {
@@ -164,8 +177,15 @@ export function createCompatibilityEvidenceFixture(repositoryRoot) {
         limitation: 'This fixture file is not a clean candidate identity.'
       });
     }
-    const generatedUntrackedPaths = [RECORD_PATH, SNAPSHOT_PATH,
+    const intendedGeneratedPaths = [RECORD_PATH, SNAPSHOT_PATH,
       ...(!treePaths.includes(CLEAN_IDENTITY_PATH) ? [CLEAN_IDENTITY_PATH] : [])].sort();
+    const generatedPathVisibility = new Map(intendedGeneratedPaths.map((relativePath) => [
+      relativePath,
+      !isIgnoredByGit(root, relativePath)
+    ]));
+    const generatedUntrackedPaths = intendedGeneratedPaths
+      .filter((relativePath) => generatedPathVisibility.get(relativePath))
+      .sort((left, right) => left.localeCompare(right));
     const baselineCommit = git(root, 'rev-parse', 'v0.8.0^{}');
     const snapshot = {
       schemaVersion: 1,
@@ -238,6 +258,17 @@ export function createCompatibilityEvidenceFixture(repositoryRoot) {
     };
     writeJson(root, SNAPSHOT_PATH, snapshot);
     writeJson(root, RECORD_PATH, record);
+    const actualUntracked = new Set(git(root, 'ls-files', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean));
+    const actualGeneratedUntrackedPaths = intendedGeneratedPaths.filter((relativePath) => actualUntracked.has(relativePath))
+      .sort((left, right) => left.localeCompare(right));
+    const ignoredGeneratedPaths = intendedGeneratedPaths.filter((relativePath) => !generatedPathVisibility.get(relativePath));
+    if (JSON.stringify(actualGeneratedUntrackedPaths) !== JSON.stringify(generatedUntrackedPaths)) {
+      throw new Error('generated evidence untracked paths do not match effective Git visibility');
+    }
+    if (ignoredGeneratedPaths.some((relativePath) => actualUntracked.has(relativePath)
+      || generatedUntrackedPaths.includes(relativePath))) {
+      throw new Error('ignored generated evidence path was incorrectly classified as visible untracked evidence');
+    }
     return { root, record, snapshot, implementationHead, cleanup: () => fs.rmSync(temporaryRoot, { recursive: true, force: true }) };
   } catch (error) {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
