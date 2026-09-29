@@ -1,26 +1,53 @@
 name: Release Provenance
+
 on:
   workflow_call:
     inputs:
       artifact-name:
         required: true
         type: string
-      subject-path:
+      artifact-file:
         required: true
         type: string
+      artifact-sha256:
+        required: true
+        type: string
+      artifact-bytes:
+        required: true
+        type: string
+
 permissions:
   actions: read
   attestations: write
   contents: read
   id-token: write
+
 jobs:
   provenance:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v8
+      - name: Download the exact package artifact
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.artifact-name }}
-      - uses: actions/attest@v4
+          path: ${{ runner.temp }}/provenance-package
+
+      - name: Reverify the exact artifact before attestation
+        shell: bash
+        env:
+          ARTIFACT_FILE: ${{ inputs.artifact-file }}
+          AUTHORIZED_SHA256: ${{ inputs.artifact-sha256 }}
+          AUTHORIZED_BYTES: ${{ inputs.artifact-bytes }}
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(find "$RUNNER_TEMP/provenance-package" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
+          [[ "${#FILES[@]}" -eq 1 && "${FILES[0]}" == "$ARTIFACT_FILE" ]]
+          PACKAGE_PATH="$RUNNER_TEMP/provenance-package/$ARTIFACT_FILE"
+          [[ "$(sha256sum "$PACKAGE_PATH" | awk '{print $1}')" == "$AUTHORIZED_SHA256" ]]
+          [[ "$(stat -c '%s' "$PACKAGE_PATH")" == "$AUTHORIZED_BYTES" ]]
+
+      - name: Attest the exact artifact subject
+        uses: actions/attest@v4
         with:
-          subject-path: ${{ inputs.subject-path }}
+          subject-path: ${{ runner.temp }}/provenance-package/${{ inputs.artifact-file }}
           show-summary: true

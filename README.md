@@ -17,7 +17,7 @@
     <img alt="Node.js 24+" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/node.svg">
     <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex primary" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/codex.svg"></a>
     <a href="#ai-agent-compatibility"><img alt="Claude Code compatible" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/claude-code.svg"></a>
-    <a href="#ai-agent-compatibility"><img alt="Hermes Agent compatible" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/hermes-agent.svg"></a>
+    <a href="#ai-agent-compatibility"><img alt="Hermes Agent format only" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/hermes-agent.svg"></a>
     <a href="#ai-agent-compatibility"><img alt="AI agent skills portable" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/agent-skills.svg"></a>
     <img alt="Security: defensive only" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/security.svg">
   </p>
@@ -86,13 +86,15 @@ GitHub's standard repository navigation exposes fixed tabs; these public usage g
 
 ## AI agent compatibility
 
-Linmas remains **Codex-first as a native integration** while staying portable across AI coding agents. Codex was also the primary integration used in the historical OpenAI Build Week 2026 project; current compatibility with other agents depends on the integration level below.
+Linmas remains **Codex-first as a native integration** while staying portable across AI coding agents. Codex was also the primary integration used in the historical OpenAI Build Week 2026 project. The [compatibility evidence policy](docs/compatibility/COMPATIBILITY.md) defines the limits of current claims. Installation detection is not runtime conformance; compatibility with other agents depends on the integration level below.
+
+Version 0.9.0 is an **UNRELEASED candidate**; pinned 0.8.0 installation examples refer to the existing release. Its [content identity](compatibility/evidence/v0.9.0-content-identity.json) and external clean acceptance are revision-bound. A prior accepted SHA does not automatically accept content after a merge; the changed revision requires regenerated identity, remeasured artifacts, and a separate acceptance decision. Neither the identity file nor offline fixtures establish live host or model behavior.
 
 | AI agent or surface | Status | Supported integration |
 | --- | --- | --- |
 | Codex | **Primary / native** | Git marketplace plugin, eleven skills, seven native MCP tools, managed skill directory, and provider-backed review. |
-| Claude Code | **Verified compatible** | Managed installation of eleven skills and Claude API provider-backed review. |
-| [Hermes Agent](https://hermes-agent.nousresearch.com/docs/) | **Compatible** | Linmas `SKILL.md` files follow the open Agent Skills structure and can be loaded through Hermes's skills workflow. Hermes-specific MCP configuration remains a separate optional integration. |
+| Claude Code | **Managed installation adapter** | Managed installation of eleven skills. Claude API provider-backed review is a separate integration; it does not verify Claude Code runtime behavior. |
+| [Hermes Agent](https://hermes-agent.nousresearch.com/docs/) | **Partial / format-level only** | Linmas `SKILL.md` content is a candidate for Hermes manual loading. Actual Linmas execution, MCP registration, and safety enforcement are UNKNOWN until separately tested. |
 | Gemini CLI and other coding agents | **Portable / manual** | The Markdown skill instructions can be imported or adapted where the agent supports equivalent instructions. Linmas does not yet provide a Gemini-specific installer, provider adapter, or MCP registration. |
 
 “Portable / manual” means the defensive instructions can be reused; it does not mean native integration has been verified. New native hosts must have deterministic detection, install/uninstall tests, safety-boundary parity, and a maintenance owner before Linmas labels them verified.
@@ -362,14 +364,14 @@ The public marketplace tracks a ready-to-install plugin at `plugins/linmas`. Mai
 
 ```bash
 npm run sync:codex-marketplace
-python3 /home/tan/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py plugins/linmas
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/plugin-creator/scripts/validate_plugin.py" plugins/linmas
 ```
 
 Npm users can also build an independent local plugin directory:
 
 ```bash
 npm run build:codex-plugin -- --target /absolute/path/to/plugins/linmas
-python3 /home/tan/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py /absolute/path/to/plugins/linmas
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/plugin-creator/scripts/validate_plugin.py" /absolute/path/to/plugins/linmas
 ```
 
 The builder copies exactly eleven canonical Linmas skills, the bounded MCP server, policy/runtime files, `.mcp.json`, and the package metadata required to report the canonical version. It does not mutate a user's marketplace configuration. Development cachebusters are host-artifact metadata and are not part of the canonical source or package version.

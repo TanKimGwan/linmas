@@ -12,34 +12,59 @@ function read(relPath) {
   return fs.readFileSync(path.join(rootDir, relPath), 'utf8');
 }
 
-test('release workflow supports tag push and explicit dispatch and verifies main/tag/version before publish', () => {
+function jobSection(text, name) {
+  const start = text.indexOf(`  ${name}:`);
+  assert.notEqual(start, -1, `workflow job ${name} must exist`);
+  const nextMatch = /\n  [A-Za-z0-9_-]+:/gu;
+  nextMatch.lastIndex = start + 3;
+  const next = nextMatch.exec(text)?.index ?? -1;
+  return text.slice(start, next === -1 ? text.length : next);
+}
+
+test('release workflow is explicit-dispatch only and verifies authorization before publish', () => {
   const text = read('.github/workflows/release.yml');
-  assert.match(text, /tags:\s*\n\s*- 'v\*\.\*\.\*'/);
+  const build = jobSection(text, 'build');
+  const publish = jobSection(text, 'publish');
+  assert.doesNotMatch(text, /^\s{2}push:/m);
   assert.match(text, /workflow_dispatch:/);
-  assert.match(text, /inputs:\s*[\s\S]*tag:/);
-  assert.match(text, /required:\s*true/);
-  assert.match(text, /RELEASE_TAG:/);
-  assert.match(text, /github\.event_name == 'workflow_dispatch' && inputs\.tag \|\| github\.ref_name/);
-  assert.match(text, /ref:\s*\$\{\{ env\.RELEASE_TAG \}\}/);
-  assert.match(text, /git fetch origin main/);
+  for (const input of ['tag', 'target_sha', 'artifact_file', 'artifact_sha256', 'artifact_bytes', 'artifact_entries', 'artifact_inventory_sha256']) {
+    assert.match(text, new RegExp(`${input}:\\s*\\n\\s+description:[^\\n]*\\n\\s+required:\\s*true\\n\\s+type:\\s*string`));
+  }
+  assert.match(text, /if:\s*\$\{\{ github\.ref == 'refs\/heads\/main' \}\}/);
+  assert.match(text, /RELEASE_TAG:\s*\$\{\{ inputs\.tag \}\}/);
+  assert.match(text, /TARGET_SHA:\s*\$\{\{ inputs\.target_sha \}\}/);
+  assert.match(text, /ref:\s*main/);
+  assert.match(text, /fetch origin main --tags/);
   assert.doesNotMatch(text, /git fetch origin main --depth=1/);
-  assert.match(text, /node scripts\/verify-release-tag\.mjs --tag "\$\{RELEASE_TAG\}"/);
-  assert.match(text, /VERSION=\$\{RELEASE_TAG#v\}/);
-  assert.match(text, /npm test/);
-  assert.match(text, /npm run validate/);
-  assert.match(text, /npm run pack:dry-run/);
-  assert.match(text, /npm pack/);
-  assert.match(text, /permissions:\s*[\s\S]*contents:\s*write/);
-  assert.match(text, /permissions:\s*[\s\S]*id-token:\s*write/);
+  assert.match(build, /node scripts\/validate-release-request\.mjs[\s\S]*--phase publish/);
+  assert.match(build, /--phase publish[\s\S]*--checkout-role target/);
+  assert.match(build, /npm test --ignore-scripts/);
+  assert.match(build, /npm run validate --ignore-scripts/);
+  assert.match(build, /npm pack --dry-run --ignore-scripts/);
+  assert.match(build, /node scripts\/artifact-integrity\.mjs/);
+  assert.match(build, /git status --porcelain=v1 --untracked-files=all/);
+  assert.match(publish, /permissions:\s*[\s\S]*contents:\s*write/);
+  assert.match(publish, /permissions:\s*[\s\S]*id-token:\s*write/);
+  for (const command of ['npm test', 'npm run validate', 'npm ci', 'npm pack', 'scripts/validate-release-request.mjs', 'scripts/artifact-integrity.mjs']) {
+    assert.doesNotMatch(publish, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `publish job must not run candidate command ${command}`);
+  }
+  assert.match(text, /persist-credentials:\s*false/);
   assert.match(text, /actions\/upload-artifact@v7/);
-  assert.match(text, /name:\s*release-artifact/);
-  assert.match(text, /name:\s*Ensure npm supports trusted publishing/);
-  assert.match(text, /npm install -g npm@11/);
-  assert.match(text, /npm publish --access public/);
+  assert.match(text, /name:\s*release-package/);
+  assert.match(text, /name:\s*release-handoff/);
+  assert.match(text, /npm publish "\$RUNNER_TEMP\/release-package\/\$ARTIFACT_FILE" --access public --ignore-scripts/);
   assert.doesNotMatch(text, /NODE_AUTH_TOKEN:/);
   assert.doesNotMatch(text, /secrets\.NPM_TOKEN/);
-  assert.match(text, /softprops\/action-gh-release@v3/);
-  assert.match(text, /tag_name:\s*\$\{\{ env\.RELEASE_TAG \}\}/);
+  assert.match(text, /gh release create "\$RELEASE_TAG" "\$RUNNER_TEMP\/release-package\/\$ARTIFACT_FILE"/);
+  assert.match(text, /--verify-tag/);
+  assert.match(publish, /sha256sum[\s\S]*AUTHORIZED_SHA256/);
+  assert.match(publish, /stat -c '%s'[\s\S]*AUTHORIZED_BYTES/);
+  assert.match(text, /artifact-sha256: \$\{\{ inputs\.artifact_sha256 \}\}/);
+  assert.match(text, /artifact-bytes: \$\{\{ inputs\.artifact_bytes \}\}/);
+  assert.match(text, /artifact-file: \$\{\{ inputs\.artifact_file \}\}/);
+  assert.doesNotMatch(text, /linmas-\*\.tgz/);
+  assert.doesNotMatch(text, /gh release (?:edit|upload)/);
+  assert.doesNotMatch(text, /softprops\/action-gh-release/);
   assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
 });
 
@@ -86,8 +111,10 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
   assert.doesNotMatch(text, /pull_request:/);
   assert.doesNotMatch(text, /workflow_run:/);
   assert.match(text, /workflow_call:/);
-  assert.match(text, /inputs:\s*[\s\S]*subject-path:/);
   assert.match(text, /inputs:\s*[\s\S]*artifact-name:/);
+  assert.match(text, /inputs:\s*[\s\S]*artifact-file:/);
+  assert.match(text, /inputs:\s*[\s\S]*artifact-sha256:/);
+  assert.match(text, /inputs:\s*[\s\S]*artifact-bytes:/);
   assert.match(text, /actions:\s*read/);
   assert.match(text, /attestations:\s*write/);
   assert.match(text, /contents:\s*read/);
@@ -95,14 +122,16 @@ test('provenance workflow is a reusable attestation workflow with artifact downl
   assert.match(text, /actions\/download-artifact@v8/);
   assert.match(text, /name:\s*\$\{\{ inputs\.artifact-name \}\}/);
   assert.match(text, /actions\/attest@v4/);
-  assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
+  assert.match(text, /sha256sum/);
+  assert.match(text, /stat -c '%s'/);
+  assert.match(text, /subject-path:.*runner\.temp.*provenance-package.*artifact-file/);
 });
 
 test('provenance workflow uses subject-path attestation without custom predicate requirement', () => {
   const text = read('.github/workflows/generator-generic-ossf-slsa3-publish.yml');
   assert.match(text, /actions\/download-artifact@v8/);
   assert.match(text, /actions\/attest@v4/);
-  assert.match(text, /subject-path:\s*\$\{\{ inputs\.subject-path \}\}/);
+  assert.match(text, /subject-path:.*runner\.temp.*provenance-package.*artifact-file/);
   assert.doesNotMatch(text, /predicate-type:/);
 });
 
@@ -195,38 +224,58 @@ test('workflows use modern action major versions', () => {
   assert.match(liveEvaluation, /actions\/checkout@v7/);
   assert.match(liveEvaluation, /actions\/setup-node@v7/);
   assert.match(liveEvaluation, /actions\/upload-artifact@v7/);
-  assert.match(release, /npm install -g npm@11/);
-  assert.match(release, /softprops\/action-gh-release@v3/);
+  assert.match(release, /gh release create/);
 
   assert.match(provenance, /actions\/download-artifact@v8/);
 
   assert.doesNotMatch(maintained, /actions\/(?:checkout|setup-node|upload-artifact)@v[1-6]\b/);
-  assert.doesNotMatch(release, /softprops\/action-gh-release@v2/);
+  assert.doesNotMatch(release, /softprops\/action-gh-release/);
   assert.doesNotMatch(provenance, /actions\/download-artifact@v5/);
 });
 
 // ponytail: action SHAs are a follow-up hardening step once maintainers choose exact pins.
 
 
-test('release workflow reads release notes file and passes body to gh release', () => {
+test('release workflow validates release notes and creates the release from the exact target checkout', () => {
   const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
-  assert.match(text, /name:\s*Read release notes/);
-  assert.match(text, /id:\s*release_notes/);
-  assert.match(text, /FILE="releases\/\$\{VERSION\}\.md"/);
-  assert.match(text, /DELIM=/);
-  assert.doesNotMatch(text, /echo "BODY<<EOF" >> \$GITHUB_OUTPUT/);
-  assert.match(text, /body:\s*\$\{\{\s*steps\.release_notes\.outputs\.BODY\s*\}\}/);
+  assert.match(text, /\[\[ -f "releases\/\$VERSION\.md" \]\]/);
+  assert.match(text, /head -n 1 "releases\/\$VERSION\.md"/);
+  assert.match(text, /--notes-file "releases\/\$\{RELEASE_TAG#v\}\.md"/);
+  assert.match(text, /--verify-tag/);
 });
 
-test('tag-release workflow creates a tag then dispatches release from main', () => {
+test('release workflow publishes and releases the exact checked artifact', () => {
+  const text = read('.github/workflows/release.yml');
+  assert.match(text, /EXPECTED="linmas-\$\{RELEASE_TAG#v\}\.tgz"/);
+  assert.match(text, /node scripts\/artifact-integrity\.mjs/);
+  assert.match(text, /actions\/download-artifact@v8/);
+  assert.match(text, /npm publish "\$RUNNER_TEMP\/release-package\/\$ARTIFACT_FILE" --access public --ignore-scripts/);
+  assert.match(text, /gh release create "\$RELEASE_TAG" "\$RUNNER_TEMP\/release-package\/\$ARTIFACT_FILE"/);
+  assert.ok(text.indexOf('Verify the exact artifact immediately before npm publication') < text.indexOf('npm publish'));
+  assert.ok(text.indexOf('Verify the exact artifact immediately before GitHub release creation') < text.indexOf('gh release create'));
+});
+
+test('tag-release workflow requires explicit authorization before creating a tag', () => {
   const text = read('.github/workflows/tag-release.yml');
-  assert.match(text, /branches:\s*\n\s*- main/);
-  assert.match(text, /permissions:\s*[\s\S]*contents:\s*write/);
-  assert.match(text, /permissions:\s*[\s\S]*actions:\s*write/);
-  assert.match(text, /echo "tag=v\$VERSION" >> "\$GITHUB_OUTPUT"/);
-  assert.match(text, /git tag -a "\$TAG" -m "\$TAG"/);
-  assert.match(text, /git push origin "\$TAG"/);
-  assert.match(text, /gh workflow run release\.yml --ref main -f tag="\$TAG"/);
+  assert.doesNotMatch(text, /^\s{2}push:/m);
+  assert.match(text, /workflow_dispatch:/);
+  assert.match(text, /version:\s*\n\s+description:[^\n]*\n\s+required:\s*true\n\s+type:\s*string/);
+  assert.match(text, /target_sha:\s*\n\s+description:[^\n]*\n\s+required:\s*true\n\s+type:\s*string/);
+  assert.match(text, /if:\s*\$\{\{ github\.ref == 'refs\/heads\/main' \}\}/);
+  const authorize = jobSection(text, 'authorize');
+  const tag = jobSection(text, 'tag');
+  assert.match(tag, /permissions:\s*[\s\S]*contents:\s*write/);
+  assert.match(tag, /permissions:\s*[\s\S]*actions:\s*write/);
+  assert.match(authorize, /node scripts\/validate-release-request\.mjs[\s\S]*--phase prepare/);
+  assert.match(authorize, /--phase prepare[\s\S]*--checkout-role target/);
+  assert.doesNotMatch(tag, /scripts\/validate-release-request\.mjs|scripts\/artifact-integrity\.mjs|npm test|npm ci/);
+  assert.match(tag, /git tag -a "\$TAG" "\$TARGET_SHA" -m "\$TAG"/);
+  assert.match(tag, /http\.extraheader=AUTHORIZATION: bearer \$GH_TOKEN/);
+  assert.match(tag, /gh workflow run release\.yml[\s\S]*--ref main[\s\S]*-f tag="v\$\{REQUESTED_VERSION\}"[\s\S]*-f target_sha="\$TARGET_SHA"/);
+  for (const field of ['artifact_file', 'artifact_sha256', 'artifact_bytes', 'artifact_entries', 'artifact_inventory_sha256']) {
+    assert.match(tag, new RegExp(`-f ${field}="`));
+  }
+  assert.match(text, /persist-credentials:\s*false/);
 });
 
 test('dependabot targets dev for github-actions and npm updates', () => {

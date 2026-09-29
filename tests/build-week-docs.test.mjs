@@ -130,8 +130,12 @@ test('README badges use renderable SVG endpoints and static release metadata sta
   assert.doesNotMatch(text, /img\.shields\.io/, 'README badges must not depend on the failing third-party proxy');
   assert.match(text, /badgen\.net\/npm\/dt\/linmas/, 'README should show total npm downloads');
   assert.match(text, /badgen\.net\/npm\/dw\/linmas/, 'README should show weekly npm downloads');
-  assert.match(read('assets/badges/npm.svg'), new RegExp(`npm: v${pkg.version.replaceAll('.', '\\.')}`));
-  assert.match(read('assets/badges/release.svg'), new RegExp(`release: v${pkg.version.replaceAll('.', '\\.')}`));
+  // A development branch must not advertise an unpublished package as released.
+  const released = text.match(/releases\/tag\/v(\d+\.\d+\.\d+)/)?.[1];
+  assert.ok(released, 'README must name the published release separately');
+  assert.ok(fs.existsSync(path.join(rootDir, 'releases', `${released}.md`)));
+  assert.ok(read('assets/badges/npm.svg').includes(`npm: v${released}`));
+  assert.ok(read('assets/badges/release.svg').includes(`release: v${released}`));
 });
 
 test('public docs describe Codex-first compatibility without overstating other agents', () => {
@@ -148,7 +152,8 @@ test('public docs describe Codex-first compatibility without overstating other a
 test('README documents Hermes Agent compatibility through portable skills', () => {
   const text = read('README.md');
   assert.match(text, /Hermes Agent/i);
-  assert.match(text, /Hermes Agent[\s\S]{0,300}Compatible/i);
+  assert.match(text, /Hermes Agent[^\n]*Partial \/ format-level only/i);
+  assert.match(text, /Actual Linmas execution[^\n]*UNKNOWN/);
   assert.match(text, /SKILL\.md[\s\S]{0,200}Hermes/i);
   assert.match(text, /assets\/badges\/hermes-agent\.svg/, 'README should show Hermes compatibility in the badge row');
 });

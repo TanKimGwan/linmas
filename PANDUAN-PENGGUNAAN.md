@@ -24,12 +24,14 @@ Package npm dan marketplace Codex adalah dua jalur distribusi terpisah. Instalas
 
 ## Kompatibilitas AI agent
 
+[Kebijakan bukti kompatibilitas](docs/compatibility/COMPATIBILITY.md) menetapkan batas klaim per operasi. [Identitas konten clean](compatibility/evidence/v0.9.0-content-identity.json) akan diregenerasi untuk konten final; file itu sendiri belum merupakan clean acceptance. Acceptance record eksternal, yang belum dibuat, harus mengikat SHA commit final, status Git clean, artefak package dan plugin yang diukur, serta evidence disposition. Deteksi instalasi bukan bukti conformance runtime. Branch ini merupakan kandidat 0.9.0 yang belum dirilis; contoh instalasi yang dipin ke 0.8.0 tetap merujuk rilis sebelumnya.
+
 Codex adalah integrasi native utama dan jalur referensi untuk OpenAI Build Week 2026. Linmas tetap compatible dengan agent lain melalui managed installation yang diverifikasi atau instruksi Markdown portabel:
 
 | AI agent atau surface | Tingkat kompatibilitas | Surface Linmas yang tersedia |
 | --- | --- | --- |
 | Codex | **Utama / native** | Plugin Git marketplace, sebelas skill, tujuh native MCP tool, managed skill directory, dan review melalui provider Codex. |
-| Claude Code | **Compatible dan terverifikasi** | Managed installation sebelas skill dan review melalui provider Claude API. Registrasi native Linmas MCP plugin untuk Claude Code tidak diklaim. |
+| Claude Code | **Adapter instalasi terkelola** | Managed installation sebelas skill. Provider Claude API merupakan integrasi terpisah dan bukan bukti perilaku runtime Claude Code. Registrasi native Linmas MCP plugin untuk Claude Code tidak diklaim. |
 | Gemini CLI dan AI coding agent lain | **Portabel / manual** | Import atau adaptasi instruksi `skills/linmas-*/SKILL.md` jika agent mendukung project instruction atau user instruction yang setara. Belum ada installer, provider adapter, registrasi MCP, atau klaim parity khusus Gemini. |
 
 Kompatibilitas portabel mencakup isi instruksi defensif, bukan instalasi otomatis atau perilaku runtime yang identik. Human review, otorisasi, dan safety boundary Linmas tetap berlaku pada setiap host.

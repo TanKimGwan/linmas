@@ -1,81 +1,327 @@
 name: Release
+
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag, for example v0.1.6'
+        description: 'Authorized release tag, for example v0.9.0'
         required: true
         type: string
+      target_sha:
+        description: 'Full 40-character SHA authorized by the tag workflow'
+        required: true
+        type: string
+      artifact_file:
+        description: 'Exact npm tarball filename authorized by the build'
+        required: true
+        type: string
+      artifact_sha256:
+        description: 'Exact SHA-256 of the authorized npm tarball'
+        required: true
+        type: string
+      artifact_bytes:
+        description: 'Exact byte count of the authorized npm tarball'
+        required: true
+        type: string
+      artifact_entries:
+        description: 'Exact regular-file entry count of the authorized npm tarball'
+        required: true
+        type: string
+      artifact_inventory_sha256:
+        description: 'Exact SHA-256 of the authorized tar inventory'
+        required: true
+        type: string
+
 permissions:
   contents: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
 jobs:
-  publish:
+  build:
+    name: Build and authorize exact release handoff
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
+      contents: read
     env:
-      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      TARGET_SHA: ${{ inputs.target_sha }}
+      ARTIFACT_FILE: ${{ inputs.artifact_file }}
+      AUTHORIZED_SHA256: ${{ inputs.artifact_sha256 }}
+      AUTHORIZED_BYTES: ${{ inputs.artifact_bytes }}
+      AUTHORIZED_ENTRIES: ${{ inputs.artifact_entries }}
+      AUTHORIZED_INVENTORY_SHA256: ${{ inputs.artifact_inventory_sha256 }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout trusted release controls from main
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ env.RELEASE_TAG }}
-      - uses: actions/setup-node@v7
+          ref: main
+          persist-credentials: false
+
+      - name: Fetch immutable release refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+
+      - name: Check out the authorized target commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.TARGET_SHA }}
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
-      - name: Ensure npm supports trusted publishing
+
+      - name: Validate the clean target and external release state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: http.extraheader
+          GIT_CONFIG_VALUE_0: 'AUTHORIZATION: bearer ${{ github.token }}'
         run: |
           set -euo pipefail
-          npm --version
-          npm install -g npm@11
-          NPM_VERSION="$(npm --version)"
-          echo "$NPM_VERSION"
-          NPM_VERSION="$NPM_VERSION" node -e 'const [major = 0, minor = 0, patch = 0] = (process.env.NPM_VERSION || "0.0.0").split(".").map(Number); const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))); if (!ok) { console.error(`npm ${process.env.NPM_VERSION} does not support trusted publishing`); process.exit(1); }'
-      - name: Validate release tag input
-        run: |
-          if [[ ! "${RELEASE_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "::error::Invalid release tag: ${RELEASE_TAG}"
-            exit 1
-          fi
-      - run: npm ci
-      - run: git fetch origin main
-      - run: node scripts/verify-release-tag.mjs --tag "${RELEASE_TAG}" --version-file package.json --main-ref origin/main
-      - name: Read release notes
-        id: release_notes
-        run: |
-          VERSION=${RELEASE_TAG#v}
-          FILE="releases/${VERSION}.md"
-          if [ ! -f "$FILE" ]; then
-            echo "::error::Release notes file $FILE is missing"
-            exit 1
-          fi
-          DELIM="release_notes_$(date +%s%N)"
-          echo "BODY<<$DELIM" >> "$GITHUB_OUTPUT"
-          cat "$FILE" >> "$GITHUB_OUTPUT"
-          echo "" >> "$GITHUB_OUTPUT"
-          echo "$DELIM" >> "$GITHUB_OUTPUT"
+          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          node scripts/validate-release-request.mjs \
+            --phase publish \
+            --version "${RELEASE_TAG#v}" \
+            --target-sha "$TARGET_SHA" \
+            --main-ref origin/main \
+            --checkout-role target \
+            --repository "$GITHUB_REPOSITORY" \
+            --artifact-filename "$ARTIFACT_FILE" \
+            --artifact-sha256 "$AUTHORIZED_SHA256" \
+            --artifact-bytes "$AUTHORIZED_BYTES" \
+            --artifact-entries "$AUTHORIZED_ENTRIES" \
+            --artifact-inventory-sha256 "$AUTHORIZED_INVENTORY_SHA256"
 
-      - run: npm test
-      - run: npm run validate
-      - run: npm run pack:dry-run
-      - run: npm pack
-      - uses: actions/upload-artifact@v7
+      - name: Install dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Run tests without lifecycle scripts
+        run: npm test --ignore-scripts
+
+      - name: Run offline validation without lifecycle scripts
+        run: npm run validate --ignore-scripts
+
+      - name: Run offline evaluation without lifecycle scripts
+        run: npm run eval:offline --ignore-scripts
+
+      - name: Verify pack dry run without lifecycle scripts
+        run: npm pack --dry-run --ignore-scripts
+
+      - name: Create the exact temporary release handoff
+        id: handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          HANDOFF_DIR="$RUNNER_TEMP/linmas-release-handoff"
+          rm -rf "$HANDOFF_DIR"
+          mkdir -p "$HANDOFF_DIR/plugin"
+          EXPECTED="linmas-${RELEASE_TAG#v}.tgz"
+          if [[ "$ARTIFACT_FILE" != "$EXPECTED" ]]; then
+            echo "::error::authorized artifact filename does not match the release version"
+            exit 1
+          fi
+          npm pack --ignore-scripts --silent --pack-destination "$HANDOFF_DIR"
+          test -f "$HANDOFF_DIR/$EXPECTED"
+          node scripts/build-codex-plugin.mjs --target "$HANDOFF_DIR/plugin/linmas"
+          node scripts/artifact-integrity.mjs \
+            --root-dir "$GITHUB_WORKSPACE" \
+            --artifact-root "$HANDOFF_DIR" \
+            --package-path "$EXPECTED" \
+            --plugin-path plugin/linmas \
+            --expected-version "${RELEASE_TAG#v}" \
+            --expected-sha256 "$AUTHORIZED_SHA256" \
+            --expected-bytes "$AUTHORIZED_BYTES" \
+            --expected-entries "$AUTHORIZED_ENTRIES" \
+            --expected-inventory-sha256 "$AUTHORIZED_INVENTORY_SHA256" \
+            --output handoff.json
+          echo "handoff_dir=$HANDOFF_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the target checkout stayed clean after all candidate checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$(git status --porcelain=v1 --untracked-files=all)" ]]; then
+            echo "::error::candidate checks modified tracked files or created source artifacts"
+            git status --short
+            exit 1
+          fi
+
+      - name: Upload exact package artifact
+        uses: actions/upload-artifact@v7
         with:
-          name: release-artifact
-          path: '*.tgz'
-      - name: Publish to npm
-        run: npm publish --access public
-      - uses: softprops/action-gh-release@v3
+          name: release-package
+          path: ${{ steps.handoff.outputs.handoff_dir }}/${{ inputs.artifact_file }}
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload exact handoff manifest
+        uses: actions/upload-artifact@v7
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          body: ${{ steps.release_notes.outputs.BODY }}
-          files: '*.tgz'
+          name: release-handoff
+          path: ${{ steps.handoff.outputs.handoff_dir }}/handoff.json
+          if-no-files-found: error
+          include-hidden-files: true
+
+  publish:
+    name: Publish previously verified release handoff
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      TARGET_SHA: ${{ inputs.target_sha }}
+      ARTIFACT_FILE: ${{ inputs.artifact_file }}
+      AUTHORIZED_SHA256: ${{ inputs.artifact_sha256 }}
+      AUTHORIZED_BYTES: ${{ inputs.artifact_bytes }}
+      AUTHORIZED_ENTRIES: ${{ inputs.artifact_entries }}
+      AUTHORIZED_INVENTORY_SHA256: ${{ inputs.artifact_inventory_sha256 }}
+    steps:
+      - name: Checkout the exact release notes commit
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ env.TARGET_SHA }}
+          persist-credentials: false
+
+      - name: Checkout immutable workflow controls for privileged checks
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ github.workflow_sha }}
+          path: .trusted-workflow-controls
+          persist-credentials: false
+
+      - name: Setup Node for trusted publication
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Verify npm trusted publishing support
+        run: |
+          set -euo pipefail
+          NPM_VERSION="$(npm --version)"
+          NPM_VERSION="$NPM_VERSION" node -e 'const [major = 0, minor = 0, patch = 0] = (process.env.NPM_VERSION || "0.0.0").split(".").map(Number); const ok = major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))); if (!ok) { console.error(`npm ${process.env.NPM_VERSION} does not support trusted publishing`); process.exit(1); }'
+
+      - name: Download the exact package artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: release-package
+          path: ${{ runner.temp }}/release-package
+
+      - name: Download the exact handoff manifest
+        uses: actions/download-artifact@v8
+        with:
+          name: release-handoff
+          path: ${{ runner.temp }}/release-handoff
+
+      - name: Recheck static authorization and collisions
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          VERSION="${RELEASE_TAG#v}"
+          PACKAGE_PATH="$RUNNER_TEMP/release-package/$ARTIFACT_FILE"
+          HANDOFF_PATH="$RUNNER_TEMP/release-handoff/handoff.json"
+          TRUSTED_CONTROLS="$GITHUB_WORKSPACE/.trusted-workflow-controls"
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          [[ "$ARTIFACT_FILE" == "linmas-$VERSION.tgz" ]]
+          [[ "$(git rev-parse HEAD)" == "$TARGET_SHA" ]]
+          [[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git -C "$TRUSTED_CONTROLS" rev-parse HEAD)" == "$WORKFLOW_SHA" ]]
+          [[ "$(git -C "$TRUSTED_CONTROLS" ls-files --error-unmatch scripts/registry-result.mjs)" == "scripts/registry-result.mjs" ]]
+          [[ -z "$(git -C "$TRUSTED_CONTROLS" status --porcelain=v1 --untracked-files=all)" ]]
+          [[ -f "releases/$VERSION.md" ]]
+          [[ "$(head -n 1 "releases/$VERSION.md")" == "# Linmas $VERSION" ]]
+          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          [[ "$(git rev-parse "$RELEASE_TAG^{commit}")" == "$TARGET_SHA" ]]
+
+          mapfile -t PACKAGE_FILES < <(find "$RUNNER_TEMP/release-package" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)
+          [[ "${#PACKAGE_FILES[@]}" -eq 1 && "${PACKAGE_FILES[0]}" == "$ARTIFACT_FILE" ]]
+          [[ -f "$HANDOFF_PATH" ]]
+
+          node - "$HANDOFF_PATH" "$ARTIFACT_FILE" "$AUTHORIZED_SHA256" "$AUTHORIZED_BYTES" "$AUTHORIZED_ENTRIES" "$AUTHORIZED_INVENTORY_SHA256" <<'NODE'
+          const fs = require('node:fs');
+          const [manifestPath, filename, sha256, bytes, entries, inventorySha256] = process.argv.slice(2);
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          const packageArtifact = manifest?.package;
+          if (manifest?.schemaVersion !== 1 || manifest?.handoffKind !== 'linmas-release-artifact') throw new Error('handoff manifest kind is invalid');
+          if (packageArtifact?.path !== filename || packageArtifact?.filename !== filename) throw new Error('handoff filename is invalid');
+          if (packageArtifact.sha256 !== sha256 || packageArtifact.bytes !== Number(bytes) || packageArtifact.entryCount !== Number(entries) || packageArtifact.inventorySha256 !== inventorySha256) throw new Error('handoff package identity differs from workflow authorization');
+          if (packageArtifact.packageName !== 'linmas' || packageArtifact.published !== false) throw new Error('handoff package metadata is invalid');
+          if (!manifest.plugin || manifest.plugin.published !== false || manifest.plugin.packageName !== 'linmas') throw new Error('handoff plugin metadata is invalid');
+          NODE
+
+          ACTUAL_SHA256="$(sha256sum "$PACKAGE_PATH" | awk '{print $1}')"
+          ACTUAL_BYTES="$(stat -c '%s' "$PACKAGE_PATH")"
+          [[ "$ACTUAL_SHA256" == "$AUTHORIZED_SHA256" ]]
+          [[ "$ACTUAL_BYTES" == "$AUTHORIZED_BYTES" ]]
+
+          NPM_RESULT="$(node "$TRUSTED_CONTROLS/scripts/registry-result.mjs" --version "$VERSION")"
+          if [[ "$NPM_RESULT" != "absent" ]]; then
+            echo "::error::npm version already exists or registry response was indeterminate"
+            exit 1
+          fi
+
+          set +e
+          GH_DIAGNOSTIC="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName 2>&1)"
+          GH_STATUS=$?
+          set -e
+          if [[ "$GH_STATUS" -eq 0 || ! "$GH_DIAGNOSTIC" =~ [Rr]elease[[:space:]]not[[:space:]]found ]]; then
+            echo "::error::GitHub release collision check failed"
+            echo "$GH_DIAGNOSTIC"
+            exit 1
+          fi
+
+      - name: Verify the exact artifact immediately before npm publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE_PATH="$RUNNER_TEMP/release-package/$ARTIFACT_FILE"
+          [[ "$(sha256sum "$PACKAGE_PATH" | awk '{print $1}')" == "$AUTHORIZED_SHA256" ]]
+          [[ "$(stat -c '%s' "$PACKAGE_PATH")" == "$AUTHORIZED_BYTES" ]]
+
+      - name: Publish the exact artifact with lifecycle scripts disabled
+        run: npm publish "$RUNNER_TEMP/release-package/$ARTIFACT_FILE" --access public --ignore-scripts
+
+      - name: Verify the exact artifact immediately before GitHub release creation
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE_PATH="$RUNNER_TEMP/release-package/$ARTIFACT_FILE"
+          [[ "$(sha256sum "$PACKAGE_PATH" | awk '{print $1}')" == "$AUTHORIZED_SHA256" ]]
+          [[ "$(stat -c '%s' "$PACKAGE_PATH")" == "$AUTHORIZED_BYTES" ]]
+
+      - name: Create the GitHub release without update semantics
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" "$RUNNER_TEMP/release-package/$ARTIFACT_FILE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$RELEASE_TAG" \
+            --notes-file "releases/${RELEASE_TAG#v}.md"
 
   provenance:
     if: ${{ !github.event.repository.private }}
@@ -87,5 +333,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/generator-generic-ossf-slsa3-publish.yml
     with:
-      artifact-name: release-artifact
-      subject-path: 'linmas-*.tgz'
+      artifact-name: release-package
+      artifact-file: ${{ inputs.artifact_file }}
+      artifact-sha256: ${{ inputs.artifact_sha256 }}
+      artifact-bytes: ${{ inputs.artifact_bytes }}
