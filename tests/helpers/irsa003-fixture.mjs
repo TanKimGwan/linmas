@@ -3,14 +3,40 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import test from 'node:test';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const pythonPath = fs.realpathSync('/usr/bin/python3');
-const nodePath = fs.realpathSync(process.execPath);
-const gitPath = fs.realpathSync(execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim());
-const bwrapPath = fs.realpathSync(execFileSync('sh', ['-c', 'command -v bwrap'], { encoding: 'utf8' }).trim());
+const NON_LINUX_SKIP_REASON = 'requires Linux bubblewrap sandbox';
+let cachedLinuxTools;
+
+function linuxOnlyTest(name, optionsOrFn, maybeFn) {
+  if (process.platform === 'linux') {
+    return typeof optionsOrFn === 'function'
+      ? test(name, optionsOrFn)
+      : test(name, optionsOrFn, maybeFn);
+  }
+  const callback = typeof optionsOrFn === 'function' ? optionsOrFn : maybeFn;
+  const options = typeof optionsOrFn === 'function'
+    ? { skip: NON_LINUX_SKIP_REASON }
+    : { ...optionsOrFn, skip: NON_LINUX_SKIP_REASON };
+  return test.skip(name, options, callback);
+}
+
+function getLinuxTools() {
+  if (process.platform !== 'linux') throw new Error(NON_LINUX_SKIP_REASON);
+  if (cachedLinuxTools) return cachedLinuxTools;
+  const pythonPath = fs.realpathSync('/usr/bin/python3');
+  const nodePath = fs.realpathSync(process.execPath);
+  const gitCommand = execFileSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim();
+  const bwrapCommand = execFileSync('sh', ['-c', 'command -v bwrap'], { encoding: 'utf8' }).trim();
+  if (!gitCommand || !bwrapCommand) throw new Error('Linux IRSA sandbox dependencies are unavailable');
+  const gitPath = fs.realpathSync(gitCommand);
+  const bwrapPath = fs.realpathSync(bwrapCommand);
+  cachedLinuxTools = Object.freeze({ pythonPath, nodePath, gitPath, bwrapPath });
+  return cachedLinuxTools;
+}
 
 function sha256(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
@@ -82,6 +108,7 @@ function writePolicy(fixture, policy) {
 }
 
 function runGit(cwd, args) {
+  const { gitPath } = getLinuxTools();
   return execFileSync(gitPath, args, {
     cwd,
     encoding: 'utf8',
@@ -99,6 +126,7 @@ function runGit(cwd, args) {
 }
 
 function createFixture(modeName = 'clean') {
+  const { pythonPath, nodePath, gitPath, bwrapPath } = getLinuxTools();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-irsa003-outer-v2-'));
   fs.chmodSync(root, 0o700);
   const candidateRoot = path.join(root, 'candidate');
@@ -277,6 +305,7 @@ function runBoundary(fixture, modeName = fixture.policy.request.mode, extraEnvir
 let cachedRuntimeFiles;
 function runtimeFiles() {
   if (cachedRuntimeFiles) return structuredClone(cachedRuntimeFiles);
+  const { nodePath, gitPath } = getLinuxTools();
   const destinations = new Set();
   for (const executable of [nodePath, gitPath]) {
     const output = execFileSync('/usr/bin/ldd', [executable], {encoding:'utf8'});
@@ -285,4 +314,4 @@ function runtimeFiles() {
   cachedRuntimeFiles = [...destinations].sort().map(destination => ({destination, identity:fileIdentity(fs.realpathSync(destination))}));
   return structuredClone(cachedRuntimeFiles);
 }
-export { repositoryRoot, pythonPath, nodePath, gitPath, bwrapPath, sha256, canonicalJson, fileIdentity, inventory, commandVersion, writePolicy, runGit, createFixture, cleanup, runBoundary, runtimeFiles };
+export { repositoryRoot, getLinuxTools, linuxOnlyTest, sha256, canonicalJson, fileIdentity, inventory, commandVersion, writePolicy, runGit, createFixture, cleanup, runBoundary, runtimeFiles };

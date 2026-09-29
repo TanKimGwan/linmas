@@ -13,6 +13,14 @@ import {
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repository = 'TanKimGwan/linmas';
 
+function normalizeNewlines(text) {
+  return text.replace(/\r\n/g, '\n');
+}
+
+function readWorkflow(relativePath) {
+  return normalizeNewlines(fs.readFileSync(path.join(rootDir, '.github/workflows', relativePath), 'utf8'));
+}
+
 function curlResult(body, httpStatus = 200, effectiveUrl = 'https://registry.npmjs.org/linmas') {
   return {
     status: 0,
@@ -79,15 +87,15 @@ function validate(fixture, overrides = {}) {
 
 test('normal main pushes cannot trigger either release workflow', () => {
   for (const workflow of ['tag-release.yml', 'release.yml']) {
-    const text = fs.readFileSync(path.join(rootDir, '.github/workflows', workflow), 'utf8');
+    const text = readWorkflow(workflow);
     assert.doesNotMatch(text, /^\s{2}push:/m, `${workflow} must not have a push trigger`);
     assert.match(text, /^\s{2}workflow_dispatch:/m);
   }
 });
 
 test('explicit dispatch exposes required version and target authorization inputs', () => {
-  const tagWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/tag-release.yml'), 'utf8');
-  const releaseWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/release.yml'), 'utf8');
+  const tagWorkflow = readWorkflow('tag-release.yml');
+  const releaseWorkflow = readWorkflow('release.yml');
   assert.match(tagWorkflow, /version:\s*\n\s+description:[^\n]*\n\s+required:\s*true\n\s+type:\s*string/);
   assert.match(tagWorkflow, /target_sha:\s*\n\s+description:[^\n]*\n\s+required:\s*true\n\s+type:\s*string/);
   assert.match(releaseWorkflow, /tag:\s*\n\s+description:[^\n]*\n\s+required:\s*true\n\s+type:\s*string/);
@@ -106,6 +114,10 @@ test('explicit dispatch exposes required version and target authorization inputs
   assert.doesNotMatch(releaseWorkflow, /softprops\/action-gh-release|gh release (?:edit|upload)/);
   assert.match(releaseWorkflow, /npm publish "\$RUNNER_TEMP\/release-package\/\$ARTIFACT_FILE" --access public --ignore-scripts/);
   assert.ok(releaseWorkflow.indexOf('Verify the target checkout stayed clean') < releaseWorkflow.indexOf('npm publish'));
+});
+
+test('workflow text normalization accepts CRLF checkout content', () => {
+  assert.equal(normalizeNewlines('workflow_dispatch:\r\n  inputs:\r\n'), 'workflow_dispatch:\n  inputs:\n');
 });
 
 test('dry-run validation accepts an exact current-main release without creating a tag', (t) => {
@@ -321,8 +333,8 @@ test('generic npm proxy 404 is not mistaken for an available version', () => {
 });
 
 test('privileged tag and publish checks use one authenticated workflow-source registry parser', () => {
-  const tagWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/tag-release.yml'), 'utf8');
-  const releaseWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/release.yml'), 'utf8');
+  const tagWorkflow = readWorkflow('tag-release.yml');
+  const releaseWorkflow = readWorkflow('release.yml');
 
   assert.match(tagWorkflow, /ref: \$\{\{ github\.workflow_sha \}\}/);
   assert.match(tagWorkflow, /WORKFLOW_SHA: \$\{\{ github\.workflow_sha \}\}/);

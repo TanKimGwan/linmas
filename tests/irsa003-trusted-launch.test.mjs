@@ -1,9 +1,8 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { createFixture, cleanup, runBoundary, runGit, writePolicy, sha256, pythonPath } from './helpers/irsa003-fixture.mjs';
+import { createFixture, cleanup, runBoundary, runGit, writePolicy, sha256, getLinuxTools, linuxOnlyTest as test } from './helpers/irsa003-fixture.mjs';
 
 test('static bootstrap clears native loader inputs before Python and clean request is synchronously consumed', (t) => {
   const fixture = createFixture('clean');
@@ -161,7 +160,7 @@ test('clean consumer rejects missing, stale, unrelated, and result-substituted a
 test('direct Python invocation and unsupported request mode fail closed', (t) => {
   const fixture = createFixture('collect');
   t.after(() => cleanup(fixture));
-  const direct = spawnSync(pythonPath, ['-I', '-E', fixture.launcherPath, '--bootstrap-parent-pid', String(process.pid), '--mode', 'collect'], {
+  const direct = spawnSync(getLinuxTools().pythonPath, ['-I', '-E', fixture.launcherPath, '--bootstrap-parent-pid', String(process.pid), '--mode', 'collect'], {
     env: { ...process.env },
     encoding: 'utf8'
   });

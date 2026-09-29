@@ -1,17 +1,16 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { repositoryRoot, pythonPath, createFixture, cleanup, fileIdentity, writePolicy } from './helpers/irsa003-fixture.mjs';
+import { repositoryRoot, getLinuxTools, createFixture, cleanup, fileIdentity, writePolicy, linuxOnlyTest as test } from './helpers/irsa003-fixture.mjs';
 import { pythonPhasePublication, waitForPhase } from './helpers/irsa003-phase.mjs';
 
 for (const name of ['disappearance', 'finite-churn', 'persistent-churn', 'stable-bounds',
   'excess-before-disappearance', 'other-errors', 'scope-and-root-errors',
   'directory-replacement', 'nested-git-cleanup', 'scan-and-operation-deadlines', 'cancellation-descriptor-cleanup']) {
   test(`production workspace accounting: ${name}`, () => {
-    const output = execFileSync(pythonPath, ['-B', '-I', '-E',
+    const output = execFileSync(getLinuxTools().pythonPath, ['-B', '-I', '-E',
       path.join(repositoryRoot, 'tests/helpers/workspace-accounting-cases.py'),
       path.join(repositoryRoot, 'scripts/irsa003-trusted-launch.py'), name],
     { encoding: 'utf8', timeout: 10000, env: { PATH: '/usr/bin:/bin', LANG: 'C.UTF-8' } });

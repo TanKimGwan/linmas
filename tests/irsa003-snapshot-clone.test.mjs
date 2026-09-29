@@ -1,17 +1,16 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { repositoryRoot, createFixture, cleanup, runBoundary, fileIdentity, writePolicy, pythonPath } from './helpers/irsa003-fixture.mjs';
+import { repositoryRoot, createFixture, cleanup, runBoundary, fileIdentity, writePolicy, getLinuxTools, linuxOnlyTest as test } from './helpers/irsa003-fixture.mjs';
 import { pythonPhasePublication, waitForPhase } from './helpers/irsa003-phase.mjs';
 
 for (const [name, value] of [
   ['real pack resource failure is corrected by policy reaching both helpers', 'bounded-comparison'],
   ['snapshot uses the exact quoted trusted Git path and excludes caller config', 'quoted-git-path']
 ]) test(name, { timeout: 30000 }, () => {
-  const result = spawnSync(pythonPath, ['-B', '-I', '-E', path.join(repositoryRoot, 'tests/helpers/snapshot-clone-cases.py'), value], {
+  const result = spawnSync(getLinuxTools().pythonPath, ['-B', '-I', '-E', path.join(repositoryRoot, 'tests/helpers/snapshot-clone-cases.py'), value], {
     env: { PATH: '/usr/bin:/bin', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TMPDIR: process.env.TMPDIR || '/tmp' },
     encoding: 'utf8', timeout: 25000, maxBuffer: 1024 * 1024
   });
@@ -68,7 +67,7 @@ for (const [name, value] of [
 });
 
 test('workspace guard rejection cannot satisfy the real-Git negative control', { timeout: 15000 }, () => {
-  const result = spawnSync(pythonPath, ['-B', '-I', '-E', path.join(repositoryRoot, 'tests/helpers/snapshot-clone-cases.py'), 'guard-rejection-control'], {
+  const result = spawnSync(getLinuxTools().pythonPath, ['-B', '-I', '-E', path.join(repositoryRoot, 'tests/helpers/snapshot-clone-cases.py'), 'guard-rejection-control'], {
     env: { PATH: '/usr/bin:/bin', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', TMPDIR: process.env.TMPDIR || '/tmp' },
     encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024
   });
@@ -111,7 +110,7 @@ test('cancellation during actual Git clone reaps upload helper and leaves no acc
   const ready = path.join(f.root, 'clone-ready.json');
   const helper = path.join(f.root, 'owned-upload-helper');
   const publication = pythonPhasePublication(ready, 'snapshot-clone', f.policy.request.id, '[os.getpid(),os.getppid()]');
-  fs.writeFileSync(helper, '#!' + pythonPath + '\nimport os,signal\n' + publication + '\nsignal.pause()\n', { mode: 0o500 });
+  fs.writeFileSync(helper, '#!' + getLinuxTools().pythonPath + '\nimport os,signal\n' + publication + '\nsignal.pause()\n', { mode: 0o500 });
   patchLauncher(f, source => source.replace('upload_pack = f"{shlex.quote(git_path)} -c pack.threads=1 upload-pack"', 'upload_pack = shlex.quote(' + JSON.stringify(helper) + ')'));
   const child = spawn(f.bootstrapPath, ['--mode', 'clean'], { stdio: ['ignore', 'pipe', 'pipe'] });
   const completed = once(child, 'exit'); let stderr = '';

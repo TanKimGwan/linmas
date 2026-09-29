@@ -18,15 +18,24 @@ const RECORD_PATH = 'docs/compatibility/evidence/v0.9.0-record.json';
 const SNAPSHOT_PATH = 'docs/compatibility/evidence/v0.9.0-snapshot.json';
 const EXCLUDED = new Set(GENERATED_EVIDENCE_PATHS);
 const COLLECTION_DATE = '2026-09-08';
+const inheritedPath = process.env.PATH ?? process.env.Path;
+if (!inheritedPath) throw new Error('Git executable PATH is unavailable');
 const GIT_ENV = {
-  PATH: '/usr/bin:/bin',
+  PATH: inheritedPath,
   HOME: os.tmpdir(),
   LANG: 'C.UTF-8',
   LC_ALL: 'C.UTF-8',
   GIT_CONFIG_NOSYSTEM: '1',
-  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_GLOBAL: os.devNull,
   GIT_TERMINAL_PROMPT: '0'
 };
+if (process.platform === 'win32') {
+  for (const name of ['SystemRoot', 'PATHEXT', 'TEMP', 'TMP']) {
+    const value = process.env[name];
+    if (value !== undefined) GIT_ENV[name] = value;
+  }
+}
+const GIT_EXECUTABLE = 'git';
 
 const MCP_TESTS = Object.freeze({
   linmas_review_prepare: 'offline prepare is read-only and returns prepared plus human-review state',
@@ -54,11 +63,11 @@ function sha256(bytes) {
 }
 
 function git(root, ...args) {
-  return execFileSync('/usr/bin/git', args, { cwd: root, env: GIT_ENV, encoding: 'utf8' }).trim();
+  return execFileSync(GIT_EXECUTABLE, args, { cwd: root, env: GIT_ENV, encoding: 'utf8' }).trim();
 }
 
 function isIgnoredByGit(root, relativePath) {
-  const result = spawnSync('/usr/bin/git', ['check-ignore', '--no-index', '--quiet', '--', relativePath], {
+  const result = spawnSync(GIT_EXECUTABLE, ['check-ignore', '--no-index', '--quiet', '--', relativePath], {
     cwd: root,
     env: GIT_ENV,
     encoding: 'utf8'
@@ -144,7 +153,7 @@ export function createCompatibilityEvidenceFixture(repositoryRoot) {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-v090-compatibility-fixture-'));
   const root = path.join(temporaryRoot, 'checkout');
   try {
-    execFileSync('/usr/bin/git', ['clone', '--shared', '--quiet', repositoryRoot, root], { env: GIT_ENV, stdio: 'pipe' });
+    execFileSync(GIT_EXECUTABLE, ['clone', '--shared', '--quiet', repositoryRoot, root], { env: GIT_ENV, stdio: 'pipe' });
     const changed = git(repositoryRoot, 'diff', '--name-only', '-z').split('\0').filter(Boolean);
     const untracked = git(repositoryRoot, 'ls-files', '-o', '--exclude-standard', '-z').split('\0').filter(Boolean);
     const overlayPaths = [...changed, ...untracked.filter((relativePath) =>

@@ -37,10 +37,13 @@ function validateDiagnosticSource({ repositoryRoot, identity, acceptance, artifa
   return validateDiagnosticEvidenceBinding({ repositoryRoot, identity, diagnostic, artifactRoot });
 }
 
-const nodeMajor = process.versions.node.split('.', 1)[0];
-const approvedNpmCli = path.join(process.config.variables.node_prefix, 'lib', `node_modules_${nodeMajor}`, 'npm', 'bin', 'npm-cli.js');
-assert.equal(path.isAbsolute(approvedNpmCli), true);
-assert.equal(fs.statSync(approvedNpmCli).isFile(), true);
+const npmExecPath = process.env.npm_execpath;
+assert.equal(typeof npmExecPath, 'string', 'tests must run under npm with npm_execpath set');
+assert.notEqual(npmExecPath.trim(), '', 'npm_execpath must not be empty');
+assert.equal(path.isAbsolute(npmExecPath), true);
+assert.equal(fs.statSync(npmExecPath).isFile(), true);
+const approvedNpmCli = fs.realpathSync(npmExecPath);
+assert.equal(fs.lstatSync(approvedNpmCli).isFile(), true);
 const previousApprovedNpmCli = process.env.LINMAS_APPROVED_NPM_CLI;
 process.env.LINMAS_APPROVED_NPM_CLI = approvedNpmCli;
 after(() => {

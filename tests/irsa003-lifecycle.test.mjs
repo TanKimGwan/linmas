@@ -1,11 +1,10 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createFixture, cleanup, writePolicy, fileIdentity, pythonPath, runBoundary, inventory } from './helpers/irsa003-fixture.mjs';
+import { createFixture, cleanup, writePolicy, fileIdentity, getLinuxTools, linuxOnlyTest as test, runBoundary, inventory } from './helpers/irsa003-fixture.mjs';
 import { pythonPhasePublication, waitForPhase } from './helpers/irsa003-phase.mjs';
 
 function patchLauncher(f, transform) {
@@ -49,7 +48,7 @@ test('cancellation at Git, archive, verifier and pre-acceptance gate reaps benig
 test('bootstrap resets inherited signal mask/dispositions and closes descriptors above stderr', async(t)=>{
   const f=createFixture('clean');t.after(()=>cleanup(f));
   patchLauncher(f,()=>`import os,signal,json\nprint(json.dumps({'mask':[int(x) for x in signal.pthread_sigmask(signal.SIG_BLOCK,set())], 'termIgnored':signal.getsignal(signal.SIGTERM)==signal.SIG_IGN,'fd9Exists':os.path.exists('/proc/self/fd/9')}))\n`);
-  const run=execFileSync(pythonPath,['-I','-E','-c',`import os,signal\nfd=os.open('/dev/null',os.O_RDONLY);os.dup2(fd,9,inheritable=True)\nsignal.signal(signal.SIGTERM,signal.SIG_IGN)\nsignal.pthread_sigmask(signal.SIG_BLOCK,{signal.SIGTERM,signal.SIGINT,signal.SIGHUP})\nos.execve(${JSON.stringify(f.bootstrapPath)},['bootstrap','--mode','clean'],{})`],{encoding:'utf8',timeout:5000});
+  const run=execFileSync(getLinuxTools().pythonPath,['-I','-E','-c',`import os,signal\nfd=os.open('/dev/null',os.O_RDONLY);os.dup2(fd,9,inheritable=True)\nsignal.signal(signal.SIGTERM,signal.SIG_IGN)\nsignal.pthread_sigmask(signal.SIG_BLOCK,{signal.SIGTERM,signal.SIGINT,signal.SIGHUP})\nos.execve(${JSON.stringify(f.bootstrapPath)},['bootstrap','--mode','clean'],{})`],{encoding:'utf8',timeout:5000});
   assert.deepEqual(JSON.parse(run),{mask:[],termIgnored:false,fd9Exists:false});
 });
 
@@ -69,7 +68,7 @@ test('streaming bounds, partial archive, child signal and namespace failure neve
     if(kind==='fork-failure' || kind==='exec-failure') {
       let source=fs.readFileSync(path.join(f.root,'trusted-bootstrap.c'),'utf8');
       if(kind==='fork-failure')source=source.replace('long child = syscall0(SYS_FORK);','long child = -11;');
-      else source=source.replace('#define LINMAS_PYTHON_PATH '+JSON.stringify(pythonPath),'#define LINMAS_PYTHON_PATH "/unavailable/fixture-python"');
+      else source=source.replace('#define LINMAS_PYTHON_PATH '+JSON.stringify(getLinuxTools().pythonPath),'#define LINMAS_PYTHON_PATH "/unavailable/fixture-python"');
       fs.writeFileSync(path.join(f.root,'failure-bootstrap.c'),source);
       fs.chmodSync(f.bootstrapPath,0o700);
       execFileSync('cc',['-nostdlib','-static','-fno-stack-protector','-fno-pie','-no-pie','-Wl,--build-id=none','-o',f.bootstrapPath,path.join(f.root,'failure-bootstrap.c')]);

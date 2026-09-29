@@ -1,10 +1,9 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { repositoryRoot, createFixture, cleanup, runGit, writePolicy, runBoundary, sha256, inventory, nodePath } from './helpers/irsa003-fixture.mjs';
+import { repositoryRoot, createFixture, cleanup, runGit, writePolicy, runBoundary, sha256, inventory, getLinuxTools, linuxOnlyTest as test } from './helpers/irsa003-fixture.mjs';
 import { buildContentIdentity, CLEAN_IDENTITY_PATH, GENERATED_EVIDENCE_PATHS, computeFreshEvidenceDigest } from '../scripts/validate-evidence-binding.mjs';
 import { collectFreshEvidence } from '../scripts/evidence-operations.mjs';
 
@@ -18,6 +17,7 @@ function writeJson(file, value) {
 // the disposable repository gets its own HEAD, content identity, and fresh
 // operation evidence below.
 for (const instrumentBuilder of [false, true]) test(`actual full verifier consumes >8 MiB snapshot: ${instrumentBuilder ? 'builder confinement probe' : 'unchanged implementation'}`,  {timeout:120000}, async (t) => {
+  const { nodePath } = getLinuxTools();
   const f = createFixture('clean');
   t.after(() => cleanup(f));
   const current = buildContentIdentity({repositoryRoot});

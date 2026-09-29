@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-09-29T04:59:51.236Z",
+  "generatedAt": "2026-09-29T12:56:02.820Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -502,8 +502,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 799,
-      "sha256": "abc357deb9c71546d6d2b223652b418f807696c8418df453c3cba131555b1c37"
+      "bytes": 2385,
+      "sha256": "8f3126bde6b1383827860c39171a5c5682192db5e98a45e9a57fa217fb152e75"
     },
     {
       "path": ".github/workflows/evaluation-live.yml",
@@ -2062,8 +2062,8 @@
     },
     {
       "path": "tests/clean-evidence-binding.test.mjs",
-      "bytes": 47309,
-      "sha256": "44054cd6acefc0deb105afa2b669d0ab1e534e0823b9d442722a4c13c0c28ac8"
+      "bytes": 47436,
+      "sha256": "36fa70a43e01d54f9942ff9911ab3c31b9ec9a6d13a3b7a239f1c63b6315fa6b"
     },
     {
       "path": "tests/cli-smoke.test.mjs",
@@ -2152,18 +2152,18 @@
     },
     {
       "path": "tests/github-workflows.test.mjs",
-      "bytes": 20723,
-      "sha256": "4ebad3b6aa43dcc8fd11cfef11bc0ac054d595ed5b4344a5b156cda28377301b"
+      "bytes": 21302,
+      "sha256": "682dce8b0d914cd44d9e3871f482d38d8d886c3e9971c4588789fd61ad5c2421"
     },
     {
       "path": "tests/helpers/compatibility-evidence-fixture.mjs",
-      "bytes": 13803,
-      "sha256": "79409efc5e0a057ceb49d2714990506f1e08c9002791df07878179ca3cbc0613"
+      "bytes": 14161,
+      "sha256": "7e2b3638c0a0369fe2903aa5df214321a02518f724d693dfbb25ffc81af35f80"
     },
     {
       "path": "tests/helpers/irsa003-fixture.mjs",
-      "bytes": 12839,
-      "sha256": "051f0bb8d7963b85fe4b94960f612b902bae01a0ead550307ae82bb04566f110"
+      "bytes": 14037,
+      "sha256": "f035b0c3c9cea4e3a703c8caa35a90f31786c42691e9154693a4f952b4551ebf"
     },
     {
       "path": "tests/helpers/irsa003-phase.mjs",
@@ -2207,33 +2207,33 @@
     },
     {
       "path": "tests/irsa003-actual-integration.test.mjs",
-      "bytes": 10239,
-      "sha256": "e07bcff620db8bf96b57df0c3a93295a08d22cbef6b1dbfb567d25c719a2b8cf"
+      "bytes": 10277,
+      "sha256": "6e13140bd6965e83018a99ccee4106a8d06a976a12e93bf77b66f5bb5f8224f0"
     },
     {
       "path": "tests/irsa003-lifecycle.test.mjs",
-      "bytes": 9890,
-      "sha256": "0ac9ff78f1dc8b457c54935fc9191829764078c6db0aac16a7e845bef0768eba"
+      "bytes": 9918,
+      "sha256": "80b7d1c07dea9c79cb9674b6c849741ce8f656be75a07897b61b8bbc366a590c"
     },
     {
       "path": "tests/irsa003-phase-notification.test.mjs",
-      "bytes": 4952,
-      "sha256": "016f832c5daa5d916fb537bb52fce40198ab880cc3bd37398ef572668529c29f"
+      "bytes": 4964,
+      "sha256": "dd05b40fb2c6c540e35e42d30ad92d6488e707e228c171af211f1129d19801c0"
     },
     {
       "path": "tests/irsa003-snapshot-clone.test.mjs",
-      "bytes": 7997,
-      "sha256": "0999fbb480d50db2e50243f085341071ad3f6e6454be08b5acb1994d616fee24"
+      "bytes": 8041,
+      "sha256": "52f77697c25911734f4d1740b89df032c3bbb765e8538502c04344826461902d"
     },
     {
       "path": "tests/irsa003-trusted-launch.test.mjs",
-      "bytes": 9265,
-      "sha256": "4cfae7ffed66799b96192d5b397e056b92a278969dccc0954a6b0299ec0b7af7"
+      "bytes": 9277,
+      "sha256": "af5100dd50d895797bdc8da9440f4d0f56d13a3514faecb4438e0184e98e3d23"
     },
     {
       "path": "tests/irsa003-workspace-accounting.test.mjs",
-      "bytes": 2799,
-      "sha256": "ab129ad9d3658fa5f2039f8d54426070cee41164c3bad50965b1ae10615f08bb"
+      "bytes": 2811,
+      "sha256": "be8f0d630be46af2835a9981692e3fc3f7038cef68622b6a127593b856999cbb"
     },
     {
       "path": "tests/linmas-cli-review.test.mjs",
@@ -2332,8 +2332,8 @@
     },
     {
       "path": "tests/release-authorization.test.mjs",
-      "bytes": 18280,
-      "sha256": "325230ca0d185bbbae0d3f2d1f04375c350a394e9deedafbeb9160531ff3d82a"
+      "bytes": 18445,
+      "sha256": "ca2bc8cf437da1095ec7755efab41bba4ce58f31d3b8b175ccd04a93a3cf4603"
     },
     {
       "path": "tests/release-tag.test.mjs",
@@ -2436,5 +2436,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "9564bb6e5f094445a6c374adfe942d34a73909581f86e3667ee21bea6361a19b"
+  "contentDigest": "3007b4b8b77953000a9e90dfc80338169affd8009a42ae8d7e79ed532615c18d"
 }

@@ -18,7 +18,11 @@ const GIT_IGNORE_ENV = {
 };
 
 function read(relPath) {
-  return fs.readFileSync(path.join(rootDir, relPath), 'utf8');
+  return normalizeNewlines(fs.readFileSync(path.join(rootDir, relPath), 'utf8'));
+}
+
+function normalizeNewlines(text) {
+  return text.replace(/\r\n/g, '\n');
 }
 
 function isIgnoredByGit(relPath) {
@@ -89,6 +93,10 @@ test('release workflow is explicit-dispatch only and verifies authorization befo
   assert.match(text, /uses:\s*\.\/\.github\/workflows\/generator-generic-ossf-slsa3-publish\.yml/);
 });
 
+test('workflow text normalization accepts CRLF checkout content', () => {
+  assert.equal(normalizeNewlines('workflow_dispatch:\r\n  inputs:\r\n'), 'workflow_dispatch:\n  inputs:\n');
+});
+
 test('ci workflow triggers on PR and pushes to dev/main', () => {
   const text = read('.github/workflows/ci.yml');
   assert.match(text, /pull_request:/);
@@ -104,9 +112,19 @@ test('ci workflow triggers on PR and pushes to dev/main', () => {
 
 test('ci keeps the required Linux verify check and adds deterministic Windows verification', () => {
   const text = read('.github/workflows/ci.yml');
-  assert.match(text, /verify:\s*\n\s*runs-on:\s*ubuntu-latest/);
-  assert.match(text, /verify-windows:\s*\n\s*runs-on:\s*windows-latest/);
+  const linux = jobSection(text, 'verify');
   const windows = text.slice(text.indexOf('verify-windows:'));
+  assert.match(linux, /runs-on:\s*ubuntu-latest/);
+  assert.match(windows, /runs-on:\s*windows-latest/);
+  for (const job of [linux, windows]) {
+    assert.match(job, /git fetch --depth=1 --no-tags origin refs\/tags\/v0\.8\.0:refs\/tags\/v0\.8\.0/);
+    assert.match(job, /refs\/tags\/v0\.8\.0\^\{tag\}/);
+    assert.match(job, /d03d7f4e5f63cf2c76a3e24f87854681ffac9959/);
+    assert.match(job, /refs\/tags\/v0\.8\.0\^\{\}/);
+    assert.match(job, /68a5cd175b16d26fd58834acd489ebcbe8a8ec57/);
+  }
+  assert.match(linux, /apt-get install --yes --no-install-recommends bubblewrap[\s\S]*command -v bwrap[\s\S]*bwrap --version[\s\S]*npm test/);
+  assert.doesNotMatch(windows, /apt-get|bubblewrap|bwrap/);
   for (const command of ['npm ci', 'npm test', 'npm run validate', 'npm run eval:offline', 'npm run pack:dry-run']) {
     assert.match(windows, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
@@ -192,8 +210,8 @@ test('readme uses tracked public logo asset for GitHub and npm rendering', () =>
 
 
 test('ci and release workflows use node 24 with npm ci and npm cache', () => {
-  const ci = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
-  const release = fs.readFileSync(path.join(rootDir, '.github/workflows/release.yml'), 'utf8');
+  const ci = read('.github/workflows/ci.yml');
+  const release = read('.github/workflows/release.yml');
 
   assert.match(ci, /node-version:\s*24/);
   assert.match(ci, /cache:\s*npm/);
@@ -212,7 +230,7 @@ test('release 0.1.1 artifacts exist', () => {
 });
 
 test('release workflow skips provenance automatically on private repositories', () => {
-  const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  const text = read('.github/workflows/release.yml');
   assert.match(text, /permissions:\s*\n\s*contents:\s*read/);
   assert.match(text, /publish:\s*[\s\S]*permissions:\s*[\s\S]*contents:\s*write/);
   assert.match(text, /publish:\s*[\s\S]*permissions:\s*[\s\S]*id-token:\s*write/);
@@ -252,11 +270,11 @@ test('internal planning docs stay out of the shared repo surface', () => {
 });
 
 test('workflows use modern action major versions', () => {
-  const ci = fs.readFileSync(path.resolve('.github/workflows/ci.yml'), 'utf8');
-  const release = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
-  const tagRelease = fs.readFileSync(path.resolve('.github/workflows/tag-release.yml'), 'utf8');
-  const liveEvaluation = fs.readFileSync(path.resolve('.github/workflows/evaluation-live.yml'), 'utf8');
-  const provenance = fs.readFileSync(path.resolve('.github/workflows/generator-generic-ossf-slsa3-publish.yml'), 'utf8');
+  const ci = read('.github/workflows/ci.yml');
+  const release = read('.github/workflows/release.yml');
+  const tagRelease = read('.github/workflows/tag-release.yml');
+  const liveEvaluation = read('.github/workflows/evaluation-live.yml');
+  const provenance = read('.github/workflows/generator-generic-ossf-slsa3-publish.yml');
   const maintained = ci + release + tagRelease + liveEvaluation;
 
   assert.match(ci, /actions\/checkout@v7/);
@@ -283,7 +301,7 @@ test('workflows use modern action major versions', () => {
 
 
 test('release workflow validates release notes and creates the release from the exact target checkout', () => {
-  const text = fs.readFileSync(path.resolve('.github/workflows/release.yml'), 'utf8');
+  const text = read('.github/workflows/release.yml');
   assert.match(text, /\[\[ -f "releases\/\$VERSION\.md" \]\]/);
   assert.match(text, /head -n 1 "releases\/\$VERSION\.md"/);
   assert.match(text, /--notes-file "releases\/\$\{RELEASE_TAG#v\}\.md"/);

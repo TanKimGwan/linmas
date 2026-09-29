@@ -1,4 +1,3 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -7,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
 import { pythonPhasePublication, readPhase, waitForPhase } from './helpers/irsa003-phase.mjs';
-import { pythonPath } from './helpers/irsa003-fixture.mjs';
+import { getLinuxTools, linuxOnlyTest as test } from './helpers/irsa003-fixture.mjs';
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-phase-case-'));
@@ -42,7 +41,7 @@ ${publisher}
 print('published',flush=True)
 assert sys.stdin.readline().strip()=='exit'
 `;
-  const child = spawn(pythonPath, ['-B', '-I', '-E', '-c', script], { stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(getLinuxTools().pythonPath, ['-B', '-I', '-E', '-c', script], { stdio: ['pipe', 'pipe', 'pipe'] });
   const completed = once(child, 'exit');
   let stderr = '';
   child.stderr.on('data', value => { stderr += value; });
