@@ -8,7 +8,8 @@ permissions:
   contents: read
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # Previously runs-on: ubuntu-latest; pin the namespace-sensitive sandbox job.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
       - name: Fetch exact v0.8.0 annotated test baseline
@@ -45,6 +46,42 @@ jobs:
           sudo apt-get install --yes --no-install-recommends bubblewrap
           command -v bwrap
           bwrap --version
+      - name: Verify required Linux bubblewrap namespaces
+        run: |
+          set -euo pipefail
+          host_user_namespace="$(readlink /proc/self/ns/user)"
+          host_pid_namespace="$(readlink /proc/self/ns/pid)"
+          host_network_namespace="$(readlink /proc/self/ns/net)"
+          host_mount_namespace="$(readlink /proc/self/ns/mnt)"
+          bwrap \
+            --die-with-parent \
+            --new-session \
+            --unshare-all \
+            --unshare-user \
+            --disable-userns \
+            --cap-drop ALL \
+            --size 1048576 \
+            --tmpfs / \
+            --ro-bind /usr /usr \
+            --ro-bind /bin /bin \
+            --ro-bind /lib /lib \
+            --ro-bind-try /lib64 /lib64 \
+            --proc /proc \
+            --dev /dev \
+            --dir /tmp \
+            --setenv HOST_USER_NAMESPACE "${host_user_namespace}" \
+            --setenv HOST_PID_NAMESPACE "${host_pid_namespace}" \
+            --setenv HOST_NETWORK_NAMESPACE "${host_network_namespace}" \
+            --setenv HOST_MOUNT_NAMESPACE "${host_mount_namespace}" \
+            -- /bin/sh -ceu '
+              test "$(readlink /proc/self/ns/user)" != "${HOST_USER_NAMESPACE}"
+              test "$(readlink /proc/self/ns/pid)" != "${HOST_PID_NAMESPACE}"
+              test "$(readlink /proc/self/ns/net)" != "${HOST_NETWORK_NAMESPACE}"
+              test "$(readlink /proc/self/ns/mnt)" != "${HOST_MOUNT_NAMESPACE}"
+              grep -q "lo:" /proc/net/dev
+              test -w /tmp
+              printf namespace-preflight-ok
+            '
       - run: npm ci
       - run: npm test
       - run: npm run coverage
@@ -64,6 +101,71 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Normalize unique trusted Git PATH for Windows tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $selectedCommand = Get-Command git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
+          $selectedItem = Get-Item -LiteralPath $selectedCommand.Source -Force
+          if ($selectedItem.PSIsContainer -or $selectedItem.Extension -ine '.exe' -or $null -ne $selectedItem.LinkType) {
+            throw 'selected Git is not a regular executable file'
+          }
+          $selectedGit = (Resolve-Path -LiteralPath $selectedItem.FullName).ProviderPath
+          $selectedDirectory = Split-Path -Parent $selectedGit
+          $extensions = @($env:PATHEXT -split ';' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
+          if ($extensions.Count -eq 0) { throw 'PATHEXT is unavailable' }
+          $comparer = [System.StringComparer]::OrdinalIgnoreCase
+          $keptDirectories = [System.Collections.Generic.List[string]]::new()
+          $seenDirectories = [System.Collections.Generic.HashSet[string]]::new($comparer)
+          [void]$keptDirectories.Add($selectedDirectory)
+          [void]$seenDirectories.Add($selectedDirectory)
+          foreach ($rawEntry in ($env:PATH -split ';')) {
+            $entry = $rawEntry.Trim().Trim('"')
+            if (-not $entry -or -not (Test-Path -LiteralPath $entry -PathType Container)) { continue }
+            $directory = (Resolve-Path -LiteralPath $entry).ProviderPath
+            $gitCandidates = [System.Collections.Generic.HashSet[string]]::new($comparer)
+            foreach ($extension in $extensions) {
+              $candidate = Join-Path $directory "git${extension}"
+              if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                $candidateItem = Get-Item -LiteralPath $candidate -Force
+                if ($candidateItem.PSIsContainer -or $null -ne $candidateItem.LinkType) {
+                  throw 'Git PATH candidate is not a regular executable file'
+                }
+                [void]$gitCandidates.Add((Resolve-Path -LiteralPath $candidateItem.FullName).ProviderPath)
+              }
+            }
+            if ($gitCandidates.Count -gt 0) {
+              $containsDistinctGit = $false
+              foreach ($candidate in $gitCandidates) {
+                if (-not $comparer.Equals($candidate, $selectedGit)) {
+                  $containsDistinctGit = $true
+                  break
+                }
+              }
+              if ($comparer.Equals($directory, $selectedDirectory) -and $containsDistinctGit) {
+                throw 'selected Git directory exposes multiple distinct Git executables'
+              }
+              if ($containsDistinctGit) { continue }
+              continue
+            }
+            if ($seenDirectories.Add($directory)) { [void]$keptDirectories.Add($directory) }
+          }
+          $normalizedPath = $keptDirectories -join ';'
+          $env:PATH = $normalizedPath
+          "PATH=${normalizedPath}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $readback = [System.Collections.Generic.HashSet[string]]::new($comparer)
+          foreach ($directory in ($env:PATH -split ';')) {
+            foreach ($extension in $extensions) {
+              $candidate = Join-Path $directory "git${extension}"
+              if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                [void]$readback.Add((Resolve-Path -LiteralPath $candidate).ProviderPath)
+              }
+            }
+          }
+          if ($readback.Count -ne 1 -or -not $readback.Contains($selectedGit)) {
+            throw 'normalized PATH does not expose exactly one canonical Git executable'
+          }
+          & $selectedGit --version
       - run: npm ci
       - run: npm test
       - run: npm run validate

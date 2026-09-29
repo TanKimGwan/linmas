@@ -33,30 +33,47 @@ const RECORD_PATH = 'docs/compatibility/evidence/v0.9.0-record.json';
 const SNAPSHOT_PATH = 'docs/compatibility/evidence/v0.9.0-snapshot.json';
 const HISTORICAL_EXCLUSIONS = [RECORD_PATH, SNAPSHOT_PATH, CLEAN_IDENTITY_PATH];
 
-test('trusted Git discovery resolves one validated POSIX PATH executable without a shell', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-git-discovery-posix-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const executable = path.join(root, 'git');
-  fs.writeFileSync(executable, '#!/bin/sh\nexit 0\n');
-  fs.chmodSync(executable, 0o755);
+test('trusted Git discovery resolves one validated POSIX PATH executable without a shell', () => {
+  const root = '/fixture/posix-bin';
+  const executable = '/fixture/posix-bin/git';
+  const canonical = '/canonical/git';
+  const fakeFs = {
+    lstatSync(value) {
+      if (value !== executable && value !== canonical) throw Object.assign(new Error('missing fixture file'), { code: 'ENOENT' });
+      return { isFile: () => true, isSymbolicLink: () => false, mode: 0o100755 };
+    },
+    realpathSync(value) {
+      if (value !== executable) throw Object.assign(new Error('missing fixture file'), { code: 'ENOENT' });
+      return canonical;
+    }
+  };
   const invocations = [];
   const resolved = resolveTrustedGitPath({
     platform: 'linux',
     env: { PATH: root },
+    fsImpl: fakeFs,
     run(command, args, options) {
       invocations.push({ command, args, options });
-      if (command === executable) return 'git version 2.45.1\n';
+      if (command === canonical) return 'git version 2.45.1\n';
       throw new Error('unexpected discovery invocation');
     }
   });
-  assert.equal(resolved, fs.realpathSync(executable));
+  assert.equal(resolved, canonical);
   assert.deepEqual(invocations.map(({ command, args }) => ({ command, args })), [
-    { command: executable, args: ['--version'] }
+    { command: canonical, args: ['--version'] }
   ]);
   assert.equal(invocations[0].options.shell, false);
   const moduleSource = fs.readFileSync(new URL('../scripts/child-environment.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(moduleSource, /\/usr\/bin\/git/u);
   assert.doesNotMatch(moduleSource, /\b(?:which|where(?:\.exe)?)\b|execSync\s*\(|shell\s*:\s*true/u);
+});
+
+test('CI binds namespace-capable Linux and a unique Windows Git PATH without weakening sandbox policy', () => {
+  const workflow = fs.readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8').replace(/\r\n/gu, '\n');
+  assert.match(workflow, /verify:\n\s+# [^\n]*\n\s+runs-on:\s*ubuntu-22\.04/u);
+  assert.match(workflow, /Verify required Linux bubblewrap namespaces[\s\S]*--unshare-all[\s\S]*--unshare-user[\s\S]*--disable-userns[\s\S]*\/proc\/self\/ns\/net[\s\S]*lo:[\s\S]*npm test/u);
+  assert.match(workflow, /Normalize unique trusted Git PATH for Windows tests[\s\S]*Get-Command git\.exe[\s\S]*GITHUB_ENV[\s\S]*exactly one canonical Git executable/u);
+  assert.doesNotMatch(workflow, /apparmor|sysctl|--share-net|sudo\s+(?:npm\s+test|node)|C:\\\\Program Files\\\\Git/iu);
 });
 
 test('trusted Git discovery uses the Windows PATH resolution boundary', () => {

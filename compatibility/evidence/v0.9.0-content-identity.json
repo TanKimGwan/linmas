@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-09-29T22:29:48.557Z",
+  "generatedAt": "2026-09-29T23:14:47.372Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -502,8 +502,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 3355,
-      "sha256": "5bd2d7aba0a50b4db8216d7a94a350cd93748c6c9b88ce08d572c72b1ac3756b"
+      "bytes": 8783,
+      "sha256": "1164d60be848d20917a598e3fad8197c53fd3bbb9656787ca567b8127396d76d"
     },
     {
       "path": ".github/workflows/evaluation-live.yml",
@@ -2062,8 +2062,8 @@
     },
     {
       "path": "tests/clean-evidence-binding.test.mjs",
-      "bytes": 52464,
-      "sha256": "bc70b8b49e5a034fb6f025463d3dd9653b04d6a1e985bb8fd89971604acbc206"
+      "bytes": 53529,
+      "sha256": "cf82f55b4bdbd2e711dda6fc27c1a968b19f50583717b659453abc4960a1f8b2"
     },
     {
       "path": "tests/cli-smoke.test.mjs",
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "tests/irsa003-actual-integration.test.mjs",
-      "bytes": 11047,
-      "sha256": "98721f61a75b79b9251c22b3dc3b8a222a7d840f21635bc499d4e240a30cbde9"
+      "bytes": 11421,
+      "sha256": "7db57a625d0c88ebdc5a59c96c86426fe962c131d612a0a4e1752ba260c1113a"
     },
     {
       "path": "tests/irsa003-lifecycle.test.mjs",
@@ -2436,5 +2436,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "ac24e21ac5fbfe2172c365b37f8cf9a71eb4028556b4587fb78c29342338b85f"
+  "contentDigest": "1296a21240ce5494300ac23e4762c446485ea0785a2a77b8469b4fb72dc6d75e"
 }
