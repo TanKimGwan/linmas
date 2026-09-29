@@ -62,7 +62,17 @@ for (const instrumentBuilder of [false, true]) test(`actual full verifier consum
   assert.equal(runGit(f.candidateRoot,['status','--porcelain=v1','--untracked-files=all']),'');
   const archiveBytes=execFileSync('/usr/bin/git',['archive','--format=tar',commit],{cwd:f.candidateRoot,maxBuffer:64*1024*1024}).length;
   assert(archiveBytes>8*1024*1024,'fixture must exceed the audited cap without padding or scope reduction');
-  const npmSource=path.join(process.config.variables.node_prefix,'lib',`node_modules_${process.versions.node.split('.')[0]}`,'npm');
+  const npmExecPath=process.env.npm_execpath;
+  assert.equal(typeof npmExecPath,'string','integration fixture requires the active npm_execpath');
+  assert.notEqual(npmExecPath.trim(),'','npm_execpath must not be empty');
+  assert.equal(path.isAbsolute(npmExecPath),true,'npm_execpath must be absolute');
+  assert.equal(fs.statSync(npmExecPath).isFile(),true,'npm_execpath must resolve to a regular file');
+  const npmCliSource=fs.realpathSync(npmExecPath);
+  const npmCliStat=fs.lstatSync(npmCliSource);
+  assert.equal(npmCliStat.isFile(),true,'resolved npm_execpath must be a regular file');
+  assert.equal(npmCliStat.isSymbolicLink(),false,'resolved npm_execpath must not be a symlink');
+  const npmSource=path.resolve(path.dirname(npmCliSource),'..');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(npmSource,'package.json'),'utf8')).name,'npm','active npm CLI must belong to the npm package');
   fs.rmSync(f.npmRoot,{recursive:true});
   execFileSync('/usr/bin/python3', ['-I','-E','-c','import shutil,sys;shutil.copytree(sys.argv[1],sys.argv[2],symlinks=False)',npmSource,f.npmRoot]);
   const npmCli=path.join(f.npmRoot,'bin/npm-cli.js');

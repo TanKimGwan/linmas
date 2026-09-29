@@ -26,11 +26,127 @@ import {
   measureReleaseArtifacts
 } from '../scripts/artifact-integrity.mjs';
 import { collectFreshEvidence } from '../scripts/evidence-operations.mjs';
+import { resolveTrustedGitPath } from '../scripts/child-environment.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RECORD_PATH = 'docs/compatibility/evidence/v0.9.0-record.json';
 const SNAPSHOT_PATH = 'docs/compatibility/evidence/v0.9.0-snapshot.json';
 const HISTORICAL_EXCLUSIONS = [RECORD_PATH, SNAPSHOT_PATH, CLEAN_IDENTITY_PATH];
+
+test('trusted Git discovery resolves one validated POSIX PATH executable without a shell', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-git-discovery-posix-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const executable = path.join(root, 'git');
+  fs.writeFileSync(executable, '#!/bin/sh\nexit 0\n');
+  fs.chmodSync(executable, 0o755);
+  const invocations = [];
+  const resolved = resolveTrustedGitPath({
+    platform: 'linux',
+    env: { PATH: root },
+    run(command, args, options) {
+      invocations.push({ command, args, options });
+      if (command === executable) return 'git version 2.45.1\n';
+      throw new Error('unexpected discovery invocation');
+    }
+  });
+  assert.equal(resolved, fs.realpathSync(executable));
+  assert.deepEqual(invocations.map(({ command, args }) => ({ command, args })), [
+    { command: executable, args: ['--version'] }
+  ]);
+  assert.equal(invocations[0].options.shell, false);
+  const moduleSource = fs.readFileSync(new URL('../scripts/child-environment.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(moduleSource, /\/usr\/bin\/git/u);
+  assert.doesNotMatch(moduleSource, /\b(?:which|where(?:\.exe)?)\b|execSync\s*\(|shell\s*:\s*true/u);
+});
+
+test('trusted Git discovery uses the Windows PATH resolution boundary', () => {
+  const candidate = 'C:\\fixture\\Git\\cmd\\git.exe';
+  const fakeFs = {
+    lstatSync(value) {
+      if (value.toLowerCase() !== candidate.toLowerCase()) throw Object.assign(new Error('missing fixture file'), { code: 'ENOENT' });
+      return { isFile: () => true, isSymbolicLink: () => false, mode: 0o100755 };
+    },
+    realpathSync(value) {
+      if (value.toLowerCase() !== candidate.toLowerCase()) throw Object.assign(new Error('missing fixture file'), { code: 'ENOENT' });
+      return candidate;
+    }
+  };
+  const invocations = [];
+  const resolved = resolveTrustedGitPath({
+    platform: 'win32',
+    env: { PATH: 'C:\\fixture\\Git\\cmd', PATHEXT: '.COM;.EXE;.BAT;.CMD', SystemRoot: 'C:\\Windows' },
+    fsImpl: fakeFs,
+    run(command, args, options) {
+      invocations.push({ command, args, options });
+      if (command === candidate) return 'git version 2.45.1.windows.1\r\n';
+      throw new Error('unexpected discovery invocation');
+    }
+  });
+  assert.equal(resolved, candidate);
+  assert.equal(invocations[0].command, candidate);
+  assert.deepEqual(invocations[0].args, ['--version']);
+  assert.equal(invocations[0].options.shell, false);
+  assert.equal(invocations[0].options.env.PATHEXT, '.COM;.EXE;.BAT;.CMD');
+  assert.throws(() => resolveTrustedGitPath({
+    platform: 'win32',
+    env: { PATH: 'C:\\missing', PATHEXT: '.EXE', SystemRoot: 'C:\\Windows' },
+    fsImpl: {
+      lstatSync: () => { throw Object.assign(new Error('missing fixture file'), { code: 'ENOENT' }); },
+      realpathSync: (value) => value
+    },
+    run: () => { throw new Error('version must not run'); }
+  }), /not found on PATH/u);
+});
+
+test('trusted Git discovery fails closed when PATH or its result is missing', () => {
+  assert.throws(() => resolveTrustedGitPath({ platform: 'linux', env: { PATH: '' } }), /PATH is unavailable/u);
+  assert.throws(() => resolveTrustedGitPath({
+    platform: 'linux', env: { PATH: '/fixture' },
+    fsImpl: {
+      lstatSync: () => { throw Object.assign(new Error('missing fixture file'), { code: 'ENOENT' }); },
+      realpathSync: (value) => value
+    }
+  }), /not found on PATH/u);
+});
+
+test('trusted Git discovery deduplicates aliases and rejects ambiguous or non-file results', () => {
+  const paths = ['/fixture/one/git', '/fixture/two/git'];
+  const fakeFs = {
+    lstatSync(value) {
+      if (!paths.includes(value)) throw new Error('missing fixture file');
+      return { isFile: () => true, isSymbolicLink: () => false, mode: 0o100755 };
+    },
+    realpathSync(value) {
+      if (!paths.includes(value)) throw new Error('missing fixture file');
+      return value;
+    }
+  };
+  assert.throws(() => resolveTrustedGitPath({
+    platform: 'linux', env: { PATH: '/fixture/one:/fixture/two' }, fsImpl: fakeFs,
+    run: () => 'git version 2.45.1\n'
+  }), /ambiguous/u);
+  const canonical = '/canonical/git';
+  assert.equal(resolveTrustedGitPath({
+    platform: 'linux', env: { PATH: '/fixture/one:/fixture/two' },
+    fsImpl: {
+      ...fakeFs,
+      lstatSync(value) {
+        if (value === canonical) return { isFile: () => true, isSymbolicLink: () => false, mode: 0o100755 };
+        return fakeFs.lstatSync(value);
+      },
+      realpathSync(value) {
+        fakeFs.lstatSync(value);
+        return canonical;
+      }
+    },
+    run: () => 'git version 2.45.1\n'
+  }), canonical);
+  assert.throws(() => resolveTrustedGitPath({
+    platform: 'linux', env: { PATH: '/fixture' },
+    fsImpl: { lstatSync: () => ({ isFile: () => false, isSymbolicLink: () => false, mode: 0o040755 }), realpathSync: (value) => value },
+    run: () => 'git version 2.45.1\n'
+  }), /invalid file/u);
+});
 
 function validateDiagnosticSource({ repositoryRoot, identity, acceptance, artifactRoot }) {
   const diagnostic = buildDiagnosticEvidenceBinding({ repositoryRoot, acceptance });

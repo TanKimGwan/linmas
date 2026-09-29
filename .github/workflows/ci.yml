@@ -20,6 +20,25 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - name: Prepare private trusted Node runtime for Linux tests
+        run: |
+          set -euo pipefail
+          source_node="$(command -v node)"
+          private_node_dir="${RUNNER_TEMP}/linmas-trusted-node"
+          private_node="${private_node_dir}/node"
+          install -d -m 700 "${private_node_dir}"
+          test ! -e "${private_node}"
+          install -m 755 "${source_node}" "${private_node}"
+          test -f "${private_node}"
+          test ! -L "${private_node}"
+          test "$(stat -c '%a' "${private_node}")" = "755"
+          test "$(stat -c '%a' "${private_node_dir}")" = "700"
+          active_version="$(node --version)"
+          copied_version="$("${private_node}" --version)"
+          [[ "${active_version}" =~ ^v24\. ]]
+          test "${copied_version}" = "${active_version}"
+          printf 'LINMAS_APPROVED_NODE_PATH=%s\n' "${private_node}" >> "${GITHUB_ENV}"
+          printf '%s\n' "${private_node_dir}" >> "${GITHUB_PATH}"
       - name: Install required Linux bubblewrap sandbox
         run: |
           sudo apt-get update

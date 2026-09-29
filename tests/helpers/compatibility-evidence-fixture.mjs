@@ -20,21 +20,6 @@ const EXCLUDED = new Set(GENERATED_EVIDENCE_PATHS);
 const COLLECTION_DATE = '2026-09-08';
 const inheritedPath = process.env.PATH ?? process.env.Path;
 if (!inheritedPath) throw new Error('Git executable PATH is unavailable');
-const GIT_ENV = {
-  PATH: inheritedPath,
-  HOME: os.tmpdir(),
-  LANG: 'C.UTF-8',
-  LC_ALL: 'C.UTF-8',
-  GIT_CONFIG_NOSYSTEM: '1',
-  GIT_CONFIG_GLOBAL: os.devNull,
-  GIT_TERMINAL_PROMPT: '0'
-};
-if (process.platform === 'win32') {
-  for (const name of ['SystemRoot', 'PATHEXT', 'TEMP', 'TMP']) {
-    const value = process.env[name];
-    if (value !== undefined) GIT_ENV[name] = value;
-  }
-}
 const GIT_EXECUTABLE = 'git';
 
 const MCP_TESTS = Object.freeze({
@@ -62,14 +47,14 @@ function sha256(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 
-function git(root, ...args) {
-  return execFileSync(GIT_EXECUTABLE, args, { cwd: root, env: GIT_ENV, encoding: 'utf8' }).trim();
+function git(root, env, ...args) {
+  return execFileSync(GIT_EXECUTABLE, args, { cwd: root, env, encoding: 'utf8', shell: false }).trim();
 }
 
-function isIgnoredByGit(root, relativePath) {
+function isIgnoredByGit(root, env, relativePath) {
   const result = spawnSync(GIT_EXECUTABLE, ['check-ignore', '--no-index', '--quiet', '--', relativePath], {
     cwd: root,
-    env: GIT_ENV,
+    env,
     encoding: 'utf8'
   });
   if (result.error) throw result.error;
@@ -152,10 +137,29 @@ function unknownRuntimeRecord([recordId, operation, kind], sourceRevision) {
 export function createCompatibilityEvidenceFixture(repositoryRoot) {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-v090-compatibility-fixture-'));
   const root = path.join(temporaryRoot, 'checkout');
+  const globalConfigPath = path.join(temporaryRoot, 'gitconfig');
+  const gitEnv = {
+    PATH: inheritedPath,
+    HOME: temporaryRoot,
+    LANG: 'C.UTF-8',
+    LC_ALL: 'C.UTF-8',
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: globalConfigPath,
+    GIT_TERMINAL_PROMPT: '0'
+  };
+  if (process.platform === 'win32') {
+    for (const name of ['SystemRoot', 'PATHEXT', 'TEMP', 'TMP']) {
+      const value = process.env[name];
+      if (value !== undefined) gitEnv[name] = value;
+    }
+  }
   try {
-    execFileSync(GIT_EXECUTABLE, ['clone', '--shared', '--quiet', repositoryRoot, root], { env: GIT_ENV, stdio: 'pipe' });
-    const changed = git(repositoryRoot, 'diff', '--name-only', '-z').split('\0').filter(Boolean);
-    const untracked = git(repositoryRoot, 'ls-files', '-o', '--exclude-standard', '-z').split('\0').filter(Boolean);
+    fs.writeFileSync(globalConfigPath, '', { mode: 0o600 });
+    const globalConfigStat = fs.lstatSync(globalConfigPath);
+    if (!globalConfigStat.isFile() || globalConfigStat.isSymbolicLink()) throw new Error('fixture Git config is not a regular file');
+    execFileSync(GIT_EXECUTABLE, ['clone', '--shared', '--quiet', repositoryRoot, root], { env: gitEnv, stdio: 'pipe', shell: false });
+    const changed = git(repositoryRoot, gitEnv, 'diff', '--name-only', '-z').split('\0').filter(Boolean);
+    const untracked = git(repositoryRoot, gitEnv, 'ls-files', '-o', '--exclude-standard', '-z').split('\0').filter(Boolean);
     const overlayPaths = [...changed, ...untracked.filter((relativePath) =>
       !relativePath.startsWith('.local-agent/') && !EXCLUDED.has(relativePath))];
     for (const relativePath of overlayPaths) {
@@ -166,12 +170,12 @@ export function createCompatibilityEvidenceFixture(repositoryRoot) {
       fs.copyFileSync(source, target);
     }
     fs.writeFileSync(path.join(root, '.fixture-marker'), 'Disposable compatibility fixture; no runtime claim.\n');
-    git(root, 'add', '-f', '--', ...overlayPaths, '.fixture-marker');
-    git(root, '-c', 'user.name=Compatibility Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'bind disposable compatibility fixture');
-    const implementationHead = git(root, 'rev-parse', 'HEAD');
-    if (git(root, 'status', '--porcelain=v1', '--untracked-files=all') !== '') throw new Error('fixture source commit is not clean');
+    git(root, gitEnv, 'add', '-f', '--', ...overlayPaths, '.fixture-marker');
+    git(root, gitEnv, '-c', 'user.name=Compatibility Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'bind disposable compatibility fixture');
+    const implementationHead = git(root, gitEnv, 'rev-parse', 'HEAD');
+    if (git(root, gitEnv, 'status', '--porcelain=v1', '--untracked-files=all') !== '') throw new Error('fixture source commit is not clean');
 
-    const treePaths = git(root, 'ls-tree', '-r', '--full-tree', '--name-only', 'HEAD').split('\n').filter(Boolean);
+    const treePaths = git(root, gitEnv, 'ls-tree', '-r', '--full-tree', '--name-only', 'HEAD').split('\n').filter(Boolean);
     const includedFiles = treePaths.filter((relativePath) => !EXCLUDED.has(relativePath)).map((relativePath) => {
       const bytes = fs.readFileSync(path.join(root, relativePath));
       return { path: relativePath, bytes: bytes.byteLength, sha256: sha256(bytes) };
@@ -190,12 +194,12 @@ export function createCompatibilityEvidenceFixture(repositoryRoot) {
       ...(!treePaths.includes(CLEAN_IDENTITY_PATH) ? [CLEAN_IDENTITY_PATH] : [])].sort();
     const generatedPathVisibility = new Map(intendedGeneratedPaths.map((relativePath) => [
       relativePath,
-      !isIgnoredByGit(root, relativePath)
+      !isIgnoredByGit(root, gitEnv, relativePath)
     ]));
     const generatedUntrackedPaths = intendedGeneratedPaths
       .filter((relativePath) => generatedPathVisibility.get(relativePath))
       .sort((left, right) => left.localeCompare(right));
-    const baselineCommit = git(root, 'rev-parse', 'v0.8.0^{}');
+    const baselineCommit = git(root, gitEnv, 'rev-parse', 'v0.8.0^{}');
     const snapshot = {
       schemaVersion: 1,
       snapshotKind: 'working-tree-overlay',
@@ -236,7 +240,7 @@ export function createCompatibilityEvidenceFixture(repositoryRoot) {
         workingTreeState: 'dirty',
         baseline: {
           tag: 'v0.8.0',
-          tagObject: git(root, 'rev-parse', 'v0.8.0^{tag}'),
+          tagObject: git(root, gitEnv, 'rev-parse', 'v0.8.0^{tag}'),
           securityCommit: baselineCommit,
           peeledCommit: baselineCommit,
           signatureTrust: 'UNVERIFIED',
@@ -267,7 +271,7 @@ export function createCompatibilityEvidenceFixture(repositoryRoot) {
     };
     writeJson(root, SNAPSHOT_PATH, snapshot);
     writeJson(root, RECORD_PATH, record);
-    const actualUntracked = new Set(git(root, 'ls-files', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean));
+    const actualUntracked = new Set(git(root, gitEnv, 'ls-files', '--others', '--exclude-standard', '-z').split('\0').filter(Boolean));
     const actualGeneratedUntrackedPaths = intendedGeneratedPaths.filter((relativePath) => actualUntracked.has(relativePath))
       .sort((left, right) => left.localeCompare(right));
     const ignoredGeneratedPaths = intendedGeneratedPaths.filter((relativePath) => !generatedPathVisibility.get(relativePath));

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-09-29T12:56:02.820Z",
+  "generatedAt": "2026-09-29T22:29:48.557Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -502,8 +502,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 2385,
-      "sha256": "8f3126bde6b1383827860c39171a5c5682192db5e98a45e9a57fa217fb152e75"
+      "bytes": 3355,
+      "sha256": "5bd2d7aba0a50b4db8216d7a94a350cd93748c6c9b88ce08d572c72b1ac3756b"
     },
     {
       "path": ".github/workflows/evaluation-live.yml",
@@ -1627,8 +1627,8 @@
     },
     {
       "path": "scripts/child-environment.mjs",
-      "bytes": 1841,
-      "sha256": "e914f38ab53de4e5423a24d5b51e40f2606741dab32701f3766f0f30b931f9bd"
+      "bytes": 7293,
+      "sha256": "04bb9e1f23fe89a5d31d5b49c22a9175a7a0ae46603429c6b9ac0aa514a3bb84"
     },
     {
       "path": "scripts/demo-build-week.mjs",
@@ -2062,8 +2062,8 @@
     },
     {
       "path": "tests/clean-evidence-binding.test.mjs",
-      "bytes": 47436,
-      "sha256": "36fa70a43e01d54f9942ff9911ab3c31b9ec9a6d13a3b7a239f1c63b6315fa6b"
+      "bytes": 52464,
+      "sha256": "bc70b8b49e5a034fb6f025463d3dd9653b04d6a1e985bb8fd89971604acbc206"
     },
     {
       "path": "tests/cli-smoke.test.mjs",
@@ -2157,8 +2157,8 @@
     },
     {
       "path": "tests/helpers/compatibility-evidence-fixture.mjs",
-      "bytes": 14161,
-      "sha256": "7e2b3638c0a0369fe2903aa5df214321a02518f724d693dfbb25ffc81af35f80"
+      "bytes": 14626,
+      "sha256": "f68aac09af6a597740deb7c25bc0a0702d7b8a4591d5f131404171dd9dc59360"
     },
     {
       "path": "tests/helpers/irsa003-fixture.mjs",
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "tests/irsa003-actual-integration.test.mjs",
-      "bytes": 10277,
-      "sha256": "6e13140bd6965e83018a99ccee4106a8d06a976a12e93bf77b66f5bb5f8224f0"
+      "bytes": 11047,
+      "sha256": "98721f61a75b79b9251c22b3dc3b8a222a7d840f21635bc499d4e240a30cbde9"
     },
     {
       "path": "tests/irsa003-lifecycle.test.mjs",
@@ -2436,5 +2436,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "3007b4b8b77953000a9e90dfc80338169affd8009a42ae8d7e79ed532615c18d"
+  "contentDigest": "ac24e21ac5fbfe2172c365b37f8cf9a71eb4028556b4587fb78c29342338b85f"
 }
