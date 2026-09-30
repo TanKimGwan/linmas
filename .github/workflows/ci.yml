@@ -40,12 +40,63 @@ jobs:
           test "${copied_version}" = "${active_version}"
           printf 'LINMAS_APPROVED_NODE_PATH=%s\n' "${private_node}" >> "${GITHUB_ENV}"
           printf '%s\n' "${private_node_dir}" >> "${GITHUB_PATH}"
-      - name: Install required Linux bubblewrap sandbox
+      - name: Build pinned upstream bubblewrap sandbox
         run: |
+          set -euo pipefail
+          readonly bwrap_version='0.12.0'
+          readonly bwrap_sha256='9760d007363e3abba7c747489910f9f82d9fca53ba3bd3282e396fa3c97a3314'
+          readonly bwrap_url="https://github.com/containers/bubblewrap/releases/download/v${bwrap_version}/bubblewrap-${bwrap_version}.tar.xz"
+          readonly archive="${RUNNER_TEMP}/bubblewrap-${bwrap_version}.tar.xz"
+          readonly source_dir="${RUNNER_TEMP}/bubblewrap-${bwrap_version}"
+          readonly build_dir="${RUNNER_TEMP}/bubblewrap-${bwrap_version}-build"
+          readonly private_root="${RUNNER_TEMP}/linmas-bubblewrap-${bwrap_version}"
+          readonly private_bin="${private_root}/bin"
+          readonly private_bwrap="${private_bin}/bwrap"
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends bubblewrap
-          command -v bwrap
-          bwrap --version
+          sudo apt-get install --yes --no-install-recommends gcc libcap-dev meson ninja-build pkg-config
+          install -d -m 700 "${private_root}"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "${archive}" "${bwrap_url}"
+          printf '%s  %s\n' "${bwrap_sha256}" "${archive}" | sha256sum --check --strict -
+          tar --extract --xz --file "${archive}" --directory "${RUNNER_TEMP}"
+          meson setup "${build_dir}" "${source_dir}" \
+            --prefix="${private_root}" \
+            --bindir=bin \
+            -Dbash_completion=disabled \
+            -Dman=disabled \
+            -Dselinux=disabled \
+            -Dtests=false \
+            -Dzsh_completion=disabled
+          meson compile --chdir "${build_dir}"
+          meson install --chdir "${build_dir}"
+          chmod 700 "${private_bin}"
+          test -f "${private_bwrap}"
+          test ! -L "${private_bwrap}"
+          test "$(stat -c '%u' "${private_root}")" = "$(id -u)"
+          test "$(stat -c '%u' "${private_bin}")" = "$(id -u)"
+          test "$(stat -c '%u' "${private_bwrap}")" = "$(id -u)"
+          test "$(stat -c '%a' "${private_root}")" = '700'
+          test "$(stat -c '%a' "${private_bin}")" = '700'
+          chmod 755 "${private_bwrap}"
+          test "$(stat -c '%a' "${private_bwrap}")" = '755'
+          private_bwrap_mode="$(stat -c '%a' "${private_bwrap}")"
+          test "$(( 8#${private_bwrap_mode} & 8#6000 ))" = '0'
+          test "$("${private_bwrap}" --version)" = "bubblewrap ${bwrap_version}"
+          "${private_bwrap}" --help 2>&1 | grep -F -- '--disable-userns'
+          printf 'LINMAS_APPROVED_BWRAP_PATH=%s\n' "${private_bwrap}" >> "${GITHUB_ENV}"
+          printf 'LINMAS_APPROVED_BWRAP_VERSION=%s\n' "${bwrap_version}" >> "${GITHUB_ENV}"
+          printf '%s\n' "${private_bin}" >> "${GITHUB_PATH}"
+      - name: Verify propagated pinned bubblewrap sandbox
+        run: |
+          set -euo pipefail
+          test "$(command -v bwrap)" = "${LINMAS_APPROVED_BWRAP_PATH}"
+          test -f "${LINMAS_APPROVED_BWRAP_PATH}"
+          test ! -L "${LINMAS_APPROVED_BWRAP_PATH}"
+          test "$(stat -c '%a' "$(dirname "${LINMAS_APPROVED_BWRAP_PATH}")")" = '700'
+          test "$(stat -c '%a' "${LINMAS_APPROVED_BWRAP_PATH}")" = '755'
+          propagated_bwrap_mode="$(stat -c '%a' "${LINMAS_APPROVED_BWRAP_PATH}")"
+          test "$(( 8#${propagated_bwrap_mode} & 8#6000 ))" = '0'
+          test "$(bwrap --version)" = "bubblewrap ${LINMAS_APPROVED_BWRAP_VERSION}"
+          bwrap --help 2>&1 | grep -F -- '--disable-userns'
       - name: Verify required Linux bubblewrap namespaces
         run: |
           set -euo pipefail
@@ -107,11 +158,14 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $selectedCommand = Get-Command git.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1
           $selectedItem = Get-Item -LiteralPath $selectedCommand.Source -Force
-          if ($selectedItem.PSIsContainer -or $selectedItem.Extension -ine '.exe' -or $null -ne $selectedItem.LinkType) {
+          if ($selectedItem.PSIsContainer -or $selectedItem.Extension -ine '.exe' -or
+              (($selectedItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or
+              ($null -ne $selectedItem.LinkType -and $selectedItem.LinkType -ne 'HardLink')) {
             throw 'selected Git is not a regular executable file'
           }
           $selectedGit = (Resolve-Path -LiteralPath $selectedItem.FullName).ProviderPath
           $selectedDirectory = Split-Path -Parent $selectedGit
+          $selectedDigest = (Get-FileHash -Algorithm SHA256 -LiteralPath $selectedGit).Hash
           $extensions = @($env:PATHEXT -split ';' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
           if ($extensions.Count -eq 0) { throw 'PATHEXT is unavailable' }
           $comparer = [System.StringComparer]::OrdinalIgnoreCase
@@ -128,7 +182,9 @@ jobs:
               $candidate = Join-Path $directory "git${extension}"
               if (Test-Path -LiteralPath $candidate -PathType Leaf) {
                 $candidateItem = Get-Item -LiteralPath $candidate -Force
-                if ($candidateItem.PSIsContainer -or $null -ne $candidateItem.LinkType) {
+                if ($candidateItem.PSIsContainer -or
+                    (($candidateItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or
+                    ($null -ne $candidateItem.LinkType -and $candidateItem.LinkType -ne 'HardLink')) {
                   throw 'Git PATH candidate is not a regular executable file'
                 }
                 [void]$gitCandidates.Add((Resolve-Path -LiteralPath $candidateItem.FullName).ProviderPath)
@@ -151,21 +207,42 @@ jobs:
             if ($seenDirectories.Add($directory)) { [void]$keptDirectories.Add($directory) }
           }
           $normalizedPath = $keptDirectories -join ';'
-          $env:PATH = $normalizedPath
           "PATH=${normalizedPath}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "LINMAS_SELECTED_GIT_PATH=${selectedGit}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "LINMAS_SELECTED_GIT_SHA256=${selectedDigest}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Verify propagated unique trusted Git PATH
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $comparer = [System.StringComparer]::OrdinalIgnoreCase
+          $extensions = @($env:PATHEXT -split ';' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
+          if ($extensions.Count -eq 0) { throw 'PATHEXT is unavailable' }
           $readback = [System.Collections.Generic.HashSet[string]]::new($comparer)
-          foreach ($directory in ($env:PATH -split ';')) {
+          foreach ($rawEntry in ($env:PATH -split ';')) {
+            $entry = $rawEntry.Trim().Trim('"')
+            if (-not $entry -or -not (Test-Path -LiteralPath $entry -PathType Container)) { continue }
+            $directory = (Resolve-Path -LiteralPath $entry).ProviderPath
             foreach ($extension in $extensions) {
               $candidate = Join-Path $directory "git${extension}"
               if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-                [void]$readback.Add((Resolve-Path -LiteralPath $candidate).ProviderPath)
+                $candidateItem = Get-Item -LiteralPath $candidate -Force
+                if ($candidateItem.PSIsContainer -or
+                    (($candidateItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) -or
+                    ($null -ne $candidateItem.LinkType -and $candidateItem.LinkType -ne 'HardLink')) {
+                  throw 'propagated Git PATH candidate is not a regular executable file'
+                }
+                [void]$readback.Add((Resolve-Path -LiteralPath $candidateItem.FullName).ProviderPath)
               }
             }
           }
-          if ($readback.Count -ne 1 -or -not $readback.Contains($selectedGit)) {
+          if ($readback.Count -ne 1 -or -not $readback.Contains($env:LINMAS_SELECTED_GIT_PATH)) {
             throw 'normalized PATH does not expose exactly one canonical Git executable'
           }
-          & $selectedGit --version
+          $readbackGit = @($readback)[0]
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $readbackGit).Hash -ne $env:LINMAS_SELECTED_GIT_SHA256) {
+            throw 'propagated Git executable identity mismatch'
+          }
+          & $readbackGit --version
       - run: npm ci
       - run: npm test
       - run: npm run validate

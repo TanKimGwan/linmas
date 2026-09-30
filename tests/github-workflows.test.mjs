@@ -114,7 +114,7 @@ test('ci keeps the required Linux verify check and adds deterministic Windows ve
   const text = read('.github/workflows/ci.yml');
   const linux = jobSection(text, 'verify');
   const windows = text.slice(text.indexOf('verify-windows:'));
-  assert.match(linux, /runs-on:\s*ubuntu-latest/);
+  assert.match(linux, /^\s{4}runs-on:\s*ubuntu-22\.04$/m);
   assert.match(windows, /runs-on:\s*windows-latest/);
   for (const job of [linux, windows]) {
     assert.match(job, /git fetch --depth=1 --no-tags origin refs\/tags\/v0\.8\.0:refs\/tags\/v0\.8\.0/);
@@ -123,8 +123,27 @@ test('ci keeps the required Linux verify check and adds deterministic Windows ve
     assert.match(job, /refs\/tags\/v0\.8\.0\^\{\}/);
     assert.match(job, /68a5cd175b16d26fd58834acd489ebcbe8a8ec57/);
   }
-  assert.match(linux, /apt-get install --yes --no-install-recommends bubblewrap[\s\S]*command -v bwrap[\s\S]*bwrap --version[\s\S]*npm test/);
+  assert.match(linux, /readonly bwrap_version='0\.12\.0'/);
+  assert.match(linux, /readonly bwrap_sha256='9760d007363e3abba7c747489910f9f82d9fca53ba3bd3282e396fa3c97a3314'/);
+  assert.match(linux, /https:\/\/github\.com\/containers\/bubblewrap\/releases\/download\/v\$\{bwrap_version\}\/bubblewrap-\$\{bwrap_version\}\.tar\.xz/);
+  assert.match(linux, /sha256sum --check --strict -[\s\S]*tar --extract --xz[\s\S]*meson setup/);
+  assert.match(linux, /install -d -m 700 "\$\{private_root\}"/);
+  assert.match(linux, /chmod 755 "\$\{private_bwrap\}"/);
+  assert.match(linux, /chmod 700 "\$\{private_bin\}"[\s\S]*stat -c '%a' "\$\{private_bin\}"\)" = '700'/);
+  assert.match(linux, /8#\$\{private_bwrap_mode\} & 8#6000/);
+  assert.match(linux, /test "\$\("\$\{private_bwrap\}" --version\)" = "bubblewrap \$\{bwrap_version\}"/);
+  assert.match(linux, /--help 2>&1 \| grep -F -- '--disable-userns'/);
+  assert.match(linux, /GITHUB_PATH/);
+  assert.match(linux, /name: Verify propagated pinned bubblewrap sandbox[\s\S]*command -v bwrap[\s\S]*LINMAS_APPROVED_BWRAP_PATH/);
+  assert.match(linux, /name: Verify required Linux bubblewrap namespaces[\s\S]*--unshare-all[\s\S]*--unshare-user[\s\S]*--disable-userns[\s\S]*--cap-drop ALL[\s\S]*npm test/);
+  assert.doesNotMatch(linux, /releases\/latest|\/nightly|apt-get install[^\n]*bubblewrap|chmod\s+[467][0-7]{3}|sysctl|apparmor|privileged/iu);
   assert.doesNotMatch(windows, /apt-get|bubblewrap|bwrap/);
+  assert.match(windows, /LinkType -ne 'HardLink'/);
+  assert.match(windows, /FileAttributes\]::ReparsePoint/);
+  assert.match(windows, /LINMAS_SELECTED_GIT_PATH/);
+  assert.match(windows, /LINMAS_SELECTED_GIT_SHA256/);
+  assert.match(windows, /name: Verify propagated unique trusted Git PATH[\s\S]*readback\.Count -ne 1[\s\S]*Get-FileHash[\s\S]*--version/);
+  assert.doesNotMatch(windows, /(?:Program Files|Git\\(?:cmd|bin)|[A-Z]:\\)[^\n]*git\.exe/i);
   for (const command of ['npm ci', 'npm test', 'npm run validate', 'npm run eval:offline', 'npm run pack:dry-run']) {
     assert.match(windows, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
