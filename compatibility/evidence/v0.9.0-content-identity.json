@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-09-30T12:15:26.299Z",
+  "generatedAt": "2026-09-30T22:24:41.968Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "tests/irsa003-actual-integration.test.mjs",
-      "bytes": 12391,
-      "sha256": "f8ec93d76e10f74222c9a1afc80bf769ca476d28c848d160854c63168cf9a927"
+      "bytes": 14413,
+      "sha256": "90538300a75b44676a4ea21e3916db89fe131bba9b9c9928291b2aa87029b017"
     },
     {
       "path": "tests/irsa003-lifecycle.test.mjs",
@@ -2436,5 +2436,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "1ce20ca5776b2bff1298274d37d65a0f48f33b126f03379e6d84a39a90050e88"
+  "contentDigest": "ed2dddd31540ddd4cdfad7153a2dd517c3b73b7eae10c3ce640724d725203caa"
 }

@@ -93,6 +93,33 @@ for (const instrumentBuilder of [false, true]) test(`actual full verifier consum
     for(const entry of fs.readdirSync(directory,{withFileTypes:true})) {
       assert.equal(entry.isSymbolicLink(),false,'copied npm implementation must not contain symlinks');
       if(entry.isDirectory()) npmDirectories.push(path.join(directory,entry.name));
+      else {
+        const filePath=path.join(directory,entry.name);
+        const beforeFile=fs.lstatSync(filePath);
+        const originalMode=beforeFile.mode & 0o7777;
+        const fileLabel=`copied npm ${path.relative(f.npmRoot,filePath)} (mode ${originalMode.toString(8).padStart(4,'0')})`;
+        assert.equal(beforeFile.isSymbolicLink(),false,`${fileLabel}: symlink is invalid`);
+        assert.equal(beforeFile.isFile(),true,`${fileLabel}: non-regular type is invalid`);
+        assert.ok(beforeFile.uid===npmOwnerUid,`${fileLabel}: fixture owner mismatch`);
+        const file=fs.openSync(filePath,fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+        try {
+          const opened=fs.fstatSync(file);
+          assert.ok(opened.isFile() && opened.uid===npmOwnerUid && opened.dev===beforeFile.dev && opened.ino===beforeFile.ino,`${fileLabel}: opened file authority changed`);
+          const beforeBytes=sha256(fs.readFileSync(file));
+          const expectedMode=originalMode & ~0o022;
+          fs.fchmodSync(file,expectedMode);
+          const securedFile=fs.lstatSync(filePath);
+          assert.equal(securedFile.isSymbolicLink(),false,`${fileLabel}: secured leaf must not be a symlink`);
+          assert.equal(securedFile.isFile(),true,`${fileLabel}: secured leaf must remain regular`);
+          assert.ok(securedFile.uid===npmOwnerUid && securedFile.dev===opened.dev && securedFile.ino===opened.ino,`${fileLabel}: secured file authority changed`);
+          assert.equal(securedFile.mode & 0o7777,expectedMode,`${fileLabel}: secured permission mode mismatch`);
+          assert.equal(securedFile.mode & 0o022,0,`${fileLabel}: group/world write bits remain`);
+          assert.equal(securedFile.mode & 0o111,originalMode & 0o111,`${fileLabel}: executable bits changed`);
+          assert.equal(sha256(fs.readFileSync(filePath,{flag:fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW})),beforeBytes,`${fileLabel}: file bytes changed`);
+        } finally {
+          fs.closeSync(file);
+        }
+      }
     }
   }
   const npmCli=path.join(f.npmRoot,'bin/npm-cli.js');
