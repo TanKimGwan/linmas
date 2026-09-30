@@ -408,7 +408,7 @@ function createFixture() {
 
   const artifactRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-artifact-root-'));
   fs.mkdirSync(path.join(artifactRoot, 'plugin'), { recursive: true });
-  execFileSync('npm', ['pack', '--ignore-scripts', '--silent', '--pack-destination', artifactRoot], { cwd: root, stdio: 'ignore' });
+  execFileSync(process.execPath, [approvedNpmCli, 'pack', '--ignore-scripts', '--silent', '--pack-destination', artifactRoot], { cwd: root, stdio: 'ignore' });
   execFileSync('node', ['scripts/build-codex-plugin.mjs', '--target', path.join(artifactRoot, 'plugin', 'linmas')], { cwd: root, stdio: 'ignore' });
   const measured = measureReleaseArtifacts({
     repositoryRoot: root,
@@ -515,7 +515,7 @@ function cleanup(fixture) {
 function buildArtifactBinding(repositoryRoot) {
   const artifactRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-canonical-artifact-'));
   fs.mkdirSync(path.join(artifactRoot, 'plugin'), { recursive: true });
-  execFileSync('npm', ['pack', '--ignore-scripts', '--silent', '--pack-destination', artifactRoot], { cwd: repositoryRoot, stdio: 'ignore' });
+  execFileSync(process.execPath, [approvedNpmCli, 'pack', '--ignore-scripts', '--silent', '--pack-destination', artifactRoot], { cwd: repositoryRoot, stdio: 'ignore' });
   execFileSync(process.execPath, ['scripts/build-codex-plugin.mjs', '--target', path.join(artifactRoot, 'plugin', 'linmas')], { cwd: repositoryRoot, stdio: 'ignore' });
   const measured = measureReleaseArtifacts({
     repositoryRoot,

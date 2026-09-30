@@ -66,8 +66,8 @@ jobs:
             -Dselinux=disabled \
             -Dtests=false \
             -Dzsh_completion=disabled
-          meson compile --chdir "${build_dir}"
-          meson install --chdir "${build_dir}"
+          meson compile -C "${build_dir}"
+          meson install -C "${build_dir}"
           chmod 700 "${private_bin}"
           test -f "${private_bwrap}"
           test ! -L "${private_bwrap}"

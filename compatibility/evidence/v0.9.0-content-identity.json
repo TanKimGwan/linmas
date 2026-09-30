@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-09-30T05:59:55.850Z",
+  "generatedAt": "2026-09-30T10:09:38.617Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -502,8 +502,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 13909,
-      "sha256": "69fef1f273be4c5f6d30d3092a29e2d519226dcba781aea99f3eba07e547287c"
+      "bytes": 13899,
+      "sha256": "c62310190bbb7b180c0dea926047a8c2d0bcf7e19281d653bc8d9bb35a6501bd"
     },
     {
       "path": ".github/workflows/evaluation-live.yml",
@@ -2062,8 +2062,8 @@
     },
     {
       "path": "tests/clean-evidence-binding.test.mjs",
-      "bytes": 53529,
-      "sha256": "cf82f55b4bdbd2e711dda6fc27c1a968b19f50583717b659453abc4960a1f8b2"
+      "bytes": 53583,
+      "sha256": "9169d131bb6b2f8fcd8e24fad8fa3196b24c5573e57411be5af9974b54d64208"
     },
     {
       "path": "tests/cli-smoke.test.mjs",
@@ -2436,5 +2436,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "4484d3d0b3e35f78f4a62f789f8e9a15a28dd4b6dc890ae15a81506a888798de"
+  "contentDigest": "827ec83a68eaec3611c9614f3bff262e66aa95a0375202556e9fffa53f9908ec"
 }
