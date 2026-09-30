@@ -75,11 +75,26 @@ for (const instrumentBuilder of [false, true]) test(`actual full verifier consum
   assert.equal(JSON.parse(fs.readFileSync(path.join(npmSource,'package.json'),'utf8')).name,'npm','active npm CLI must belong to the npm package');
   fs.rmSync(f.npmRoot,{recursive:true});
   execFileSync('/usr/bin/python3', ['-I','-E','-c','import shutil,sys;shutil.copytree(sys.argv[1],sys.argv[2],symlinks=False)',npmSource,f.npmRoot]);
-  fs.chmodSync(f.npmRoot,0o700);
-  const npmRootStat=fs.lstatSync(f.npmRoot);
-  assert.equal(npmRootStat.isDirectory(),true,'fixture-owned npm root must be a directory');
-  assert.equal(npmRootStat.isSymbolicLink(),false,'fixture-owned npm root must not be a symlink');
-  assert.equal(npmRootStat.mode & 0o077,0,'fixture-owned npm root must not permit group/world access');
+  const npmOwnerUid=fs.lstatSync(f.root).uid;
+  const npmDirectories=[f.npmRoot];
+  while(npmDirectories.length>0) {
+    const directory=npmDirectories.pop();
+    const before=fs.lstatSync(directory);
+    assert.equal(before.isDirectory(),true,'fixture-owned npm directory must be a directory');
+    assert.equal(before.isSymbolicLink(),false,'fixture-owned npm directory must not be a symlink');
+    assert.equal(before.uid,npmOwnerUid,'fixture-owned npm directory must belong to the fixture owner');
+    fs.chmodSync(directory,0o700);
+    const secured=fs.lstatSync(directory);
+    assert.equal(secured.isDirectory(),true,'secured npm directory must remain a directory');
+    assert.equal(secured.isSymbolicLink(),false,'secured npm directory must not be a symlink');
+    assert.equal(secured.uid,npmOwnerUid,'secured npm directory must retain the fixture owner');
+    assert.equal(secured.mode & 0o7777,0o700,'fixture-owned npm directory must be owner-private');
+    assert.equal(secured.mode & 0o022,0,'fixture-owned npm directory must not permit group/world writes');
+    for(const entry of fs.readdirSync(directory,{withFileTypes:true})) {
+      assert.equal(entry.isSymbolicLink(),false,'copied npm implementation must not contain symlinks');
+      if(entry.isDirectory()) npmDirectories.push(path.join(directory,entry.name));
+    }
+  }
   const npmCli=path.join(f.npmRoot,'bin/npm-cli.js');
   fs.rmSync(f.artifactRoot,{recursive:true});fs.mkdirSync(path.join(f.artifactRoot,'plugin'),{recursive:true});
   const env={PATH:'/usr/bin:/bin',HOME:f.temporaryRoot,TMPDIR:f.temporaryRoot,LANG:'C.UTF-8',LC_ALL:'C.UTF-8',LINMAS_APPROVED_NODE_PATH:nodePath,LINMAS_APPROVED_NPM_CLI:npmCli};

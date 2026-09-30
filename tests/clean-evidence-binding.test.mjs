@@ -831,7 +831,30 @@ test('artifact verification keeps measured artifacts read-only and uses separate
     fs.chmodSync(current, item.isDirectory() ? 0o500 : 0o400);
   }
   fs.chmodSync(fixture.artifactRoot, 0o500);
-  assert.throws(() => fs.writeFileSync(path.join(fixture.artifactRoot, 'write-probe'), 'denied'), /EACCES/);
+  const artifactInventory = () => fs.readdirSync(fixture.artifactRoot, { recursive: true }).sort().map((relativePath) => {
+    const current = path.join(fixture.artifactRoot, relativePath);
+    const item = fs.lstatSync(current);
+    assert.equal(item.isSymbolicLink(), false, 'measured artifact inventory must not contain symlinks');
+    if (item.isDirectory()) return { path: relativePath, type: 'directory' };
+    assert.equal(item.isFile(), true, 'measured artifact inventory must contain regular files');
+    const bytes = fs.readFileSync(current);
+    return { path: relativePath, type: 'file', bytes: bytes.length, sha256: sha256(bytes) };
+  });
+  const beforeMeasurement = artifactInventory();
+  if (process.platform === 'win32') {
+    // Windows directory chmod is not a directory-create denial mechanism.
+    const measuredPackage = path.join(fixture.artifactRoot, fixture.acceptance.artifactBinding.package.path);
+    assert.throws(() => {
+      let descriptor;
+      try {
+        descriptor = fs.openSync(measuredPackage, 'r+');
+      } finally {
+        if (descriptor !== undefined) fs.closeSync(descriptor);
+      }
+    }, (error) => error?.code === 'EACCES' || error?.code === 'EPERM');
+  } else {
+    assert.throws(() => fs.writeFileSync(path.join(fixture.artifactRoot, 'write-probe'), 'denied'), /EACCES/);
+  }
   const measured = measureReleaseArtifacts({
     repositoryRoot: fixture.root,
     artifactRoot: fixture.artifactRoot,
@@ -841,6 +864,7 @@ test('artifact verification keeps measured artifacts read-only and uses separate
   });
   assert.equal(measured.package.sha256, fixture.acceptance.artifactBinding.package.sha256);
   assert.equal(measured.plugin.contentDigest, fixture.acceptance.artifactBinding.plugin.contentDigest);
+  assert.deepEqual(artifactInventory(), beforeMeasurement, 'measurement must not mutate artifacts or create scratch files in the artifact root');
 });
 
 test('identity rejects self-declared scope and extra digest exclusions', (t) => {
