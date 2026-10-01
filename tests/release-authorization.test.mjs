@@ -116,6 +116,43 @@ test('explicit dispatch exposes required version and target authorization inputs
   assert.ok(releaseWorkflow.indexOf('Verify the target checkout stayed clean') < releaseWorkflow.indexOf('npm publish'));
 });
 
+test('both release test jobs use the qualified Linux runtime and sandbox before npm test', () => {
+  const ciWorkflow = readWorkflow('ci.yml');
+  const setupStart = ciWorkflow.indexOf('      - name: Prepare private trusted Node runtime for Linux tests\n');
+  const setupEnd = ciWorkflow.indexOf('      - run: npm ci\n', setupStart);
+  assert.ok(setupStart >= 0 && setupEnd > setupStart, 'qualified CI setup must be available');
+  const qualifiedSetup = ciWorkflow.slice(setupStart, setupEnd);
+  assert.match(qualifiedSetup, /readonly bwrap_version='0\.12\.0'/);
+  assert.match(qualifiedSetup, /readonly bwrap_sha256='9760d007363e3abba7c747489910f9f82d9fca53ba3bd3282e396fa3c97a3314'/);
+  for (const name of [
+    'Prepare private trusted Node runtime for Linux tests',
+    'Build pinned upstream bubblewrap sandbox',
+    'Verify propagated pinned bubblewrap sandbox',
+    'Verify required Linux bubblewrap namespaces'
+  ]) {
+    assert.ok(qualifiedSetup.includes(`      - name: ${name}\n`), `qualified setup includes ${name}`);
+  }
+  for (const flag of ['--unshare-all', '--unshare-user', '--disable-userns', '--cap-drop ALL']) {
+    assert.ok(qualifiedSetup.includes(flag), `qualified preflight retains ${flag}`);
+  }
+  for (const [workflow, job, nextJob] of [
+    ['tag-release.yml', 'authorize', 'tag'],
+    ['release.yml', 'build', 'publish']
+  ]) {
+    const text = readWorkflow(workflow);
+    const jobStart = text.indexOf(`  ${job}:\n`);
+    const jobEnd = text.indexOf(`\n  ${nextJob}:\n`, jobStart);
+    assert.ok(jobStart >= 0 && jobEnd > jobStart, `${workflow} test job must be scoped`);
+    const jobText = text.slice(jobStart, jobEnd);
+    assert.match(jobText, /^    runs-on: ubuntu-22\.04$/m);
+    assert.match(jobText, /node-version: 24/);
+    const setupIndex = jobText.indexOf(qualifiedSetup);
+    assert.ok(setupIndex >= 0, `${workflow} must retain every qualified setup command and guard`);
+    const testIndex = jobText.indexOf('npm test --ignore-scripts');
+    assert.ok(testIndex >= setupIndex + qualifiedSetup.length, `${workflow} setup must finish before npm test`);
+  }
+});
+
 test('workflow text normalization accepts CRLF checkout content', () => {
   assert.equal(normalizeNewlines('workflow_dispatch:\r\n  inputs:\r\n'), 'workflow_dispatch:\n  inputs:\n');
 });

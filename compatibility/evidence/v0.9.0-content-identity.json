@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-09-30T22:24:41.968Z",
+  "generatedAt": "2026-10-01T05:53:51.930Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -522,8 +522,8 @@
     },
     {
       "path": ".github/workflows/release.yml",
-      "bytes": 14068,
-      "sha256": "b307b4c386d26d64854710f00959430f74717715dec0c24b20bc028e1e582c2b"
+      "bytes": 20017,
+      "sha256": "dd38e2a9be3f86d10c3d252b92fe0be83f6a28321899ce36fc1cc5aab760f89a"
     },
     {
       "path": ".github/workflows/sync-main-to-dev.yml",
@@ -532,8 +532,8 @@
     },
     {
       "path": ".github/workflows/tag-release.yml",
-      "bytes": 8848,
-      "sha256": "b1f2db86aedd9ac810a17f6cc2903ea44ddfabef7d88218f0ab3f487656710b4"
+      "bytes": 14797,
+      "sha256": "6ba04659fb2f12362a76bceaf598049b79b771dec16fc203c4b58a814bfe7b35"
     },
     {
       "path": ".gitignore",
@@ -2332,8 +2332,8 @@
     },
     {
       "path": "tests/release-authorization.test.mjs",
-      "bytes": 18445,
-      "sha256": "ca2bc8cf437da1095ec7755efab41bba4ce58f31d3b8b175ccd04a93a3cf4603"
+      "bytes": 20546,
+      "sha256": "1cd0263ed0507fb3e1e06c24228fe45a6f51b0e97b1a9785e360f4fe6483597b"
     },
     {
       "path": "tests/release-tag.test.mjs",
@@ -2436,5 +2436,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "ed2dddd31540ddd4cdfad7153a2dd517c3b73b7eae10c3ce640724d725203caa"
+  "contentDigest": "dc428caaa912a09212920441edfddb0836c3e5939424168458010e1514d658d9"
 }
