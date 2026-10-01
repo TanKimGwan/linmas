@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-10-01T22:50:42.945Z",
+  "generatedAt": "2026-10-01T22:55:20.283Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -2413,8 +2413,8 @@
     },
     {
       "path": "tests/validate-skills.test.mjs",
-      "bytes": 18654,
-      "sha256": "cffff7a143a70109dbd3fce1d542c31c377cc793a9350eaba580abff652aff8f"
+      "bytes": 19147,
+      "sha256": "29a9050ea0dcb27f410fde5cbc88fa200d8ae5427bb387cdf675c2f4570d040f"
     },
     {
       "path": "tests/verify-checksum.test.mjs",
@@ -2442,5 +2442,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "e688331858db437e8401fe4c144e52c3f3a1c001d800f9912567e560a2a00f59"
+  "contentDigest": "46b1a02c987d9d815af4b0e955224f702a26b06feeb6410c0d4dfafc6a4297c8"
 }
