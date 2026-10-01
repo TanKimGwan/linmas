@@ -66,7 +66,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          set -euo pipefail
+          GIT_BASIC_AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          printf '::add-mask::%s\n' "$GIT_BASIC_AUTH"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $GIT_BASIC_AUTH" fetch origin main --tags
 
       - name: Check out the authorized target commit
         uses: actions/checkout@v7
@@ -86,12 +89,14 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          GIT_CONFIG_COUNT: 1
-          GIT_CONFIG_KEY_0: http.extraheader
-          GIT_CONFIG_VALUE_0: 'AUTHORIZATION: bearer ${{ github.token }}'
         run: |
           set -euo pipefail
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          GIT_BASIC_AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          printf '::add-mask::%s\n' "$GIT_BASIC_AUTH"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $GIT_BASIC_AUTH" fetch origin main --tags
+          GIT_CONFIG_COUNT=1 \
+          GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+          GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $GIT_BASIC_AUTH" \
           node scripts/validate-release-request.mjs \
             --phase publish \
             --version "${RELEASE_TAG#v}" \
@@ -365,7 +370,9 @@ jobs:
           [[ -z "$(git -C "$TRUSTED_CONTROLS" status --porcelain=v1 --untracked-files=all)" ]]
           [[ -f "releases/$VERSION.md" ]]
           [[ "$(head -n 1 "releases/$VERSION.md")" == "# Linmas $VERSION" ]]
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          GIT_BASIC_AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          printf '::add-mask::%s\n' "$GIT_BASIC_AUTH"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $GIT_BASIC_AUTH" fetch origin main --tags
           [[ "$(git rev-parse "$RELEASE_TAG^{commit}")" == "$TARGET_SHA" ]]
 
           mapfile -t PACKAGE_FILES < <(find "$RUNNER_TEMP/release-package" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)

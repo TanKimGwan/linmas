@@ -353,12 +353,37 @@ test('tag-release workflow requires explicit authorization before creating a tag
   assert.match(authorize, /--phase prepare[\s\S]*--checkout-role target/);
   assert.doesNotMatch(tag, /scripts\/validate-release-request\.mjs|scripts\/artifact-integrity\.mjs|npm test|npm ci/);
   assert.match(tag, /git tag -a "\$TAG" "\$TARGET_SHA" -m "\$TAG"/);
-  assert.match(tag, /http\.extraheader=AUTHORIZATION: bearer \$GH_TOKEN/);
+  assert.match(tag, /http\.https:\/\/github\.com\/\.extraheader=AUTHORIZATION: basic \$GIT_BASIC_AUTH/);
   assert.match(tag, /gh workflow run release\.yml[\s\S]*--ref main[\s\S]*-f tag="v\$\{REQUESTED_VERSION\}"[\s\S]*-f target_sha="\$TARGET_SHA"/);
   for (const field of ['artifact_file', 'artifact_sha256', 'artifact_bytes', 'artifact_entries', 'artifact_inventory_sha256']) {
     assert.match(tag, new RegExp(`-f ${field}="`));
   }
   assert.match(text, /persist-credentials:\s*false/);
+});
+
+test('release Git authentication is masked, host-scoped, and process-local', () => {
+  for (const workflow of ['tag-release.yml', 'release.yml']) {
+    const text = read(`.github/workflows/${workflow}`);
+    assert.doesNotMatch(text, /AUTHORIZATION: bearer/i);
+    const runBlocks = [...text.matchAll(/^        run: \|\n((?:          .*\n|\n)+)/gm)];
+    let authenticatedBlocks = 0;
+    for (const [, block] of runBlocks) {
+      if (!block.includes('AUTHORIZATION: basic')) continue;
+      authenticatedBlocks += 1;
+      assert.ok(block.includes('GIT_BASIC_AUTH="$(printf \'x-access-token:%s\' "$GH_TOKEN" | base64 -w 0)"'));
+      const mask = block.indexOf('printf \'::add-mask::%s\\n\' "$GIT_BASIC_AUTH"');
+      assert.ok(mask >= 0 && mask < block.indexOf('AUTHORIZATION: basic'));
+      assert.match(block, /http\.https:\/\/github\.com\/\.extraheader/);
+      assert.doesNotMatch(block, /git config[^\n]*(?:extraheader|GIT_BASIC_AUTH)|set -[^\n]*x/);
+      assert.doesNotMatch(block, /(?:echo|printf)[^\n]*GIT_BASIC_AUTH[^\n]*(?:GITHUB_ENV|GITHUB_OUTPUT|GITHUB_PATH)/);
+      if (block.includes('node scripts/validate-release-request.mjs')) {
+        assert.match(block, /GIT_CONFIG_COUNT=1 \\\n          GIT_CONFIG_KEY_0=http\.https:\/\/github\.com\/\.extraheader \\\n          GIT_CONFIG_VALUE_0="AUTHORIZATION: basic \$GIT_BASIC_AUTH" \\\n          node scripts\/validate-release-request\.mjs/);
+      }
+    }
+    assert.equal(authenticatedBlocks, workflow === 'tag-release.yml' ? 4 : 3);
+    assert.match(text, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+    assert.match(text, /persist-credentials:\s*false/);
+  }
 });
 
 test('dependabot targets dev for github-actions and npm updates', () => {
