@@ -218,14 +218,14 @@ test('package metadata includes public repository provenance fields', () => {
 
 test('readme uses tracked public logo asset for GitHub and npm rendering', () => {
   const readme = read('README.md');
-  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/TanKimGwan\/linmas\/main\/assets\/linmas\.jpg/);
+  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/TanKimGwan\/linmas\/main\/assets\/linmas-logo\.png/);
   assert.match(readme, /alt="Linmas logo"/);
-  assert.equal(fs.existsSync(path.join(rootDir, 'assets/linmas.jpg')), true);
-  assert.equal(createHash('sha256').update(fs.readFileSync(path.join(rootDir, 'assets/linmas.jpg'))).digest('hex'), '7d9b02fd6a78b2bee70e21bdf8b334ce5536d0b111328cb1bd88e256bbce83a7');
-  assert.equal(execFileSync('git', ['ls-files', 'assets/linmas.jpg'], {
+  assert.equal(fs.existsSync(path.join(rootDir, 'assets/linmas-logo.png')), true);
+  assert.equal(createHash('sha256').update(fs.readFileSync(path.join(rootDir, 'assets/linmas-logo.png'))).digest('hex'), '03dbdbd04b41117771f407170e0c3ffbc6811675cc85d2b91900394c84ed0cf2');
+  assert.equal(execFileSync('git', ['ls-files', 'assets/linmas-logo.png'], {
     cwd: rootDir,
     encoding: 'utf8'
-  }).trim(), 'assets/linmas.jpg');
+  }).trim(), 'assets/linmas-logo.png');
 });
 
 
