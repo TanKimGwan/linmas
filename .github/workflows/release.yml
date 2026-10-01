@@ -379,16 +379,16 @@ jobs:
           [[ "${#PACKAGE_FILES[@]}" -eq 1 && "${PACKAGE_FILES[0]}" == "$ARTIFACT_FILE" ]]
           [[ -f "$HANDOFF_PATH" ]]
 
-          node - "$HANDOFF_PATH" "$ARTIFACT_FILE" "$AUTHORIZED_SHA256" "$AUTHORIZED_BYTES" "$AUTHORIZED_ENTRIES" "$AUTHORIZED_INVENTORY_SHA256" <<'NODE'
+          node - "$HANDOFF_PATH" "$ARTIFACT_FILE" "$AUTHORIZED_SHA256" "$AUTHORIZED_BYTES" "$AUTHORIZED_ENTRIES" "$AUTHORIZED_INVENTORY_SHA256" "$VERSION" <<'NODE'
           const fs = require('node:fs');
-          const [manifestPath, filename, sha256, bytes, entries, inventorySha256] = process.argv.slice(2);
+          const [manifestPath, filename, sha256, bytes, entries, inventorySha256, version] = process.argv.slice(2);
           const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
           const packageArtifact = manifest?.package;
           if (manifest?.schemaVersion !== 1 || manifest?.handoffKind !== 'linmas-release-artifact') throw new Error('handoff manifest kind is invalid');
           if (packageArtifact?.path !== filename || packageArtifact?.filename !== filename) throw new Error('handoff filename is invalid');
           if (packageArtifact.sha256 !== sha256 || packageArtifact.bytes !== Number(bytes) || packageArtifact.entryCount !== Number(entries) || packageArtifact.inventorySha256 !== inventorySha256) throw new Error('handoff package identity differs from workflow authorization');
-          if (packageArtifact.packageName !== 'linmas' || packageArtifact.published !== false) throw new Error('handoff package metadata is invalid');
-          if (!manifest.plugin || manifest.plugin.published !== false || manifest.plugin.packageName !== 'linmas') throw new Error('handoff plugin metadata is invalid');
+          if (packageArtifact.packageName !== 'linmas' || packageArtifact.packageVersion !== version) throw new Error('handoff package metadata is invalid');
+          if (!manifest.plugin || manifest.plugin.packageName !== 'linmas' || manifest.plugin.packageVersion !== version) throw new Error('handoff plugin metadata is invalid');
           NODE
 
           ACTUAL_SHA256="$(sha256sum "$PACKAGE_PATH" | awk '{print $1}')"
