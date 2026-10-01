@@ -48,7 +48,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          set -euo pipefail
+          GIT_BASIC_AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          printf '::add-mask::%s\n' "$GIT_BASIC_AUTH"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $GIT_BASIC_AUTH" fetch origin main --tags
 
       - name: Check out the requested target commit
         uses: actions/checkout@v7
@@ -192,9 +195,6 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          GIT_CONFIG_COUNT: 1
-          GIT_CONFIG_KEY_0: http.extraheader
-          GIT_CONFIG_VALUE_0: 'AUTHORIZATION: bearer ${{ github.token }}'
         run: |
           set -euo pipefail
           HANDOFF_DIR="$RUNNER_TEMP/linmas-tag-authorization"
@@ -215,6 +215,11 @@ jobs:
           PACKAGE_BYTES="$(node -e "console.log(JSON.parse(require('fs').readFileSync('$HANDOFF_DIR/handoff.json')).package.bytes)")"
           PACKAGE_ENTRIES="$(node -e "console.log(JSON.parse(require('fs').readFileSync('$HANDOFF_DIR/handoff.json')).package.entryCount)")"
           PACKAGE_INVENTORY_SHA256="$(node -e "console.log(JSON.parse(require('fs').readFileSync('$HANDOFF_DIR/handoff.json')).package.inventorySha256)")"
+          GIT_BASIC_AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          printf '::add-mask::%s\n' "$GIT_BASIC_AUTH"
+          GIT_CONFIG_COUNT=1 \
+          GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+          GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $GIT_BASIC_AUTH" \
           node scripts/validate-release-request.mjs \
             --phase prepare \
             --version "$REQUESTED_VERSION" \
@@ -269,7 +274,9 @@ jobs:
           WORKFLOW_SHA: ${{ github.workflow_sha }}
         run: |
           set -euo pipefail
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" fetch origin main --tags
+          GIT_BASIC_AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          printf '::add-mask::%s\n' "$GIT_BASIC_AUTH"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $GIT_BASIC_AUTH" fetch origin main --tags
           MAIN_SHA="$(git rev-parse origin/main^{commit})"
           [[ "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "$WORKFLOW_SHA" ]]
@@ -281,7 +288,7 @@ jobs:
             echo "::error::release tag already exists locally"
             exit 1
           fi
-          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}" >/dev/null 2>&1; then
+          if git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $GIT_BASIC_AUTH" ls-remote --exit-code --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}" >/dev/null 2>&1; then
             echo "::error::release tag already exists remotely"
             exit 1
           fi
@@ -309,7 +316,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" "$TARGET_SHA" -m "$TAG"
-          git -c "http.extraheader=AUTHORIZATION: bearer $GH_TOKEN" push origin "refs/tags/$TAG"
+          GIT_BASIC_AUTH="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w 0)"
+          printf '::add-mask::%s\n' "$GIT_BASIC_AUTH"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $GIT_BASIC_AUTH" push origin "refs/tags/$TAG"
 
       - name: Dispatch the exact release handoff
         shell: bash
