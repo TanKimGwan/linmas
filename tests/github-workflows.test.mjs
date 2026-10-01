@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -384,6 +385,39 @@ test('release Git authentication is masked, host-scoped, and process-local', () 
     assert.match(text, /GH_TOKEN: \$\{\{ github\.token \}\}/);
     assert.match(text, /persist-credentials:\s*false/);
   }
+});
+
+test('release handoff validation accepts producer metadata and rejects mismatches', (t) => {
+  const workflow = read('.github/workflows/release.yml');
+  const script = workflow.match(/node - "\$HANDOFF_PATH"[^\n]*<<'NODE'\n([\s\S]*?)^          NODE$/m)?.[1];
+  assert.ok(script, 'the actual handoff validator must be present');
+  const source = script.replace(/^          /gm, '');
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-handoff-contract-'));
+  t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
+  const filename = 'linmas-0.9.0.tgz';
+  const digest = 'a'.repeat(64);
+  const inventoryDigest = 'b'.repeat(64);
+  const manifest = {
+    schemaVersion: 1,
+    handoffKind: 'linmas-release-artifact',
+    package: { path: filename, filename, sha256: digest, bytes: 100, entryCount: 1, inventorySha256: inventoryDigest, packageName: 'linmas', packageVersion: '0.9.0' },
+    plugin: { path: 'plugin/linmas', packageName: 'linmas', packageVersion: '0.9.0', fileCount: 1, contentDigest: digest, files: [] }
+  };
+  const manifestPath = path.join(temporaryRoot, 'handoff.json');
+  function validate(value) {
+    fs.writeFileSync(manifestPath, JSON.stringify(value));
+    return spawnSync(process.execPath, ['-', manifestPath, filename, digest, '100', '1', inventoryDigest, '0.9.0'], { input: source, encoding: 'utf8' });
+  }
+  assert.equal(validate(manifest).status, 0, 'producer metadata has no invented published field');
+  const wrongName = structuredClone(manifest);
+  wrongName.package.packageName = 'wrong-package';
+  assert.notEqual(validate(wrongName).status, 0);
+  const wrongVersion = structuredClone(manifest);
+  wrongVersion.plugin.packageVersion = '0.8.0';
+  assert.notEqual(validate(wrongVersion).status, 0);
+  const wrongDigest = structuredClone(manifest);
+  wrongDigest.package.sha256 = 'c'.repeat(64);
+  assert.notEqual(validate(wrongDigest).status, 0);
 });
 
 test('dependabot targets dev for github-actions and npm updates', () => {

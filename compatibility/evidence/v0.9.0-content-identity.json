@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-10-01T15:07:09.623Z",
+  "generatedAt": "2026-10-01T15:55:41.241Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -522,8 +522,8 @@
     },
     {
       "path": ".github/workflows/release.yml",
-      "bytes": 20549,
-      "sha256": "c28b91d052e56192c8eb5fcb3b14309913b104e82d59d0a9f21550814fb9b074"
+      "bytes": 20583,
+      "sha256": "a73c7a8bc2f60e451574ea7afcca924a97d21b927413cc406604d80e6c5e28a6"
     },
     {
       "path": ".github/workflows/sync-main-to-dev.yml",
@@ -2152,8 +2152,8 @@
     },
     {
       "path": "tests/github-workflows.test.mjs",
-      "bytes": 24662,
-      "sha256": "0e488906c88949a7a376edf8584a89667fb34779279bb4bcb1ae86be530bf16f"
+      "bytes": 26609,
+      "sha256": "d0bab08b9fd0e47c667978b58f7411d984d73af29d43c98574b2e7f90a3e11c5"
     },
     {
       "path": "tests/helpers/compatibility-evidence-fixture.mjs",
@@ -2436,5 +2436,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "e0baf6bc507d7ed86f6e27f9d6ffcbe2d5cdbbe224a3d9ceab382bb3442b5133"
+  "contentDigest": "0f24739f3681ed8ede74a242d3e5538f224b9cdda89d0eb886dd713d127f4f98"
 }
