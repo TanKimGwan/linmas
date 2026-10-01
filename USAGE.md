@@ -26,12 +26,14 @@ The npm package and Codex marketplace are separate distribution paths. Installin
 
 ## AI agent compatibility
 
+The [compatibility evidence policy](docs/compatibility/COMPATIBILITY.md) defines the boundaries of operation-level claims. The candidate's [clean content identity](compatibility/evidence/v0.9.0-content-identity.json) will be regenerated for the final content; it is not a clean acceptance by itself. An external acceptance record, not yet created, must bind the final commit SHA, clean Git status, measured package and plugin artifacts, and the evidence disposition. Installation detection is not runtime conformance. This branch is an unreleased 0.9.0 candidate; pinned 0.8.0 installation examples refer to the existing release.
+
 Codex is the primary native integration and the reference path for OpenAI Build Week 2026. Linmas remains compatible with other agents through verified managed installation or portable Markdown instructions:
 
 | AI agent or surface | Compatibility level | Available Linmas surface |
 | --- | --- | --- |
 | Codex | **Primary / native** | Git marketplace plugin, eleven skills, seven native MCP tools, managed skill directory, and Codex provider-backed review. |
-| Claude Code | **Verified compatible** | Managed installation of eleven skills and Claude API provider-backed review. Native Linmas MCP plugin registration is not claimed for Claude Code. |
+| Claude Code | **Managed installation adapter** | Managed installation of eleven skills. Claude API provider-backed review is a separate integration; it does not verify Claude Code runtime behavior. Native Linmas MCP plugin registration is not claimed for Claude Code. |
 | Gemini CLI and other coding agents | **Portable / manual** | Import or adapt the relevant `skills/linmas-*/SKILL.md` instructions if the agent supports equivalent project or user instructions. There is no Gemini-specific installer, provider adapter, MCP registration, or verified parity claim yet. |
 
 Portable compatibility covers the defensive instruction content, not automatic installation or identical runtime behavior. Human review, authorization, and the Linmas safety boundary still apply in every host.

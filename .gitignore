@@ -20,10 +20,22 @@ pnpm-debug.log*
 .claude/settings.local.json
 .claude/worktrees/
 
-# Internal planning docs (entire docs/ is internal/private)
+# Private documentation stays ignored; only the four reviewed v0.9.0 drafts are shared
 AGENTS.md
 CLAUDE.md
-docs/
+/docs/*
+!/docs/compatibility/
+/docs/compatibility/*
+!/docs/compatibility/COMPATIBILITY.md
+!/docs/implementation/
+/docs/implementation/*
+!/docs/implementation/v0.9.0.md
+!/docs/linmas-mcp-validation-runbook.md
+!/docs/roadmap/
+/docs/roadmap/*
+!/docs/roadmap/versions/
+/docs/roadmap/versions/*
+!/docs/roadmap/versions/v0.9.0.md
 PUBLIC_RELEASE_CHECKLIST.md
 QUALITY_GATES.md
 releases/0.1.5-rehearsal-runbook.md

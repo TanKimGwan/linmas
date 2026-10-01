@@ -130,7 +130,7 @@ test('packed contents execute the offline judge demo from a neutral directory', 
       stdio: 'pipe'
     }));
     const tarball = path.join(root, packJson[0].filename);
-    runNpm(['install', '--ignore-scripts', '--no-audit', '--no-fund', tarball], {
+    runNpm(['install', '--prefix', root, '--ignore-scripts', '--no-audit', '--no-fund', tarball], {
       cwd: root,
       encoding: 'utf8',
       stdio: 'pipe'
