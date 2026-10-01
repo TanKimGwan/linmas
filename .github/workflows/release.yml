@@ -43,7 +43,7 @@ jobs:
   build:
     name: Build and authorize exact release handoff
     if: ${{ github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     env:
@@ -104,6 +104,119 @@ jobs:
             --artifact-bytes "$AUTHORIZED_BYTES" \
             --artifact-entries "$AUTHORIZED_ENTRIES" \
             --artifact-inventory-sha256 "$AUTHORIZED_INVENTORY_SHA256"
+
+      - name: Prepare private trusted Node runtime for Linux tests
+        run: |
+          set -euo pipefail
+          source_node="$(command -v node)"
+          private_node_dir="${RUNNER_TEMP}/linmas-trusted-node"
+          private_node="${private_node_dir}/node"
+          install -d -m 700 "${private_node_dir}"
+          test ! -e "${private_node}"
+          install -m 755 "${source_node}" "${private_node}"
+          test -f "${private_node}"
+          test ! -L "${private_node}"
+          test "$(stat -c '%a' "${private_node}")" = "755"
+          test "$(stat -c '%a' "${private_node_dir}")" = "700"
+          active_version="$(node --version)"
+          copied_version="$("${private_node}" --version)"
+          [[ "${active_version}" =~ ^v24\. ]]
+          test "${copied_version}" = "${active_version}"
+          printf 'LINMAS_APPROVED_NODE_PATH=%s\n' "${private_node}" >> "${GITHUB_ENV}"
+          printf '%s\n' "${private_node_dir}" >> "${GITHUB_PATH}"
+      - name: Build pinned upstream bubblewrap sandbox
+        run: |
+          set -euo pipefail
+          readonly bwrap_version='0.12.0'
+          readonly bwrap_sha256='9760d007363e3abba7c747489910f9f82d9fca53ba3bd3282e396fa3c97a3314'
+          readonly bwrap_url="https://github.com/containers/bubblewrap/releases/download/v${bwrap_version}/bubblewrap-${bwrap_version}.tar.xz"
+          readonly archive="${RUNNER_TEMP}/bubblewrap-${bwrap_version}.tar.xz"
+          readonly source_dir="${RUNNER_TEMP}/bubblewrap-${bwrap_version}"
+          readonly build_dir="${RUNNER_TEMP}/bubblewrap-${bwrap_version}-build"
+          readonly private_root="${RUNNER_TEMP}/linmas-bubblewrap-${bwrap_version}"
+          readonly private_bin="${private_root}/bin"
+          readonly private_bwrap="${private_bin}/bwrap"
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends gcc libcap-dev meson ninja-build pkg-config
+          install -d -m 700 "${private_root}"
+          curl --fail --location --proto '=https' --tlsv1.2 --output "${archive}" "${bwrap_url}"
+          printf '%s  %s\n' "${bwrap_sha256}" "${archive}" | sha256sum --check --strict -
+          tar --extract --xz --file "${archive}" --directory "${RUNNER_TEMP}"
+          meson setup "${build_dir}" "${source_dir}" \
+            --prefix="${private_root}" \
+            --bindir=bin \
+            -Dbash_completion=disabled \
+            -Dman=disabled \
+            -Dselinux=disabled \
+            -Dtests=false \
+            -Dzsh_completion=disabled
+          meson compile -C "${build_dir}"
+          meson install -C "${build_dir}"
+          chmod 700 "${private_bin}"
+          test -f "${private_bwrap}"
+          test ! -L "${private_bwrap}"
+          test "$(stat -c '%u' "${private_root}")" = "$(id -u)"
+          test "$(stat -c '%u' "${private_bin}")" = "$(id -u)"
+          test "$(stat -c '%u' "${private_bwrap}")" = "$(id -u)"
+          test "$(stat -c '%a' "${private_root}")" = '700'
+          test "$(stat -c '%a' "${private_bin}")" = '700'
+          chmod 755 "${private_bwrap}"
+          test "$(stat -c '%a' "${private_bwrap}")" = '755'
+          private_bwrap_mode="$(stat -c '%a' "${private_bwrap}")"
+          test "$(( 8#${private_bwrap_mode} & 8#6000 ))" = '0'
+          test "$("${private_bwrap}" --version)" = "bubblewrap ${bwrap_version}"
+          "${private_bwrap}" --help 2>&1 | grep -F -- '--disable-userns'
+          printf 'LINMAS_APPROVED_BWRAP_PATH=%s\n' "${private_bwrap}" >> "${GITHUB_ENV}"
+          printf 'LINMAS_APPROVED_BWRAP_VERSION=%s\n' "${bwrap_version}" >> "${GITHUB_ENV}"
+          printf '%s\n' "${private_bin}" >> "${GITHUB_PATH}"
+      - name: Verify propagated pinned bubblewrap sandbox
+        run: |
+          set -euo pipefail
+          test "$(command -v bwrap)" = "${LINMAS_APPROVED_BWRAP_PATH}"
+          test -f "${LINMAS_APPROVED_BWRAP_PATH}"
+          test ! -L "${LINMAS_APPROVED_BWRAP_PATH}"
+          test "$(stat -c '%a' "$(dirname "${LINMAS_APPROVED_BWRAP_PATH}")")" = '700'
+          test "$(stat -c '%a' "${LINMAS_APPROVED_BWRAP_PATH}")" = '755'
+          propagated_bwrap_mode="$(stat -c '%a' "${LINMAS_APPROVED_BWRAP_PATH}")"
+          test "$(( 8#${propagated_bwrap_mode} & 8#6000 ))" = '0'
+          test "$(bwrap --version)" = "bubblewrap ${LINMAS_APPROVED_BWRAP_VERSION}"
+          bwrap --help 2>&1 | grep -F -- '--disable-userns'
+      - name: Verify required Linux bubblewrap namespaces
+        run: |
+          set -euo pipefail
+          host_user_namespace="$(readlink /proc/self/ns/user)"
+          host_pid_namespace="$(readlink /proc/self/ns/pid)"
+          host_network_namespace="$(readlink /proc/self/ns/net)"
+          host_mount_namespace="$(readlink /proc/self/ns/mnt)"
+          bwrap \
+            --die-with-parent \
+            --new-session \
+            --unshare-all \
+            --unshare-user \
+            --disable-userns \
+            --cap-drop ALL \
+            --size 1048576 \
+            --tmpfs / \
+            --ro-bind /usr /usr \
+            --ro-bind /bin /bin \
+            --ro-bind /lib /lib \
+            --ro-bind-try /lib64 /lib64 \
+            --proc /proc \
+            --dev /dev \
+            --dir /tmp \
+            --setenv HOST_USER_NAMESPACE "${host_user_namespace}" \
+            --setenv HOST_PID_NAMESPACE "${host_pid_namespace}" \
+            --setenv HOST_NETWORK_NAMESPACE "${host_network_namespace}" \
+            --setenv HOST_MOUNT_NAMESPACE "${host_mount_namespace}" \
+            -- /bin/sh -ceu '
+              test "$(readlink /proc/self/ns/user)" != "${HOST_USER_NAMESPACE}"
+              test "$(readlink /proc/self/ns/pid)" != "${HOST_PID_NAMESPACE}"
+              test "$(readlink /proc/self/ns/net)" != "${HOST_NETWORK_NAMESPACE}"
+              test "$(readlink /proc/self/ns/mnt)" != "${HOST_MOUNT_NAMESPACE}"
+              grep -q "lo:" /proc/net/dev
+              test -w /tmp
+              printf namespace-preflight-ok
+            '
 
       - name: Install dependencies without lifecycle scripts
         run: npm ci --ignore-scripts
