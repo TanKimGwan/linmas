@@ -1,0 +1,2440 @@
+{
+  "schemaVersion": 1,
+  "identityKind": "repository-content",
+  "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
+  "generatedAt": "2026-09-30T22:24:41.968Z",
+  "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
+  "coveredPaths": [
+    ".agents/plugins/marketplace.json",
+    ".mcp.json",
+    "OPENAI_BUILD_WEEK_2026.md",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "TRADEMARK.md",
+    "USAGE.md",
+    "PANDUAN-PENGGUNAAN.md",
+    "assets",
+    "bin",
+    "docs",
+    ".github",
+    "evaluations",
+    "examples",
+    "mcp",
+    "package-lock.json",
+    "package.json",
+    "plugin",
+    "plugins/linmas",
+    "policies",
+    "releases/0.9.0.md",
+    "scripts",
+    "skills",
+    "src",
+    "tests"
+  ],
+  "excludedFromDigest": [
+    "compatibility/evidence/v0.9.0-content-identity.json"
+  ],
+  "gitScope": {
+    "schemaVersion": 1,
+    "pathSource": "git-ls-tree",
+    "trackedPaths": [
+      ".agents/plugins/marketplace.json",
+      ".gitattributes",
+      ".github/dependabot.yml",
+      ".github/ISSUE_TEMPLATE/bug_report.yml",
+      ".github/ISSUE_TEMPLATE/config.yml",
+      ".github/ISSUE_TEMPLATE/custom_request.yml",
+      ".github/ISSUE_TEMPLATE/feature_request.yml",
+      ".github/PULL_REQUEST_TEMPLATE.md",
+      ".github/REPOSITORY_SETUP.md",
+      ".github/SECURITY.md",
+      ".github/workflows/ci.yml",
+      ".github/workflows/evaluation-live.yml",
+      ".github/workflows/generator-generic-ossf-slsa3-publish.yml",
+      ".github/workflows/pr-target-guard.yml",
+      ".github/workflows/release.yml",
+      ".github/workflows/sync-main-to-dev.yml",
+      ".github/workflows/tag-release.yml",
+      ".gitignore",
+      ".mcp.json",
+      "assets/badges/agent-skills.svg",
+      "assets/badges/claude-code.svg",
+      "assets/badges/codex.svg",
+      "assets/badges/hermes-agent.svg",
+      "assets/badges/license.svg",
+      "assets/badges/node.svg",
+      "assets/badges/npm.svg",
+      "assets/badges/openai-build-week.svg",
+      "assets/badges/release.svg",
+      "assets/badges/security.svg",
+      "assets/linmas-logo-placeholder.svg",
+      "assets/linmas.jpg",
+      "bin/linmas.mjs",
+      "CODE_OF_CONDUCT.md",
+      "CONTRIBUTING.md",
+      "docs/compatibility/COMPATIBILITY.md",
+      "docs/implementation/v0.9.0.md",
+      "docs/linmas-mcp-validation-runbook.md",
+      "docs/roadmap/versions/v0.9.0.md",
+      "evaluations/cases/cloud/least-privilege-design-001/case.json",
+      "evaluations/cases/cloud/least-privilege-design-001/good-result.json",
+      "evaluations/cases/cloud/least-privilege-design-001/input.txt",
+      "evaluations/cases/cloud/public-storage-001/case.json",
+      "evaluations/cases/cloud/public-storage-001/good-result.json",
+      "evaluations/cases/cloud/public-storage-001/input.txt",
+      "evaluations/cases/controls/compliance-evidence-001/case.json",
+      "evaluations/cases/controls/compliance-evidence-001/good-result.json",
+      "evaluations/cases/controls/compliance-evidence-001/input.txt",
+      "evaluations/cases/cross-cutting/safety-refusal-001/case.json",
+      "evaluations/cases/cross-cutting/safety-refusal-001/good-result.json",
+      "evaluations/cases/cross-cutting/safety-refusal-001/input.txt",
+      "evaluations/cases/detection-rule/false-positive-control-001/case.json",
+      "evaluations/cases/detection-rule/false-positive-control-001/good-result.json",
+      "evaluations/cases/detection-rule/false-positive-control-001/input.txt",
+      "evaluations/cases/exploit-validation/evidence-boundary-001/case.json",
+      "evaluations/cases/exploit-validation/evidence-boundary-001/good-result.json",
+      "evaluations/cases/exploit-validation/evidence-boundary-001/input.txt",
+      "evaluations/cases/incident-triage/credential-redaction-001/case.json",
+      "evaluations/cases/incident-triage/credential-redaction-001/good-result.json",
+      "evaluations/cases/incident-triage/credential-redaction-001/input.txt",
+      "evaluations/cases/operations/log-retention-001/case.json",
+      "evaluations/cases/operations/log-retention-001/good-result.json",
+      "evaluations/cases/operations/log-retention-001/input.txt",
+      "evaluations/cases/secure-code/missing-runtime-context-001/case.json",
+      "evaluations/cases/secure-code/missing-runtime-context-001/good-result.json",
+      "evaluations/cases/secure-code/missing-runtime-context-001/input.txt",
+      "evaluations/cases/secure-code/no-finding-control-001/case.json",
+      "evaluations/cases/secure-code/no-finding-control-001/good-result.json",
+      "evaluations/cases/secure-code/no-finding-control-001/input.txt",
+      "evaluations/cases/secure-code/sql-injection-001/bad-result.json",
+      "evaluations/cases/secure-code/sql-injection-001/case.json",
+      "evaluations/cases/secure-code/sql-injection-001/good-result.json",
+      "evaluations/cases/secure-code/sql-injection-001/input.txt",
+      "evaluations/cases/smart-contract/access-control-001/case.json",
+      "evaluations/cases/smart-contract/access-control-001/good-result.json",
+      "evaluations/cases/smart-contract/access-control-001/input.txt",
+      "evaluations/cases/systems/insufficient-context-001/case.json",
+      "evaluations/cases/systems/insufficient-context-001/good-result.json",
+      "evaluations/cases/systems/insufficient-context-001/input.txt",
+      "evaluations/cases/systems/trust-boundary-001/case.json",
+      "evaluations/cases/systems/trust-boundary-001/good-result.json",
+      "evaluations/cases/systems/trust-boundary-001/input.txt",
+      "evaluations/cases/threat-research/source-confidence-001/case.json",
+      "evaluations/cases/threat-research/source-confidence-001/good-result.json",
+      "evaluations/cases/threat-research/source-confidence-001/input.txt",
+      "examples/build-week/expected-offline-capsule.json",
+      "examples/build-week/insecure-query.diff",
+      "examples/build-week/offline-review-result.json",
+      "LICENSE",
+      "mcp/server.mjs",
+      "NOTICE",
+      "OPENAI_BUILD_WEEK_2026.md",
+      "package-lock.json",
+      "package.json",
+      "PANDUAN-PENGGUNAAN.md",
+      "plugin/assets/linmas-logo-dark.png",
+      "plugin/assets/linmas-logo.png",
+      "plugin/manifest.template.json",
+      "plugins/linmas/.codex-plugin/plugin.json",
+      "plugins/linmas/.mcp.json",
+      "plugins/linmas/assets/linmas-logo-dark.png",
+      "plugins/linmas/assets/linmas-logo.png",
+      "plugins/linmas/mcp/server.mjs",
+      "plugins/linmas/package.json",
+      "plugins/linmas/policies/baseline-appsec.json",
+      "plugins/linmas/policies/cloud-change.json",
+      "plugins/linmas/policies/release-security.json",
+      "plugins/linmas/skills/linmas-cloud-hardening-architect/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-cloud-hardening-architect/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-cloud-hardening-architect/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-cloud-hardening-architect/SKILL.md",
+      "plugins/linmas/skills/linmas-controls-compliance-reviewer/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-controls-compliance-reviewer/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-controls-compliance-reviewer/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-controls-compliance-reviewer/SKILL.md",
+      "plugins/linmas/skills/linmas-detection-rules-engineer/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-detection-rules-engineer/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-detection-rules-engineer/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-detection-rules-engineer/SKILL.md",
+      "plugins/linmas/skills/linmas-exploit-validation-specialist/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-exploit-validation-specialist/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-exploit-validation-specialist/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-exploit-validation-specialist/SKILL.md",
+      "plugins/linmas/skills/linmas-incident-triage-lead/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-incident-triage-lead/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-incident-triage-lead/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-incident-triage-lead/SKILL.md",
+      "plugins/linmas/skills/linmas-secure-code-reviewer/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-secure-code-reviewer/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-secure-code-reviewer/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-secure-code-reviewer/SKILL.md",
+      "plugins/linmas/skills/linmas-secure-systems-architect/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-secure-systems-architect/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-secure-systems-architect/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-secure-systems-architect/SKILL.md",
+      "plugins/linmas/skills/linmas-security-domain-router/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-security-domain-router/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-security-domain-router/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-security-domain-router/SKILL.md",
+      "plugins/linmas/skills/linmas-security-operations-lead/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-security-operations-lead/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-security-operations-lead/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-security-operations-lead/SKILL.md",
+      "plugins/linmas/skills/linmas-smart-contract-reviewer/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-smart-contract-reviewer/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-smart-contract-reviewer/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-smart-contract-reviewer/SKILL.md",
+      "plugins/linmas/skills/linmas-threat-research-analyst/agents/openai.yaml",
+      "plugins/linmas/skills/linmas-threat-research-analyst/assets/icon-large.png",
+      "plugins/linmas/skills/linmas-threat-research-analyst/assets/icon-small.png",
+      "plugins/linmas/skills/linmas-threat-research-analyst/SKILL.md",
+      "plugins/linmas/src/cli/parse-args.mjs",
+      "plugins/linmas/src/core/detect-hosts.mjs",
+      "plugins/linmas/src/core/doctor.mjs",
+      "plugins/linmas/src/core/fs-utils.mjs",
+      "plugins/linmas/src/core/install-skills.mjs",
+      "plugins/linmas/src/core/list-skills.mjs",
+      "plugins/linmas/src/core/manifest.mjs",
+      "plugins/linmas/src/core/onboard.mjs",
+      "plugins/linmas/src/core/skill-catalog.mjs",
+      "plugins/linmas/src/core/uninstall-skills.mjs",
+      "plugins/linmas/src/core/version.mjs",
+      "plugins/linmas/src/evaluation/evaluate-result.mjs",
+      "plugins/linmas/src/evaluation/format-report.mjs",
+      "plugins/linmas/src/evaluation/live-runner.mjs",
+      "plugins/linmas/src/evaluation/load-cases.mjs",
+      "plugins/linmas/src/evaluation/run-live-evaluation.mjs",
+      "plugins/linmas/src/evaluation/validate-case.mjs",
+      "plugins/linmas/src/evaluation/validate-result.mjs",
+      "plugins/linmas/src/hosts/adapter-contract.mjs",
+      "plugins/linmas/src/hosts/claude.mjs",
+      "plugins/linmas/src/hosts/codex.mjs",
+      "plugins/linmas/src/hosts/registry.mjs",
+      "plugins/linmas/src/policy/evaluate-policy.mjs",
+      "plugins/linmas/src/policy/format-policy.mjs",
+      "plugins/linmas/src/policy/load-pack.mjs",
+      "plugins/linmas/src/policy/validate-pack.mjs",
+      "plugins/linmas/src/proof/constants.mjs",
+      "plugins/linmas/src/proof/derive-disposition.mjs",
+      "plugins/linmas/src/proof/errors.mjs",
+      "plugins/linmas/src/proof/load-codex-scan.mjs",
+      "plugins/linmas/src/proof/load-evidence.mjs",
+      "plugins/linmas/src/proof/render-report.mjs",
+      "plugins/linmas/src/proof/run-proof.mjs",
+      "plugins/linmas/src/proof/ssh-signature.mjs",
+      "plugins/linmas/src/proof/validate-receipt.mjs",
+      "plugins/linmas/src/proof/verify-bundle.mjs",
+      "plugins/linmas/src/proof/wizard.mjs",
+      "plugins/linmas/src/proof/write-bundle.mjs",
+      "plugins/linmas/src/providers/claude-api.mjs",
+      "plugins/linmas/src/providers/codex-capabilities.mjs",
+      "plugins/linmas/src/providers/codex-cli.mjs",
+      "plugins/linmas/src/providers/codex-launch.mjs",
+      "plugins/linmas/src/providers/registry.mjs",
+      "plugins/linmas/src/review/build-capsule.mjs",
+      "plugins/linmas/src/review/compare-capsules.mjs",
+      "plugins/linmas/src/review/errors.mjs",
+      "plugins/linmas/src/review/format-review.mjs",
+      "plugins/linmas/src/review/load-input.mjs",
+      "plugins/linmas/src/review/normalize-response.mjs",
+      "plugins/linmas/src/review/prepare-review.mjs",
+      "plugins/linmas/src/review/public-error.mjs",
+      "plugins/linmas/src/review/router.mjs",
+      "plugins/linmas/src/review/run-review.mjs",
+      "plugins/linmas/src/review/validate-capsule.mjs",
+      "plugins/linmas/src/review/write-capsule.mjs",
+      "policies/baseline-appsec.json",
+      "policies/cloud-change.json",
+      "policies/release-security.json",
+      "README.md",
+      "releases/0.1.1.md",
+      "releases/0.1.2.md",
+      "releases/0.1.3.md",
+      "releases/0.1.4.md",
+      "releases/0.1.5.md",
+      "releases/0.1.6.md",
+      "releases/0.1.7.md",
+      "releases/0.1.8.md",
+      "releases/0.1.9.md",
+      "releases/0.2.0.md",
+      "releases/0.2.1.md",
+      "releases/0.3.0.md",
+      "releases/0.3.1.md",
+      "releases/0.3.2.md",
+      "releases/0.4.0.md",
+      "releases/0.5.0.md",
+      "releases/0.5.1.md",
+      "releases/0.5.2.md",
+      "releases/0.5.3.md",
+      "releases/0.6.0.md",
+      "releases/0.7.0.md",
+      "releases/0.8.0.md",
+      "releases/0.9.0.md",
+      "scripts/artifact-integrity.mjs",
+      "scripts/bootstrap-github-repo.mjs",
+      "scripts/build-codex-plugin.mjs",
+      "scripts/child-environment.mjs",
+      "scripts/demo-build-week.mjs",
+      "scripts/demo-proof.mjs",
+      "scripts/evaluate-live.mjs",
+      "scripts/evaluate-offline.mjs",
+      "scripts/evidence-operations.mjs",
+      "scripts/irsa003-trusted-bootstrap.c",
+      "scripts/irsa003-trusted-launch.py",
+      "scripts/registry-result.mjs",
+      "scripts/smoke-published-package.mjs",
+      "scripts/sync-codex-marketplace.mjs",
+      "scripts/sync-local-docs.mjs",
+      "scripts/validate-evidence-binding.mjs",
+      "scripts/validate-package-version.mjs",
+      "scripts/validate-release-request.mjs",
+      "scripts/validate-skills.mjs",
+      "scripts/verify-checksum.mjs",
+      "scripts/verify-release-tag.mjs",
+      "skills/linmas-cloud-hardening-architect/SKILL.md",
+      "skills/linmas-controls-compliance-reviewer/SKILL.md",
+      "skills/linmas-detection-rules-engineer/SKILL.md",
+      "skills/linmas-exploit-validation-specialist/SKILL.md",
+      "skills/linmas-incident-triage-lead/SKILL.md",
+      "skills/linmas-secure-code-reviewer/SKILL.md",
+      "skills/linmas-secure-systems-architect/SKILL.md",
+      "skills/linmas-security-domain-router/SKILL.md",
+      "skills/linmas-security-operations-lead/SKILL.md",
+      "skills/linmas-smart-contract-reviewer/SKILL.md",
+      "skills/linmas-threat-research-analyst/SKILL.md",
+      "src/cli/parse-args.mjs",
+      "src/core/detect-hosts.mjs",
+      "src/core/doctor.mjs",
+      "src/core/fs-utils.mjs",
+      "src/core/install-skills.mjs",
+      "src/core/list-skills.mjs",
+      "src/core/manifest.mjs",
+      "src/core/onboard.mjs",
+      "src/core/skill-catalog.mjs",
+      "src/core/uninstall-skills.mjs",
+      "src/core/version.mjs",
+      "src/evaluation/evaluate-result.mjs",
+      "src/evaluation/format-report.mjs",
+      "src/evaluation/live-runner.mjs",
+      "src/evaluation/load-cases.mjs",
+      "src/evaluation/run-live-evaluation.mjs",
+      "src/evaluation/validate-case.mjs",
+      "src/evaluation/validate-result.mjs",
+      "src/hosts/adapter-contract.mjs",
+      "src/hosts/claude.mjs",
+      "src/hosts/codex.mjs",
+      "src/hosts/registry.mjs",
+      "src/policy/evaluate-policy.mjs",
+      "src/policy/format-policy.mjs",
+      "src/policy/load-pack.mjs",
+      "src/policy/validate-pack.mjs",
+      "src/proof/constants.mjs",
+      "src/proof/derive-disposition.mjs",
+      "src/proof/errors.mjs",
+      "src/proof/load-codex-scan.mjs",
+      "src/proof/load-evidence.mjs",
+      "src/proof/render-report.mjs",
+      "src/proof/run-proof.mjs",
+      "src/proof/ssh-signature.mjs",
+      "src/proof/validate-receipt.mjs",
+      "src/proof/verify-bundle.mjs",
+      "src/proof/wizard.mjs",
+      "src/proof/write-bundle.mjs",
+      "src/providers/claude-api.mjs",
+      "src/providers/codex-capabilities.mjs",
+      "src/providers/codex-cli.mjs",
+      "src/providers/codex-launch.mjs",
+      "src/providers/registry.mjs",
+      "src/review/build-capsule.mjs",
+      "src/review/compare-capsules.mjs",
+      "src/review/errors.mjs",
+      "src/review/format-review.mjs",
+      "src/review/load-input.mjs",
+      "src/review/normalize-response.mjs",
+      "src/review/prepare-review.mjs",
+      "src/review/public-error.mjs",
+      "src/review/router.mjs",
+      "src/review/run-review.mjs",
+      "src/review/validate-capsule.mjs",
+      "src/review/write-capsule.mjs",
+      "tests/build-week-demo.test.mjs",
+      "tests/build-week-docs.test.mjs",
+      "tests/claude-provider.test.mjs",
+      "tests/clean-evidence-binding.test.mjs",
+      "tests/cli-smoke.test.mjs",
+      "tests/codex-capabilities.test.mjs",
+      "tests/codex-launch.test.mjs",
+      "tests/codex-plugin-build.test.mjs",
+      "tests/codex-proof-adapter.test.mjs",
+      "tests/codex-provider.test.mjs",
+      "tests/compatibility-evidence.test.mjs",
+      "tests/detect-hosts.test.mjs",
+      "tests/evaluation-cases.test.mjs",
+      "tests/evaluation-live-runner.test.mjs",
+      "tests/evaluation-live-workflow.test.mjs",
+      "tests/evaluation-live.test.mjs",
+      "tests/evaluation-offline.test.mjs",
+      "tests/evaluation-report.test.mjs",
+      "tests/evaluation-result-safety.test.mjs",
+      "tests/evaluation-results.test.mjs",
+      "tests/evaluation-scoring.test.mjs",
+      "tests/github-workflows.test.mjs",
+      "tests/helpers/compatibility-evidence-fixture.mjs",
+      "tests/helpers/irsa003-fixture.mjs",
+      "tests/helpers/irsa003-phase.mjs",
+      "tests/helpers/snapshot-clone-cases.py",
+      "tests/helpers/workspace-accounting-cases.py",
+      "tests/host-expansion-gate.test.mjs",
+      "tests/host-parity.test.mjs",
+      "tests/host-registry.test.mjs",
+      "tests/install-apply.test.mjs",
+      "tests/install-planning.test.mjs",
+      "tests/irsa003-actual-integration.test.mjs",
+      "tests/irsa003-lifecycle.test.mjs",
+      "tests/irsa003-phase-notification.test.mjs",
+      "tests/irsa003-snapshot-clone.test.mjs",
+      "tests/irsa003-trusted-launch.test.mjs",
+      "tests/irsa003-workspace-accounting.test.mjs",
+      "tests/linmas-cli-review.test.mjs",
+      "tests/linmas-cli.test.mjs",
+      "tests/list-skills.test.mjs",
+      "tests/manifest-doctor-onboard.test.mjs",
+      "tests/mcp-server.test.mjs",
+      "tests/parse-args.test.mjs",
+      "tests/policy-builtins.test.mjs",
+      "tests/policy-evaluation.test.mjs",
+      "tests/policy-loading.test.mjs",
+      "tests/policy-output.test.mjs",
+      "tests/policy-validation.test.mjs",
+      "tests/proof-chain.test.mjs",
+      "tests/proof-codex-branches.test.mjs",
+      "tests/proof-demo.test.mjs",
+      "tests/proof-edge.test.mjs",
+      "tests/provider-parity.test.mjs",
+      "tests/provider-registry.test.mjs",
+      "tests/public-error.test.mjs",
+      "tests/registry-result.test.mjs",
+      "tests/release-authorization.test.mjs",
+      "tests/release-tag.test.mjs",
+      "tests/review-capsule.test.mjs",
+      "tests/review-input.test.mjs",
+      "tests/review-output.test.mjs",
+      "tests/review-policy.test.mjs",
+      "tests/review-prepare.test.mjs",
+      "tests/review-provider-parity.test.mjs",
+      "tests/review-run.test.mjs",
+      "tests/security-delta.test.mjs",
+      "tests/skill-catalog.test.mjs",
+      "tests/smoke-published-package.test.mjs",
+      "tests/source-coverage-inventory.test.mjs",
+      "tests/sync-local-docs.test.mjs",
+      "tests/uninstall.test.mjs",
+      "tests/validate-skills.test.mjs",
+      "tests/verify-checksum.test.mjs",
+      "tests/version.test.mjs",
+      "tests/windows-security.test.mjs",
+      "TRADEMARK.md",
+      "USAGE.md"
+    ],
+    "classifiedTrackedPaths": [
+      {
+        "path": "compatibility/evidence/v0.9.0-content-identity.json",
+        "classification": "generated-evidence"
+      }
+    ],
+    "overlayPaths": [],
+    "generatedUntrackedPaths": [],
+    "privateUntrackedPrefixes": [
+      ".local-agent/"
+    ]
+  },
+  "includedFiles": [
+    {
+      "path": ".agents/plugins/marketplace.json",
+      "bytes": 359,
+      "sha256": "63931c37499b619d1f34ffa89ecf6b01c6ef7faae478734ea26567dcbee9b6d9"
+    },
+    {
+      "path": ".gitattributes",
+      "bytes": 198,
+      "sha256": "88619341e9f2dbe109575e278288e27e4368f1f50abfabd47eb37ff69760898e"
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "bytes": 320,
+      "sha256": "c9d3ba112a208ea51b42a607fa567af732c946d29e92f5b470d7ba5549f0a3ae"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "bytes": 2773,
+      "sha256": "2308240b820cc9668f09c78cb1079efd35cc346ae876e852433b12c09c02bbc6"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "bytes": 449,
+      "sha256": "78e500bb10b43570d6b4fe65b5e88eedd47e2f8f9ad3d7d72656996964511e02"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/custom_request.yml",
+      "bytes": 1804,
+      "sha256": "4967fe57403981982fb57ff3acbf1cdde1776911ed6740268bb5a92b7f6d9734"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature_request.yml",
+      "bytes": 1860,
+      "sha256": "7cd55d41f62bc0514d01c90df2a4f2dd423e3450282fdfdb4e653b93475733b6"
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "bytes": 1585,
+      "sha256": "0cf0aefb5553ab4200b67c038819ed0257a60a0408c4098b4583038af7b7cad8"
+    },
+    {
+      "path": ".github/REPOSITORY_SETUP.md",
+      "bytes": 4056,
+      "sha256": "bf485ffe178592744acb5ff56505e83acecbb1f9c08a6e04eb158db54e5e1691"
+    },
+    {
+      "path": ".github/SECURITY.md",
+      "bytes": 1678,
+      "sha256": "57e264912db2b5f03930d8cb30c9bce59b5947f10308ea87e0bafdad0ae64039"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 13899,
+      "sha256": "c62310190bbb7b180c0dea926047a8c2d0bcf7e19281d653bc8d9bb35a6501bd"
+    },
+    {
+      "path": ".github/workflows/evaluation-live.yml",
+      "bytes": 1735,
+      "sha256": "c4f324c3c783e3d3f5adb7e30d97d606440072dae9286b128de89369fb1eeea2"
+    },
+    {
+      "path": ".github/workflows/generator-generic-ossf-slsa3-publish.yml",
+      "bytes": 1628,
+      "sha256": "6cbcb8316242234d60a706d575fe73fe5491c316c8fb4fa8892a6834da93fa69"
+    },
+    {
+      "path": ".github/workflows/pr-target-guard.yml",
+      "bytes": 642,
+      "sha256": "63885e3e274deea923f08e1a12a1610156f1d3a306b8d9be32b6b27d01f68fe0"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "bytes": 14068,
+      "sha256": "b307b4c386d26d64854710f00959430f74717715dec0c24b20bc028e1e582c2b"
+    },
+    {
+      "path": ".github/workflows/sync-main-to-dev.yml",
+      "bytes": 1963,
+      "sha256": "efbddbfead1e3be58c6e15146995af6de95dc970c96b5cabb78a043708ac392b"
+    },
+    {
+      "path": ".github/workflows/tag-release.yml",
+      "bytes": 8848,
+      "sha256": "b1f2db86aedd9ac810a17f6cc2903ea44ddfabef7d88218f0ab3f487656710b4"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 804,
+      "sha256": "4534ed3270b4661e8ec682090731aa4ab1ad07305b36008f626b4dc7698f5cdb"
+    },
+    {
+      "path": ".mcp.json",
+      "bytes": 168,
+      "sha256": "a0d282ce59de73f8d1235fffacc5362021de931677cd3c5f9d3038d54f94faa1"
+    },
+    {
+      "path": "assets/badges/agent-skills.svg",
+      "bytes": 582,
+      "sha256": "b5c326d67434e05983624404240988dfe8e90cf4c3c71784b88fc0b8db7353de"
+    },
+    {
+      "path": "assets/badges/claude-code.svg",
+      "bytes": 576,
+      "sha256": "c6ec7d6447f4e5a329789207e313ed8d2376ace640dfb39e0fb4296d8fdc9609"
+    },
+    {
+      "path": "assets/badges/codex.svg",
+      "bytes": 548,
+      "sha256": "f22b952457d7b40a684af607451e0dec4cfe8e30cc7d7788e309195f292479f5"
+    },
+    {
+      "path": "assets/badges/hermes-agent.svg",
+      "bytes": 582,
+      "sha256": "4c4e4dbdee221a7204251fccb7d6dfcd510c69b7a33ad4723cc031693c98bea0"
+    },
+    {
+      "path": "assets/badges/license.svg",
+      "bytes": 563,
+      "sha256": "8023b0f5e2e95196d7634d1ae78035f9c5c91c8d9896694a31885a6a5aabd10f"
+    },
+    {
+      "path": "assets/badges/node.svg",
+      "bytes": 542,
+      "sha256": "8ed575efed23f7041d1bf9e92997b4786727d81764fce5b6903f730b2d8157ec"
+    },
+    {
+      "path": "assets/badges/npm.svg",
+      "bytes": 538,
+      "sha256": "bbd2bc7e0cf709f17c8db2d313e488e4dbb01631bb52a7d7a61fae71218df98d"
+    },
+    {
+      "path": "assets/badges/openai-build-week.svg",
+      "bytes": 576,
+      "sha256": "7dfe4a46f809720f4fa76ab3bbd2b1328474451ec0b107682acf9d6008eec51a"
+    },
+    {
+      "path": "assets/badges/release.svg",
+      "bytes": 551,
+      "sha256": "adc143d92f36dae5ad4ab9a70206e19fe114d74c6648fd9e5648b1d020c46484"
+    },
+    {
+      "path": "assets/badges/security.svg",
+      "bytes": 580,
+      "sha256": "e0d5e4bc953ca98ec7a10d57d8afad8f2ea363324c9fe1819fd43ed28f1730db"
+    },
+    {
+      "path": "assets/linmas-logo-placeholder.svg",
+      "bytes": 677,
+      "sha256": "e47c7ef49f1f0283c0f6573de2317fba1a558cb0bde7a296027362c0af37aab8"
+    },
+    {
+      "path": "assets/linmas.jpg",
+      "bytes": 40927,
+      "sha256": "7d9b02fd6a78b2bee70e21bdf8b334ce5536d0b111328cb1bd88e256bbce83a7"
+    },
+    {
+      "path": "bin/linmas.mjs",
+      "bytes": 8936,
+      "sha256": "f6f682d701015c6ce353cbed0cb770b50b4aea9436764ece8902a23cf3203a28"
+    },
+    {
+      "path": "CODE_OF_CONDUCT.md",
+      "bytes": 1515,
+      "sha256": "1fb92469760b3dcd137585156f7d7b75b87928b83c226a00ff09286d6845a48a"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "bytes": 2624,
+      "sha256": "d81670448f473cef24dbb9b71f01665f5816693726f48b341bceb74a68cef490"
+    },
+    {
+      "path": "docs/compatibility/COMPATIBILITY.md",
+      "bytes": 2452,
+      "sha256": "3717a4e604c80b426834a6754cd4a126743e819033b08a5f7bf4ecc19def2737"
+    },
+    {
+      "path": "docs/implementation/v0.9.0.md",
+      "bytes": 2941,
+      "sha256": "06beeb76502536f2e45067ff26c8b831c7c6b98d87946eb35c9f8d040911e2be"
+    },
+    {
+      "path": "docs/linmas-mcp-validation-runbook.md",
+      "bytes": 4113,
+      "sha256": "01dad96639a21a059ad8bcf5ecfe97b4d99af910e9f8158b9aa82e7a3ce78020"
+    },
+    {
+      "path": "docs/roadmap/versions/v0.9.0.md",
+      "bytes": 2960,
+      "sha256": "a34b916d41731ceabadc4e1420db452cd959713508f7ac8a96dfe80d01bc9575"
+    },
+    {
+      "path": "evaluations/cases/cloud/least-privilege-design-001/case.json",
+      "bytes": 784,
+      "sha256": "fcf6a6e89e06504bb69bf622fc9932791004bdc455ab2a7a5b2394eaf3752ecb"
+    },
+    {
+      "path": "evaluations/cases/cloud/least-privilege-design-001/good-result.json",
+      "bytes": 726,
+      "sha256": "835d0d758df36a6496c341dcc60c36e59a1133887add7460e7e7b115f02610c4"
+    },
+    {
+      "path": "evaluations/cases/cloud/least-privilege-design-001/input.txt",
+      "bytes": 46,
+      "sha256": "cd9d4a53649c859ea3e67857b4bc397d8a808ca74fbd0af8f1deaa61a6960199"
+    },
+    {
+      "path": "evaluations/cases/cloud/public-storage-001/case.json",
+      "bytes": 767,
+      "sha256": "2952b2c0711708f80ef0047fe2bc53370d3c9d996ea0106779163a4663e5993a"
+    },
+    {
+      "path": "evaluations/cases/cloud/public-storage-001/good-result.json",
+      "bytes": 737,
+      "sha256": "250b33f78f080de2c37051774b8939a261a1d4472ffe0bbcf1c6396bf756683f"
+    },
+    {
+      "path": "evaluations/cases/cloud/public-storage-001/input.txt",
+      "bytes": 36,
+      "sha256": "0ab96327fa4fd63e647f9275995c753dcfb7bed0f6e4412cb9524239810a26e5"
+    },
+    {
+      "path": "evaluations/cases/controls/compliance-evidence-001/case.json",
+      "bytes": 761,
+      "sha256": "39067fd9421f405c3e53cacb2db26004c007f19bcb3824173fdbf7bcf6b51e85"
+    },
+    {
+      "path": "evaluations/cases/controls/compliance-evidence-001/good-result.json",
+      "bytes": 744,
+      "sha256": "1509031ed60a80304bf17e25a7a8f0327e201a846cc79eb8c33fda86cce7c652"
+    },
+    {
+      "path": "evaluations/cases/controls/compliance-evidence-001/input.txt",
+      "bytes": 57,
+      "sha256": "ea61e1949a7787ee249a161f1ea116bf949972c7f07b3d4a227831436aaee6be"
+    },
+    {
+      "path": "evaluations/cases/cross-cutting/safety-refusal-001/case.json",
+      "bytes": 582,
+      "sha256": "0bcd45afbde8c0c841c5229bd18560d34a6a0d1d2435b6d545939d9f65622e01"
+    },
+    {
+      "path": "evaluations/cases/cross-cutting/safety-refusal-001/good-result.json",
+      "bytes": 508,
+      "sha256": "0bd194bcd304713003a8235d956a9c5e5e1129200f646562db0a4a4c17ff9938"
+    },
+    {
+      "path": "evaluations/cases/cross-cutting/safety-refusal-001/input.txt",
+      "bytes": 54,
+      "sha256": "ad3554b3735461cb2431210126cf1ba3b71943296a8764b919eb8de3276a2870"
+    },
+    {
+      "path": "evaluations/cases/detection-rule/false-positive-control-001/case.json",
+      "bytes": 768,
+      "sha256": "9f93e2736ada301ad6ee273f8c440f7f9a6c6399b6ee8431b8e9970bc87e8f39"
+    },
+    {
+      "path": "evaluations/cases/detection-rule/false-positive-control-001/good-result.json",
+      "bytes": 757,
+      "sha256": "6e0ca198ab79b6de85ddcc02aa0d72126da9348a43c834bd8846ce59d25873c8"
+    },
+    {
+      "path": "evaluations/cases/detection-rule/false-positive-control-001/input.txt",
+      "bytes": 46,
+      "sha256": "b5c3c8e533e14409f753cd3e2c1e2078d6af982a305b8d8aa383a6476491ffa4"
+    },
+    {
+      "path": "evaluations/cases/exploit-validation/evidence-boundary-001/case.json",
+      "bytes": 775,
+      "sha256": "c54afb13cdf63fe9e86c26b733df5519937943721be6629a9059fd14a605aaa0"
+    },
+    {
+      "path": "evaluations/cases/exploit-validation/evidence-boundary-001/good-result.json",
+      "bytes": 766,
+      "sha256": "8ed40d16df613ad447b48c22c3a0ee6f712ead09d96c7b3400643c7c5b2581b7"
+    },
+    {
+      "path": "evaluations/cases/exploit-validation/evidence-boundary-001/input.txt",
+      "bytes": 53,
+      "sha256": "fee653d196f7b72ed59ef936dc8ade686213d88dbdb4eaeb576d6b851140c7de"
+    },
+    {
+      "path": "evaluations/cases/incident-triage/credential-redaction-001/case.json",
+      "bytes": 790,
+      "sha256": "b5b95a1b11bbd6676fcc870bb31ed96a018b3ec40da08d4f5031153c0920272d"
+    },
+    {
+      "path": "evaluations/cases/incident-triage/credential-redaction-001/good-result.json",
+      "bytes": 753,
+      "sha256": "a8b5bece2e97a18b6ddd6260742a30c1b15dc32dc649d5cf2daa17341353fd8b"
+    },
+    {
+      "path": "evaluations/cases/incident-triage/credential-redaction-001/input.txt",
+      "bytes": 47,
+      "sha256": "c7fa786a5fc0ffa90cb2b7c988ffb97416a355ebbced95452b8d7772e9889ed2"
+    },
+    {
+      "path": "evaluations/cases/operations/log-retention-001/case.json",
+      "bytes": 759,
+      "sha256": "a8900d7972835bf098d704469dc6f42cd5ef419ae172a5832432d641257796c3"
+    },
+    {
+      "path": "evaluations/cases/operations/log-retention-001/good-result.json",
+      "bytes": 713,
+      "sha256": "32aca590e17c6d6e096b46b2758a6cd88661b03fdbe0817828c9cfb302e1b2e6"
+    },
+    {
+      "path": "evaluations/cases/operations/log-retention-001/input.txt",
+      "bytes": 53,
+      "sha256": "bdaeb035483ccd6aa382468f847810a2838cebf08c23d2ae19d569a143d7c2a2"
+    },
+    {
+      "path": "evaluations/cases/secure-code/missing-runtime-context-001/case.json",
+      "bytes": 777,
+      "sha256": "ac834e8e380a83df2a7dd4afa0e39debe5d15f4a7efe2bd175ecc6eef53cb21e"
+    },
+    {
+      "path": "evaluations/cases/secure-code/missing-runtime-context-001/good-result.json",
+      "bytes": 761,
+      "sha256": "7b8b2961f00e688afed168a74017168be8c1fca22ffb8aece7762ce2f8a229e2"
+    },
+    {
+      "path": "evaluations/cases/secure-code/missing-runtime-context-001/input.txt",
+      "bytes": 59,
+      "sha256": "46b99fb6353a956ee27a05d8a20b37716bd8ea6f068a484d4f379a11d71f3c8f"
+    },
+    {
+      "path": "evaluations/cases/secure-code/no-finding-control-001/case.json",
+      "bytes": 539,
+      "sha256": "9102fc7cc710c56ce00135f2f314ce44524686a50d7f7945e4a83cbdd9a995c1"
+    },
+    {
+      "path": "evaluations/cases/secure-code/no-finding-control-001/good-result.json",
+      "bytes": 424,
+      "sha256": "bdb2ea831b855550231484383d8589ddf3b094fdcdd5b9be5f3c06ac86cc1a5c"
+    },
+    {
+      "path": "evaluations/cases/secure-code/no-finding-control-001/input.txt",
+      "bytes": 34,
+      "sha256": "607306878a6b11bbeee9572550ef7f7f85f657d6881fa810f564bbe55978adc8"
+    },
+    {
+      "path": "evaluations/cases/secure-code/sql-injection-001/bad-result.json",
+      "bytes": 765,
+      "sha256": "09bf1f8295f2cceba717de981516000e1e54b44ef64f55fad424963338138473"
+    },
+    {
+      "path": "evaluations/cases/secure-code/sql-injection-001/case.json",
+      "bytes": 754,
+      "sha256": "04f791852bff01d2583fc5158568e54c18b1b7ca6ce3b282cff7e0dbb6558d79"
+    },
+    {
+      "path": "evaluations/cases/secure-code/sql-injection-001/good-result.json",
+      "bytes": 729,
+      "sha256": "099e256cdba5d8716755f2ec65237c1d8b91f99197a7c7032eadba1951eba570"
+    },
+    {
+      "path": "evaluations/cases/secure-code/sql-injection-001/input.txt",
+      "bytes": 89,
+      "sha256": "9b0025215c2b9ee7be623f9110ab7b97df9041934ddedbd6043d21516c662b35"
+    },
+    {
+      "path": "evaluations/cases/smart-contract/access-control-001/case.json",
+      "bytes": 758,
+      "sha256": "c1d9ec857891160ac2c3f3944d490c4283c0f18f1889c4ff1e90f319a90d20b6"
+    },
+    {
+      "path": "evaluations/cases/smart-contract/access-control-001/good-result.json",
+      "bytes": 736,
+      "sha256": "2fc7d02a1277966af71750ca576ff7dc0fc7c559d3f66c0a20001db4ac7d1ac8"
+    },
+    {
+      "path": "evaluations/cases/smart-contract/access-control-001/input.txt",
+      "bytes": 45,
+      "sha256": "bfe37aceabf0e3dd847bf5afc8c1d59a73a3286b6b1f3c3e21b55e685692c303"
+    },
+    {
+      "path": "evaluations/cases/systems/insufficient-context-001/case.json",
+      "bytes": 780,
+      "sha256": "fe196f48292c1fc0a1838198930a1dec2cc9d3fb1b18981743d93f63477ccaef"
+    },
+    {
+      "path": "evaluations/cases/systems/insufficient-context-001/good-result.json",
+      "bytes": 718,
+      "sha256": "ca94aeb00421dcbdc4ad0c7248dd280cc9470b2c28ad734f23d790434c38c14d"
+    },
+    {
+      "path": "evaluations/cases/systems/insufficient-context-001/input.txt",
+      "bytes": 60,
+      "sha256": "3f419f38a70ac6c9f6ae9b2aed6e71105e1f3e77b388fa3d7833cd2a8b215350"
+    },
+    {
+      "path": "evaluations/cases/systems/trust-boundary-001/case.json",
+      "bytes": 765,
+      "sha256": "f8713c4b59b77324b684d56450c842c6f8e07b5f2151a7082f50cf989105bdce"
+    },
+    {
+      "path": "evaluations/cases/systems/trust-boundary-001/good-result.json",
+      "bytes": 716,
+      "sha256": "3fa9c6e33d9af96065bbd5e587881a070c7f4a642b9078a5e1891fca701e49b4"
+    },
+    {
+      "path": "evaluations/cases/systems/trust-boundary-001/input.txt",
+      "bytes": 54,
+      "sha256": "4012f70c7195b1f747a8cd41e07065d86c2516aaf465f4397d2cfef80c35e39e"
+    },
+    {
+      "path": "evaluations/cases/threat-research/source-confidence-001/case.json",
+      "bytes": 767,
+      "sha256": "44e8fdb718c9bcd324b11bb1ac8688ef923644ecc1816b12c722c407b538783b"
+    },
+    {
+      "path": "evaluations/cases/threat-research/source-confidence-001/good-result.json",
+      "bytes": 750,
+      "sha256": "e8afe20e850fa5ad3c46d281f07b5e88c4af623b1ede693d4e098d31c4209ad1"
+    },
+    {
+      "path": "evaluations/cases/threat-research/source-confidence-001/input.txt",
+      "bytes": 38,
+      "sha256": "2cac489883e20a72878c5ae37aaa3c60801d31ff34add141b9d9c342bb167eab"
+    },
+    {
+      "path": "examples/build-week/expected-offline-capsule.json",
+      "bytes": 2746,
+      "sha256": "ab54fed2cf0a0a1a85925f551450eb262b57c419ba6650ea82d3cdebbbd94267"
+    },
+    {
+      "path": "examples/build-week/insecure-query.diff",
+      "bytes": 340,
+      "sha256": "0fec2d0a7edfa70a3edebfbbdf346c3931021b62bfe931014eebb192c068b3f2"
+    },
+    {
+      "path": "examples/build-week/offline-review-result.json",
+      "bytes": 935,
+      "sha256": "3d9a8d7811836eec6084f9065f3b2dc871f14cf0af429620cd39f515e143e42d"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 5386,
+      "sha256": "1eb8d74305d77f4af7752acdb69fe3f97eccb72126755ab020136342ee09deb1"
+    },
+    {
+      "path": "mcp/server.mjs",
+      "bytes": 54322,
+      "sha256": "8842ab8e3ffadc2e08e9284a5f289fbfb3cef3408bc6dd72d17b06d56bfc48cf"
+    },
+    {
+      "path": "NOTICE",
+      "bytes": 299,
+      "sha256": "4bfd983c37e7ff8306bb39d5ee6f53a6777767ac5d0fe537e89b705d5a174822"
+    },
+    {
+      "path": "OPENAI_BUILD_WEEK_2026.md",
+      "bytes": 10717,
+      "sha256": "7eacca22189e8dc017dc82d118f630de5f9c3d1eb40b2b5ba2a0811da4ba4d50"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 543,
+      "sha256": "8caa69df989ebaf16727ba9694d94771385635451f359f8c18065944d757c846"
+    },
+    {
+      "path": "package.json",
+      "bytes": 1773,
+      "sha256": "b6743ff9846e34e2fcfcfdf78df1655ed5a65077398c26c0e98127b634e22932"
+    },
+    {
+      "path": "PANDUAN-PENGGUNAAN.md",
+      "bytes": 26317,
+      "sha256": "7df2e914357da707467e861288c7c131c3972fe554d4ff0e742ab1b7b81c57ef"
+    },
+    {
+      "path": "plugin/assets/linmas-logo-dark.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugin/assets/linmas-logo.png",
+      "bytes": 1395951,
+      "sha256": "696450e3d2bc660a06a9f2b755c9124318bd3b2a049c8aa94528bdd58f76a1ec"
+    },
+    {
+      "path": "plugin/manifest.template.json",
+      "bytes": 1370,
+      "sha256": "6d634b921ad921f1c84dc213e9e341cedfa5066adbf3395956546aed43a32357"
+    },
+    {
+      "path": "plugins/linmas/.codex-plugin/plugin.json",
+      "bytes": 1392,
+      "sha256": "978c878ccd077b237c1285979c44957ff08b703626727c0595052b09b8d80437"
+    },
+    {
+      "path": "plugins/linmas/.mcp.json",
+      "bytes": 168,
+      "sha256": "a0d282ce59de73f8d1235fffacc5362021de931677cd3c5f9d3038d54f94faa1"
+    },
+    {
+      "path": "plugins/linmas/assets/linmas-logo-dark.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/assets/linmas-logo.png",
+      "bytes": 1395951,
+      "sha256": "696450e3d2bc660a06a9f2b755c9124318bd3b2a049c8aa94528bdd58f76a1ec"
+    },
+    {
+      "path": "plugins/linmas/mcp/server.mjs",
+      "bytes": 54322,
+      "sha256": "8842ab8e3ffadc2e08e9284a5f289fbfb3cef3408bc6dd72d17b06d56bfc48cf"
+    },
+    {
+      "path": "plugins/linmas/package.json",
+      "bytes": 1773,
+      "sha256": "b6743ff9846e34e2fcfcfdf78df1655ed5a65077398c26c0e98127b634e22932"
+    },
+    {
+      "path": "plugins/linmas/policies/baseline-appsec.json",
+      "bytes": 708,
+      "sha256": "999e711454bdebbd6f77595be63630bf3806e70ce3c0122cd8bbe18fe3b127fa"
+    },
+    {
+      "path": "plugins/linmas/policies/cloud-change.json",
+      "bytes": 875,
+      "sha256": "5fd8a88c6fd3cd6494a8d7f0fce2848b8ed25a4443f3c34ae155d90f626b6cd8"
+    },
+    {
+      "path": "plugins/linmas/policies/release-security.json",
+      "bytes": 1316,
+      "sha256": "ce9d82dd5f30134d49ea53bf07ed7f095a09c80e2bbfc43e17a7375ccc45e4a8"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-cloud-hardening-architect/agents/openai.yaml",
+      "bytes": 326,
+      "sha256": "80f860bc02ddd6473a30314556de730c93eaec29a98f1337a57df91b23b6f678"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-cloud-hardening-architect/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-cloud-hardening-architect/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-cloud-hardening-architect/SKILL.md",
+      "bytes": 13261,
+      "sha256": "0150b19cb5b3c62dac19b826a9fd677d0b621dd8d64dd9252df92848a40388e2"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-controls-compliance-reviewer/agents/openai.yaml",
+      "bytes": 315,
+      "sha256": "1c1eb61e33b298ca7789cca3fc2e0189df73d8afb4604031032660b3f12cd159"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-controls-compliance-reviewer/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-controls-compliance-reviewer/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-controls-compliance-reviewer/SKILL.md",
+      "bytes": 13978,
+      "sha256": "7f2ec6e68e919ff718072e7776cfb1260d8c1a8cab41a5cf86028a5aa7a9ec21"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-detection-rules-engineer/agents/openai.yaml",
+      "bytes": 310,
+      "sha256": "8cf05f1f6bf971e2cce9e416935973d75622ce05c5897e9a56730e8b1611f4ab"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-detection-rules-engineer/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-detection-rules-engineer/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-detection-rules-engineer/SKILL.md",
+      "bytes": 23403,
+      "sha256": "927efd7f580859ebfb0ae26ca402eaf9419ffa7a597ee9c40bfd2be0050c69bc"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-exploit-validation-specialist/agents/openai.yaml",
+      "bytes": 310,
+      "sha256": "95bbbb2d5c031518a684ec752b33c898b324a99c00b5a9f83d077fb77e2cfb48"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-exploit-validation-specialist/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-exploit-validation-specialist/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-exploit-validation-specialist/SKILL.md",
+      "bytes": 9605,
+      "sha256": "a7b8e7a2c17a8d3433a6df0d5621e5226f2b15af107d8b470ad0f3285f50396a"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-incident-triage-lead/agents/openai.yaml",
+      "bytes": 314,
+      "sha256": "92e5a859bf7b7e8fce2295542dafd90cb12684f88f83b0f72417c2dfbfce4600"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-incident-triage-lead/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-incident-triage-lead/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-incident-triage-lead/SKILL.md",
+      "bytes": 21005,
+      "sha256": "545c6f427abebd4d81fa593979267d10e9676608514e6908f16ae2fc60ea3408"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-code-reviewer/agents/openai.yaml",
+      "bytes": 318,
+      "sha256": "2377178df8a929031c030b507398549c591f1d31b6b53a31cc4e88a8b78979fe"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-code-reviewer/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-code-reviewer/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-code-reviewer/SKILL.md",
+      "bytes": 25625,
+      "sha256": "75f4015fa86525f84f6c07d6097ab52f5ce7abcced0fcb6995c315e91e8a73e2"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-systems-architect/agents/openai.yaml",
+      "bytes": 310,
+      "sha256": "f5f6b6793adda002cdcec8ebb26f71a8558a91262c5435f2f321a473b50f2cfa"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-systems-architect/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-systems-architect/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-secure-systems-architect/SKILL.md",
+      "bytes": 19449,
+      "sha256": "b27f72f50eff3a4cb9b24d44d188d3ef05e6f39d796779f95801dd55630355f8"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-domain-router/agents/openai.yaml",
+      "bytes": 366,
+      "sha256": "658d127d191770da0d66bbe6e7c14304de2526fb1b9ca63be9131730e242d5b4"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-domain-router/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-domain-router/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-domain-router/SKILL.md",
+      "bytes": 3185,
+      "sha256": "8ad7b06aec5b435c3590cdaec494aadd78e14055343cbc5b389c5d4b2ba6e2cc"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-operations-lead/agents/openai.yaml",
+      "bytes": 312,
+      "sha256": "808d83587dd2fbef885b1591438c2f73112b0f3eacf04d4957b460906f88cbdc"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-operations-lead/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-operations-lead/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-security-operations-lead/SKILL.md",
+      "bytes": 15886,
+      "sha256": "7039f64c40ea23743f9114c3d051b363e5c29cc5b39dde7726af192f2b8f23d8"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-smart-contract-reviewer/agents/openai.yaml",
+      "bytes": 315,
+      "sha256": "1ea46f5b2a54c4577c7d3ec4dd577d85e2ba2f928c116aec700989e4ebe5cc95"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-smart-contract-reviewer/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-smart-contract-reviewer/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-smart-contract-reviewer/SKILL.md",
+      "bytes": 24582,
+      "sha256": "a3e667f57ccc9a71b8021ee6f3a04c51b866ad6b979bc1bf0351a78ba0544c25"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-threat-research-analyst/agents/openai.yaml",
+      "bytes": 311,
+      "sha256": "e340484c7612aeae67ab0c599a136f6ddabaad33dce32bbecd91f4e859eae8d6"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-threat-research-analyst/assets/icon-large.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-threat-research-analyst/assets/icon-small.png",
+      "bytes": 162043,
+      "sha256": "52c47b0b8dc94558f1962733e536b8f8a20bd0f901c47687e9dc82926e50da67"
+    },
+    {
+      "path": "plugins/linmas/skills/linmas-threat-research-analyst/SKILL.md",
+      "bytes": 13040,
+      "sha256": "c9a0126d356e7ccc20f1cfcd63e2fd1592e98015fc226c0eaa402d43c7d081f9"
+    },
+    {
+      "path": "plugins/linmas/src/cli/parse-args.mjs",
+      "bytes": 4500,
+      "sha256": "33258aa2213d223c1aaa195dd2fe290a5456744b25818a088d3e6777710f78aa"
+    },
+    {
+      "path": "plugins/linmas/src/core/detect-hosts.mjs",
+      "bytes": 329,
+      "sha256": "a65e7a3f083577314dc4dd5878997ef140447d6a6eaf2ffbf2d55d80615dd48d"
+    },
+    {
+      "path": "plugins/linmas/src/core/doctor.mjs",
+      "bytes": 2005,
+      "sha256": "18417732a5a2ef66bc67e2e29afacbe055b46cd0c511da7da989e8fda4f3e97a"
+    },
+    {
+      "path": "plugins/linmas/src/core/fs-utils.mjs",
+      "bytes": 1991,
+      "sha256": "ba20f12337924c9164652e58bb6a6e7018abe2a63fc77e8511f8584fd83e2668"
+    },
+    {
+      "path": "plugins/linmas/src/core/install-skills.mjs",
+      "bytes": 11465,
+      "sha256": "7ae298285569255034a8bdbabdb80035f02a18833ae2e04b93a1cf08ae294911"
+    },
+    {
+      "path": "plugins/linmas/src/core/list-skills.mjs",
+      "bytes": 821,
+      "sha256": "899592c7e1bedd0896667cfbfb1359c5e37716403f2d8a031bd90b730df58105"
+    },
+    {
+      "path": "plugins/linmas/src/core/manifest.mjs",
+      "bytes": 3101,
+      "sha256": "027a86f7c51a1a86067f788b42a0f223b1c3414cd13ec2d840cb9f0f51a69f1b"
+    },
+    {
+      "path": "plugins/linmas/src/core/onboard.mjs",
+      "bytes": 4287,
+      "sha256": "a8bdb8c41c8e6e50928c8e8dd3c828970fe469bcee28b95b802a51cc7a38aebb"
+    },
+    {
+      "path": "plugins/linmas/src/core/skill-catalog.mjs",
+      "bytes": 1776,
+      "sha256": "5032f93ad69e4f2167a16199717eed6cd897e093e571c4a969e2bd02d9930bd4"
+    },
+    {
+      "path": "plugins/linmas/src/core/uninstall-skills.mjs",
+      "bytes": 18707,
+      "sha256": "0d161f5171d06905d1d82e83db91122410ef380ac5db5bc6cc6788c653c1d1e4"
+    },
+    {
+      "path": "plugins/linmas/src/core/version.mjs",
+      "bytes": 720,
+      "sha256": "b29ef038f9f38e302d91e61d5ea658e800912e621655f668879b0de370eae06b"
+    },
+    {
+      "path": "plugins/linmas/src/evaluation/evaluate-result.mjs",
+      "bytes": 4206,
+      "sha256": "c13b4b7fa2871ac4901cc2f53c46ecc5fecd759de8e621241c101a0ca36e5e83"
+    },
+    {
+      "path": "plugins/linmas/src/evaluation/format-report.mjs",
+      "bytes": 658,
+      "sha256": "ce2286dd6d194ce871a1b716363a9b52a95ff7445293336f6759c40c8b902951"
+    },
+    {
+      "path": "plugins/linmas/src/evaluation/live-runner.mjs",
+      "bytes": 453,
+      "sha256": "d104ab76efdec83ae10e7c7de84bddca16814d79b34f9bc39da6b56fad8e360e"
+    },
+    {
+      "path": "plugins/linmas/src/evaluation/load-cases.mjs",
+      "bytes": 2212,
+      "sha256": "8b85aae6a651e54672fe4616f4f10963908e2d305b9dc5f2d458c0e8756b1d25"
+    },
+    {
+      "path": "plugins/linmas/src/evaluation/run-live-evaluation.mjs",
+      "bytes": 2330,
+      "sha256": "a9ad5bbffb0ad0d738a8bbb843b9783c5998c1784ca8ca6d4356b47919ff0a13"
+    },
+    {
+      "path": "plugins/linmas/src/evaluation/validate-case.mjs",
+      "bytes": 5396,
+      "sha256": "7c8e5100fa526b5d049652f6d9f62cc1d2f3edd25c21f2e46e1d7c6b4b61cc26"
+    },
+    {
+      "path": "plugins/linmas/src/evaluation/validate-result.mjs",
+      "bytes": 6211,
+      "sha256": "1604ca54b68152d09e8aa4e5189a4d61f15f7fd814d7a278871bd2efdf5967e0"
+    },
+    {
+      "path": "plugins/linmas/src/hosts/adapter-contract.mjs",
+      "bytes": 1620,
+      "sha256": "a6e50301b86a04e0e90bcad740960496a0fcd5f4e82a8a812fb157143e393698"
+    },
+    {
+      "path": "plugins/linmas/src/hosts/claude.mjs",
+      "bytes": 6039,
+      "sha256": "32176e012d65995f3a501a9d81ef770061e97b63d9380931004d8452432fc072"
+    },
+    {
+      "path": "plugins/linmas/src/hosts/codex.mjs",
+      "bytes": 3673,
+      "sha256": "1b18c215d252b5317c0af8818ebfbce56424de7a581b9bde76c1afc3b585d84d"
+    },
+    {
+      "path": "plugins/linmas/src/hosts/registry.mjs",
+      "bytes": 440,
+      "sha256": "2cd98c505293210b90becdde15ca17950ff3511f81d5705cb1e57623174b00ce"
+    },
+    {
+      "path": "plugins/linmas/src/policy/evaluate-policy.mjs",
+      "bytes": 3112,
+      "sha256": "68f4d6b9abb49dc6fdb528c5d587afada24a5871d8ef0341fa9022f52cd0567d"
+    },
+    {
+      "path": "plugins/linmas/src/policy/format-policy.mjs",
+      "bytes": 488,
+      "sha256": "1b93cb9bcd0bb64bb1e1eca2475a4a2594f77ffa118a5bd5e1ed11180d85ae0e"
+    },
+    {
+      "path": "plugins/linmas/src/policy/load-pack.mjs",
+      "bytes": 1292,
+      "sha256": "0acb7ac7ae0ad3ebbf2c5cf212ef3a2ba02ff00afd68003abaf49b92243d4a66"
+    },
+    {
+      "path": "plugins/linmas/src/policy/validate-pack.mjs",
+      "bytes": 4494,
+      "sha256": "badc9c184fa89a97a43b01eda43717ea19fc6c3b7e871cd429219cfca54dd4eb"
+    },
+    {
+      "path": "plugins/linmas/src/proof/constants.mjs",
+      "bytes": 560,
+      "sha256": "cb369fe068f2e484321788181f29d8b7921b9c3892cecec2fd5af67cc8892af6"
+    },
+    {
+      "path": "plugins/linmas/src/proof/derive-disposition.mjs",
+      "bytes": 932,
+      "sha256": "7067344c66254999d33b8533f384a22af2e4bac09b175c96412539e491a21254"
+    },
+    {
+      "path": "plugins/linmas/src/proof/errors.mjs",
+      "bytes": 264,
+      "sha256": "c3528f6f73e3cae90c59a120aa3bc1647b9b10cdec616acf90c9d3e8080af4c9"
+    },
+    {
+      "path": "plugins/linmas/src/proof/load-codex-scan.mjs",
+      "bytes": 9228,
+      "sha256": "cd0b1a8da1593b40ab360edef770b7d1918070875abec79076d40826ccb2e1a1"
+    },
+    {
+      "path": "plugins/linmas/src/proof/load-evidence.mjs",
+      "bytes": 2760,
+      "sha256": "e0d3d388e31327a59175ed0b4ebd59ec52c414cc2c58717741ce061282909630"
+    },
+    {
+      "path": "plugins/linmas/src/proof/render-report.mjs",
+      "bytes": 3379,
+      "sha256": "d2f0de8809f1bdb415241cef972df00de639743a18725476088487cf2b446e39"
+    },
+    {
+      "path": "plugins/linmas/src/proof/run-proof.mjs",
+      "bytes": 1989,
+      "sha256": "1a72ff25a77ce2c234aae124f0f696a87e21f448a1e727bc9ce18c72243be61b"
+    },
+    {
+      "path": "plugins/linmas/src/proof/ssh-signature.mjs",
+      "bytes": 3558,
+      "sha256": "789fc3659553278d9fc98e9a9d5f393833d52d3b8e5555e900416ecb4e3b958c"
+    },
+    {
+      "path": "plugins/linmas/src/proof/validate-receipt.mjs",
+      "bytes": 5471,
+      "sha256": "476b491958dd7831e5d25c9eae6bc5f30eabee1fbb849b8b74e119a90fcbcab9"
+    },
+    {
+      "path": "plugins/linmas/src/proof/verify-bundle.mjs",
+      "bytes": 7345,
+      "sha256": "352573bb1c58ed7d9f284a32f1f1b143959838c19a226e005b4f6dda5437f0f9"
+    },
+    {
+      "path": "plugins/linmas/src/proof/wizard.mjs",
+      "bytes": 2262,
+      "sha256": "fb527e66099654c40d5da05403a0b00fe004e97a86b005b87b238f339d3c7ad0"
+    },
+    {
+      "path": "plugins/linmas/src/proof/write-bundle.mjs",
+      "bytes": 8467,
+      "sha256": "40f126197ef8c06d7e868c1b70f36d5c54b7a9c2ce180813c89eaaf80b151eeb"
+    },
+    {
+      "path": "plugins/linmas/src/providers/claude-api.mjs",
+      "bytes": 4734,
+      "sha256": "60464d74b193578437e7cfd1a6d315a5a20f606cce3896cd86ac1df9cec55e9a"
+    },
+    {
+      "path": "plugins/linmas/src/providers/codex-capabilities.mjs",
+      "bytes": 13009,
+      "sha256": "747429ed5652c788e049d3c16208cc0de451f655d4825590eb881b8b7f372329"
+    },
+    {
+      "path": "plugins/linmas/src/providers/codex-cli.mjs",
+      "bytes": 10876,
+      "sha256": "d749581ef7c82251d847d04a46ad72a7607ae7d06577fc83f56dfe9673338200"
+    },
+    {
+      "path": "plugins/linmas/src/providers/codex-launch.mjs",
+      "bytes": 6757,
+      "sha256": "b0f2056e569026ca531d36af3e8c25e406e1bdbd136545d8cb788cb95c8b412e"
+    },
+    {
+      "path": "plugins/linmas/src/providers/registry.mjs",
+      "bytes": 12202,
+      "sha256": "b713a2f972cf1be2441d26f3690106daef1429100398fe5d8c654daa45325263"
+    },
+    {
+      "path": "plugins/linmas/src/review/build-capsule.mjs",
+      "bytes": 1470,
+      "sha256": "815a91ddd9251439ea7565258751f1bdb7b49d16627299e7f64b842c43c591e9"
+    },
+    {
+      "path": "plugins/linmas/src/review/compare-capsules.mjs",
+      "bytes": 5017,
+      "sha256": "2306e841c1bef9846ded4dc5fe20489f2bdc036045ea2a47dade383c0142286d"
+    },
+    {
+      "path": "plugins/linmas/src/review/errors.mjs",
+      "bytes": 1023,
+      "sha256": "b8bfd032a3c0a8cd01f223311840eef26f041a749c3b93210b7d43f08397d9cf"
+    },
+    {
+      "path": "plugins/linmas/src/review/format-review.mjs",
+      "bytes": 533,
+      "sha256": "8cf05b31157d5e7316d349a98a35325f79205143ba071560c4a85f65d1d7b88f"
+    },
+    {
+      "path": "plugins/linmas/src/review/load-input.mjs",
+      "bytes": 1931,
+      "sha256": "88c9af318f68252fd65c044448d0dbed54770bd3f015b7f62524c2c608e74d84"
+    },
+    {
+      "path": "plugins/linmas/src/review/normalize-response.mjs",
+      "bytes": 1256,
+      "sha256": "079c5be9a22ba09952e771b3bccf892275e03fc5132cc5d375b65e2aff050108"
+    },
+    {
+      "path": "plugins/linmas/src/review/prepare-review.mjs",
+      "bytes": 744,
+      "sha256": "648d842ce897073cb2cff6b987eb097e218c8cca8665de44f3ab528650f26079"
+    },
+    {
+      "path": "plugins/linmas/src/review/public-error.mjs",
+      "bytes": 7853,
+      "sha256": "332c5f420642cb8ca4a4cf1601dc507f67e0513fedee535bd94f2f5ee405b79a"
+    },
+    {
+      "path": "plugins/linmas/src/review/router.mjs",
+      "bytes": 555,
+      "sha256": "a2c53f5967282727967a243744972f70598f86741435e921caac0b150fc894f0"
+    },
+    {
+      "path": "plugins/linmas/src/review/run-review.mjs",
+      "bytes": 4786,
+      "sha256": "2982d35b2418b1de293f74c9831ea3f94009d0779c091f926e58776c71286e16"
+    },
+    {
+      "path": "plugins/linmas/src/review/validate-capsule.mjs",
+      "bytes": 7462,
+      "sha256": "670f8ac3bb394f65eb3de9640fa982dbccf843000cb9dd596344a18741c06358"
+    },
+    {
+      "path": "plugins/linmas/src/review/write-capsule.mjs",
+      "bytes": 4974,
+      "sha256": "303c10c8bc6e74f463b016906c2fdea3066b620e71ff85a06c0c1786a878ca03"
+    },
+    {
+      "path": "policies/baseline-appsec.json",
+      "bytes": 708,
+      "sha256": "999e711454bdebbd6f77595be63630bf3806e70ce3c0122cd8bbe18fe3b127fa"
+    },
+    {
+      "path": "policies/cloud-change.json",
+      "bytes": 875,
+      "sha256": "5fd8a88c6fd3cd6494a8d7f0fce2848b8ed25a4443f3c34ae155d90f626b6cd8"
+    },
+    {
+      "path": "policies/release-security.json",
+      "bytes": 1316,
+      "sha256": "ce9d82dd5f30134d49ea53bf07ed7f095a09c80e2bbfc43e17a7375ccc45e4a8"
+    },
+    {
+      "path": "README.md",
+      "bytes": 30550,
+      "sha256": "227501a38f1306ffc6903bf3a337d66b697f5ef5126b4ce38a8a8946f0f0bdec"
+    },
+    {
+      "path": "releases/0.1.1.md",
+      "bytes": 391,
+      "sha256": "07d9f3834557eebbefd7bc67319794bdc3953763a8e330f7597ae64d3af9b7a6"
+    },
+    {
+      "path": "releases/0.1.2.md",
+      "bytes": 422,
+      "sha256": "32c5b96894e28fc0ede61ff4bc8d4a089e3f9d71e456aa97d43022b346386644"
+    },
+    {
+      "path": "releases/0.1.3.md",
+      "bytes": 388,
+      "sha256": "ce85b17f2be4c9817b8bdf4dc75a429f68578b9a5ae7d0e004641e63ec96e09c"
+    },
+    {
+      "path": "releases/0.1.4.md",
+      "bytes": 193,
+      "sha256": "81f0c241fb05ff475af2ad48d4e220abb6d35f051430db235a458ca7abb70f8a"
+    },
+    {
+      "path": "releases/0.1.5.md",
+      "bytes": 507,
+      "sha256": "d716131bad89d550aa50ea59087d11375e7996a74ec71c771a9ada772bdb5800"
+    },
+    {
+      "path": "releases/0.1.6.md",
+      "bytes": 544,
+      "sha256": "5dd90920aa9e24e62238d066df58d420435b9cc0510f501d9f3a1c8e9e55d0df"
+    },
+    {
+      "path": "releases/0.1.7.md",
+      "bytes": 604,
+      "sha256": "36cde47dea6e15a3f60a33481934ee640fba6810a2486fc39074e1f0acc37dbb"
+    },
+    {
+      "path": "releases/0.1.8.md",
+      "bytes": 542,
+      "sha256": "f7dbd77d3032873872d9b173b8da427db133240090f39a359e96c07fe75347ee"
+    },
+    {
+      "path": "releases/0.1.9.md",
+      "bytes": 587,
+      "sha256": "e4ead56ff60d67dc5bfb9cff4b00efed0380b31c10798f90be1f39daa3593025"
+    },
+    {
+      "path": "releases/0.2.0.md",
+      "bytes": 729,
+      "sha256": "801152e1c985ef032a075136b75f3f30609d033863ffc22a3a9394ab27418925"
+    },
+    {
+      "path": "releases/0.2.1.md",
+      "bytes": 865,
+      "sha256": "506e6bb5cbf60c5daec98fe7e9f94d3cf63e3caaaa8e3d76880547ff11a1219f"
+    },
+    {
+      "path": "releases/0.3.0.md",
+      "bytes": 869,
+      "sha256": "85600b3a716050e8e5926131102aa0a5131b183c64032301aa26e0498d81e00b"
+    },
+    {
+      "path": "releases/0.3.1.md",
+      "bytes": 686,
+      "sha256": "b93f684e07338f79d53abc36580163c7d4881ae4349e7e98c80a1a32cfce07dd"
+    },
+    {
+      "path": "releases/0.3.2.md",
+      "bytes": 1385,
+      "sha256": "85700bc0d92ec8dd7fa323389a63a6a28e5584408b08b817b9d49479c404fcc6"
+    },
+    {
+      "path": "releases/0.4.0.md",
+      "bytes": 766,
+      "sha256": "a1b289312c8e217310fbe32a43b8ca5aa05a2418c0215ac874c70bcff6c27b8b"
+    },
+    {
+      "path": "releases/0.5.0.md",
+      "bytes": 4740,
+      "sha256": "1fa9efd0d1f3aec8bad73b8aa9729a4b8bdae21175c53dbe7bc0cbadf336a935"
+    },
+    {
+      "path": "releases/0.5.1.md",
+      "bytes": 1840,
+      "sha256": "2ccd54901e34da84a8afdf9afbc4c4072cabd0bcdcbb1f0e082d37a7aceef2a6"
+    },
+    {
+      "path": "releases/0.5.2.md",
+      "bytes": 2032,
+      "sha256": "bf1d40dc7a07f708d0494cd4163e1d8c7567436647f4e583283af5fa3d09d3d6"
+    },
+    {
+      "path": "releases/0.5.3.md",
+      "bytes": 1670,
+      "sha256": "a42c035b6c3b662f9ec2d22d8fe1d4fc0f7a7e23851dce61fa74721bb907a929"
+    },
+    {
+      "path": "releases/0.6.0.md",
+      "bytes": 1938,
+      "sha256": "98155dfae6b4f791f76dcbf13776390095d1c69625e30569a5403b888236db11"
+    },
+    {
+      "path": "releases/0.7.0.md",
+      "bytes": 1960,
+      "sha256": "47997ce9c11a60b10459fb30f9a940eb54a706d37fcf6a252f3941b250594d3b"
+    },
+    {
+      "path": "releases/0.8.0.md",
+      "bytes": 5707,
+      "sha256": "93f050aba0cc850b1aae3d6a47cae032fdb033572dc23f5a8d3c1ea7acee1522"
+    },
+    {
+      "path": "releases/0.9.0.md",
+      "bytes": 1058,
+      "sha256": "f3246cba4963ece6e82bff9d55f71c830a7deaded03693990ebee4e94361660a"
+    },
+    {
+      "path": "scripts/artifact-integrity.mjs",
+      "bytes": 20110,
+      "sha256": "0d0c4190e4e1bc8f2168856500dd23387ea5274c32aec1866e2ec43996ceb1da"
+    },
+    {
+      "path": "scripts/bootstrap-github-repo.mjs",
+      "bytes": 4647,
+      "sha256": "874f7e1813e21b97c622cef6d687f764c5f26ee24f313b02930bdf23b0125e11"
+    },
+    {
+      "path": "scripts/build-codex-plugin.mjs",
+      "bytes": 16374,
+      "sha256": "d99ed781ccbaba074657ccbd3d34047e0aaf98d7524a7a1314ece5443400fc57"
+    },
+    {
+      "path": "scripts/child-environment.mjs",
+      "bytes": 7293,
+      "sha256": "04bb9e1f23fe89a5d31d5b49c22a9175a7a0ae46603429c6b9ac0aa514a3bb84"
+    },
+    {
+      "path": "scripts/demo-build-week.mjs",
+      "bytes": 6355,
+      "sha256": "83f9d1130b93ce366bc70e20bd8fca15e9fb0a8fdb54b2df02e0f900f0447c97"
+    },
+    {
+      "path": "scripts/demo-proof.mjs",
+      "bytes": 1824,
+      "sha256": "3ee65e8162d5f577bd005c35306ff333671bed90982202738a44ffefe4df62e4"
+    },
+    {
+      "path": "scripts/evaluate-live.mjs",
+      "bytes": 1256,
+      "sha256": "265598d6a7019a32f17e8f79e40835f8dfadc8a2a46da3eb737c88ae94e0af12"
+    },
+    {
+      "path": "scripts/evaluate-offline.mjs",
+      "bytes": 1021,
+      "sha256": "2df1ad6cb7a4320a6187a70a00d3068912ee81e835a200b120d861b7227c4da1"
+    },
+    {
+      "path": "scripts/evidence-operations.mjs",
+      "bytes": 52767,
+      "sha256": "92849efd40e2b8af0b6120a67c3c01045a85d5e16c73783d97196cda0334a6e7"
+    },
+    {
+      "path": "scripts/irsa003-trusted-bootstrap.c",
+      "bytes": 8616,
+      "sha256": "8c8bbb07664e722803c5417ff9a8f514ea7e15f94531d588ce9aad16e6e97c1a"
+    },
+    {
+      "path": "scripts/irsa003-trusted-launch.py",
+      "bytes": 54465,
+      "sha256": "ce32ef59c0b8cf9d7f3628a3187a6180b9f796ed4c10c7d9a8a0c23b790dfe73"
+    },
+    {
+      "path": "scripts/registry-result.mjs",
+      "bytes": 7705,
+      "sha256": "e71dfb0c549f6539c7f42c0ad4fd6b90073034f2a7940d8f3bab689e5f72edef"
+    },
+    {
+      "path": "scripts/smoke-published-package.mjs",
+      "bytes": 3096,
+      "sha256": "52d98abaeb090ae331f5017fe5f0f700b0dd6ea3adb3fcfe3ecc7b259d3ad52a"
+    },
+    {
+      "path": "scripts/sync-codex-marketplace.mjs",
+      "bytes": 1324,
+      "sha256": "70c1fb64a38ac078f5a6838de0067e1090f039f74d27f5eecd3dfd3cf2b865f4"
+    },
+    {
+      "path": "scripts/sync-local-docs.mjs",
+      "bytes": 1942,
+      "sha256": "7ff489af6467955d463fa120f785ba390c72e438a13ba744d014a6ab71746aab"
+    },
+    {
+      "path": "scripts/validate-evidence-binding.mjs",
+      "bytes": 74531,
+      "sha256": "f8b8bc575b6704f96b51cebc400240f6003baa9a003af067ae5b9aa00905f690"
+    },
+    {
+      "path": "scripts/validate-package-version.mjs",
+      "bytes": 4130,
+      "sha256": "01b7a5fac55cd51e0886f2c94f755e283f570619f3cc20478d9eb979191251cb"
+    },
+    {
+      "path": "scripts/validate-release-request.mjs",
+      "bytes": 13920,
+      "sha256": "af9746f0319e9b31473499f4a6a24d6086dbf1e218bc0b8a962aca9b771e493d"
+    },
+    {
+      "path": "scripts/validate-skills.mjs",
+      "bytes": 8151,
+      "sha256": "5bd23ea8cd4943d94ea446a3a8e2c0499444e4c471f4e7c5d00f805c0ab74f42"
+    },
+    {
+      "path": "scripts/verify-checksum.mjs",
+      "bytes": 1668,
+      "sha256": "d4d7f3368f76cdeaf269369e3ff687ff63b7c580e1b8411151d48d91af2ff8b9"
+    },
+    {
+      "path": "scripts/verify-release-tag.mjs",
+      "bytes": 1572,
+      "sha256": "aaedefd6e2b3e3a7ac72782a00c1376dd1dc6b10363400567def6caf50293217"
+    },
+    {
+      "path": "skills/linmas-cloud-hardening-architect/SKILL.md",
+      "bytes": 13261,
+      "sha256": "0150b19cb5b3c62dac19b826a9fd677d0b621dd8d64dd9252df92848a40388e2"
+    },
+    {
+      "path": "skills/linmas-controls-compliance-reviewer/SKILL.md",
+      "bytes": 13978,
+      "sha256": "7f2ec6e68e919ff718072e7776cfb1260d8c1a8cab41a5cf86028a5aa7a9ec21"
+    },
+    {
+      "path": "skills/linmas-detection-rules-engineer/SKILL.md",
+      "bytes": 23403,
+      "sha256": "927efd7f580859ebfb0ae26ca402eaf9419ffa7a597ee9c40bfd2be0050c69bc"
+    },
+    {
+      "path": "skills/linmas-exploit-validation-specialist/SKILL.md",
+      "bytes": 9605,
+      "sha256": "a7b8e7a2c17a8d3433a6df0d5621e5226f2b15af107d8b470ad0f3285f50396a"
+    },
+    {
+      "path": "skills/linmas-incident-triage-lead/SKILL.md",
+      "bytes": 21005,
+      "sha256": "545c6f427abebd4d81fa593979267d10e9676608514e6908f16ae2fc60ea3408"
+    },
+    {
+      "path": "skills/linmas-secure-code-reviewer/SKILL.md",
+      "bytes": 25625,
+      "sha256": "75f4015fa86525f84f6c07d6097ab52f5ce7abcced0fcb6995c315e91e8a73e2"
+    },
+    {
+      "path": "skills/linmas-secure-systems-architect/SKILL.md",
+      "bytes": 19449,
+      "sha256": "b27f72f50eff3a4cb9b24d44d188d3ef05e6f39d796779f95801dd55630355f8"
+    },
+    {
+      "path": "skills/linmas-security-domain-router/SKILL.md",
+      "bytes": 3185,
+      "sha256": "8ad7b06aec5b435c3590cdaec494aadd78e14055343cbc5b389c5d4b2ba6e2cc"
+    },
+    {
+      "path": "skills/linmas-security-operations-lead/SKILL.md",
+      "bytes": 15886,
+      "sha256": "7039f64c40ea23743f9114c3d051b363e5c29cc5b39dde7726af192f2b8f23d8"
+    },
+    {
+      "path": "skills/linmas-smart-contract-reviewer/SKILL.md",
+      "bytes": 24582,
+      "sha256": "a3e667f57ccc9a71b8021ee6f3a04c51b866ad6b979bc1bf0351a78ba0544c25"
+    },
+    {
+      "path": "skills/linmas-threat-research-analyst/SKILL.md",
+      "bytes": 13040,
+      "sha256": "c9a0126d356e7ccc20f1cfcd63e2fd1592e98015fc226c0eaa402d43c7d081f9"
+    },
+    {
+      "path": "src/cli/parse-args.mjs",
+      "bytes": 4500,
+      "sha256": "33258aa2213d223c1aaa195dd2fe290a5456744b25818a088d3e6777710f78aa"
+    },
+    {
+      "path": "src/core/detect-hosts.mjs",
+      "bytes": 329,
+      "sha256": "a65e7a3f083577314dc4dd5878997ef140447d6a6eaf2ffbf2d55d80615dd48d"
+    },
+    {
+      "path": "src/core/doctor.mjs",
+      "bytes": 2005,
+      "sha256": "18417732a5a2ef66bc67e2e29afacbe055b46cd0c511da7da989e8fda4f3e97a"
+    },
+    {
+      "path": "src/core/fs-utils.mjs",
+      "bytes": 1991,
+      "sha256": "ba20f12337924c9164652e58bb6a6e7018abe2a63fc77e8511f8584fd83e2668"
+    },
+    {
+      "path": "src/core/install-skills.mjs",
+      "bytes": 11465,
+      "sha256": "7ae298285569255034a8bdbabdb80035f02a18833ae2e04b93a1cf08ae294911"
+    },
+    {
+      "path": "src/core/list-skills.mjs",
+      "bytes": 821,
+      "sha256": "899592c7e1bedd0896667cfbfb1359c5e37716403f2d8a031bd90b730df58105"
+    },
+    {
+      "path": "src/core/manifest.mjs",
+      "bytes": 3101,
+      "sha256": "027a86f7c51a1a86067f788b42a0f223b1c3414cd13ec2d840cb9f0f51a69f1b"
+    },
+    {
+      "path": "src/core/onboard.mjs",
+      "bytes": 4287,
+      "sha256": "a8bdb8c41c8e6e50928c8e8dd3c828970fe469bcee28b95b802a51cc7a38aebb"
+    },
+    {
+      "path": "src/core/skill-catalog.mjs",
+      "bytes": 1776,
+      "sha256": "5032f93ad69e4f2167a16199717eed6cd897e093e571c4a969e2bd02d9930bd4"
+    },
+    {
+      "path": "src/core/uninstall-skills.mjs",
+      "bytes": 18707,
+      "sha256": "0d161f5171d06905d1d82e83db91122410ef380ac5db5bc6cc6788c653c1d1e4"
+    },
+    {
+      "path": "src/core/version.mjs",
+      "bytes": 720,
+      "sha256": "b29ef038f9f38e302d91e61d5ea658e800912e621655f668879b0de370eae06b"
+    },
+    {
+      "path": "src/evaluation/evaluate-result.mjs",
+      "bytes": 4206,
+      "sha256": "c13b4b7fa2871ac4901cc2f53c46ecc5fecd759de8e621241c101a0ca36e5e83"
+    },
+    {
+      "path": "src/evaluation/format-report.mjs",
+      "bytes": 658,
+      "sha256": "ce2286dd6d194ce871a1b716363a9b52a95ff7445293336f6759c40c8b902951"
+    },
+    {
+      "path": "src/evaluation/live-runner.mjs",
+      "bytes": 453,
+      "sha256": "d104ab76efdec83ae10e7c7de84bddca16814d79b34f9bc39da6b56fad8e360e"
+    },
+    {
+      "path": "src/evaluation/load-cases.mjs",
+      "bytes": 2212,
+      "sha256": "8b85aae6a651e54672fe4616f4f10963908e2d305b9dc5f2d458c0e8756b1d25"
+    },
+    {
+      "path": "src/evaluation/run-live-evaluation.mjs",
+      "bytes": 2330,
+      "sha256": "a9ad5bbffb0ad0d738a8bbb843b9783c5998c1784ca8ca6d4356b47919ff0a13"
+    },
+    {
+      "path": "src/evaluation/validate-case.mjs",
+      "bytes": 5396,
+      "sha256": "7c8e5100fa526b5d049652f6d9f62cc1d2f3edd25c21f2e46e1d7c6b4b61cc26"
+    },
+    {
+      "path": "src/evaluation/validate-result.mjs",
+      "bytes": 6211,
+      "sha256": "1604ca54b68152d09e8aa4e5189a4d61f15f7fd814d7a278871bd2efdf5967e0"
+    },
+    {
+      "path": "src/hosts/adapter-contract.mjs",
+      "bytes": 1620,
+      "sha256": "a6e50301b86a04e0e90bcad740960496a0fcd5f4e82a8a812fb157143e393698"
+    },
+    {
+      "path": "src/hosts/claude.mjs",
+      "bytes": 6039,
+      "sha256": "32176e012d65995f3a501a9d81ef770061e97b63d9380931004d8452432fc072"
+    },
+    {
+      "path": "src/hosts/codex.mjs",
+      "bytes": 3673,
+      "sha256": "1b18c215d252b5317c0af8818ebfbce56424de7a581b9bde76c1afc3b585d84d"
+    },
+    {
+      "path": "src/hosts/registry.mjs",
+      "bytes": 440,
+      "sha256": "2cd98c505293210b90becdde15ca17950ff3511f81d5705cb1e57623174b00ce"
+    },
+    {
+      "path": "src/policy/evaluate-policy.mjs",
+      "bytes": 3112,
+      "sha256": "68f4d6b9abb49dc6fdb528c5d587afada24a5871d8ef0341fa9022f52cd0567d"
+    },
+    {
+      "path": "src/policy/format-policy.mjs",
+      "bytes": 488,
+      "sha256": "1b93cb9bcd0bb64bb1e1eca2475a4a2594f77ffa118a5bd5e1ed11180d85ae0e"
+    },
+    {
+      "path": "src/policy/load-pack.mjs",
+      "bytes": 1292,
+      "sha256": "0acb7ac7ae0ad3ebbf2c5cf212ef3a2ba02ff00afd68003abaf49b92243d4a66"
+    },
+    {
+      "path": "src/policy/validate-pack.mjs",
+      "bytes": 4494,
+      "sha256": "badc9c184fa89a97a43b01eda43717ea19fc6c3b7e871cd429219cfca54dd4eb"
+    },
+    {
+      "path": "src/proof/constants.mjs",
+      "bytes": 560,
+      "sha256": "cb369fe068f2e484321788181f29d8b7921b9c3892cecec2fd5af67cc8892af6"
+    },
+    {
+      "path": "src/proof/derive-disposition.mjs",
+      "bytes": 932,
+      "sha256": "7067344c66254999d33b8533f384a22af2e4bac09b175c96412539e491a21254"
+    },
+    {
+      "path": "src/proof/errors.mjs",
+      "bytes": 264,
+      "sha256": "c3528f6f73e3cae90c59a120aa3bc1647b9b10cdec616acf90c9d3e8080af4c9"
+    },
+    {
+      "path": "src/proof/load-codex-scan.mjs",
+      "bytes": 9228,
+      "sha256": "cd0b1a8da1593b40ab360edef770b7d1918070875abec79076d40826ccb2e1a1"
+    },
+    {
+      "path": "src/proof/load-evidence.mjs",
+      "bytes": 2760,
+      "sha256": "e0d3d388e31327a59175ed0b4ebd59ec52c414cc2c58717741ce061282909630"
+    },
+    {
+      "path": "src/proof/render-report.mjs",
+      "bytes": 3379,
+      "sha256": "d2f0de8809f1bdb415241cef972df00de639743a18725476088487cf2b446e39"
+    },
+    {
+      "path": "src/proof/run-proof.mjs",
+      "bytes": 1989,
+      "sha256": "1a72ff25a77ce2c234aae124f0f696a87e21f448a1e727bc9ce18c72243be61b"
+    },
+    {
+      "path": "src/proof/ssh-signature.mjs",
+      "bytes": 3558,
+      "sha256": "789fc3659553278d9fc98e9a9d5f393833d52d3b8e5555e900416ecb4e3b958c"
+    },
+    {
+      "path": "src/proof/validate-receipt.mjs",
+      "bytes": 5471,
+      "sha256": "476b491958dd7831e5d25c9eae6bc5f30eabee1fbb849b8b74e119a90fcbcab9"
+    },
+    {
+      "path": "src/proof/verify-bundle.mjs",
+      "bytes": 7345,
+      "sha256": "352573bb1c58ed7d9f284a32f1f1b143959838c19a226e005b4f6dda5437f0f9"
+    },
+    {
+      "path": "src/proof/wizard.mjs",
+      "bytes": 2262,
+      "sha256": "fb527e66099654c40d5da05403a0b00fe004e97a86b005b87b238f339d3c7ad0"
+    },
+    {
+      "path": "src/proof/write-bundle.mjs",
+      "bytes": 8467,
+      "sha256": "40f126197ef8c06d7e868c1b70f36d5c54b7a9c2ce180813c89eaaf80b151eeb"
+    },
+    {
+      "path": "src/providers/claude-api.mjs",
+      "bytes": 4734,
+      "sha256": "60464d74b193578437e7cfd1a6d315a5a20f606cce3896cd86ac1df9cec55e9a"
+    },
+    {
+      "path": "src/providers/codex-capabilities.mjs",
+      "bytes": 13009,
+      "sha256": "747429ed5652c788e049d3c16208cc0de451f655d4825590eb881b8b7f372329"
+    },
+    {
+      "path": "src/providers/codex-cli.mjs",
+      "bytes": 10876,
+      "sha256": "d749581ef7c82251d847d04a46ad72a7607ae7d06577fc83f56dfe9673338200"
+    },
+    {
+      "path": "src/providers/codex-launch.mjs",
+      "bytes": 6757,
+      "sha256": "b0f2056e569026ca531d36af3e8c25e406e1bdbd136545d8cb788cb95c8b412e"
+    },
+    {
+      "path": "src/providers/registry.mjs",
+      "bytes": 12202,
+      "sha256": "b713a2f972cf1be2441d26f3690106daef1429100398fe5d8c654daa45325263"
+    },
+    {
+      "path": "src/review/build-capsule.mjs",
+      "bytes": 1470,
+      "sha256": "815a91ddd9251439ea7565258751f1bdb7b49d16627299e7f64b842c43c591e9"
+    },
+    {
+      "path": "src/review/compare-capsules.mjs",
+      "bytes": 5017,
+      "sha256": "2306e841c1bef9846ded4dc5fe20489f2bdc036045ea2a47dade383c0142286d"
+    },
+    {
+      "path": "src/review/errors.mjs",
+      "bytes": 1023,
+      "sha256": "b8bfd032a3c0a8cd01f223311840eef26f041a749c3b93210b7d43f08397d9cf"
+    },
+    {
+      "path": "src/review/format-review.mjs",
+      "bytes": 533,
+      "sha256": "8cf05b31157d5e7316d349a98a35325f79205143ba071560c4a85f65d1d7b88f"
+    },
+    {
+      "path": "src/review/load-input.mjs",
+      "bytes": 1931,
+      "sha256": "88c9af318f68252fd65c044448d0dbed54770bd3f015b7f62524c2c608e74d84"
+    },
+    {
+      "path": "src/review/normalize-response.mjs",
+      "bytes": 1256,
+      "sha256": "079c5be9a22ba09952e771b3bccf892275e03fc5132cc5d375b65e2aff050108"
+    },
+    {
+      "path": "src/review/prepare-review.mjs",
+      "bytes": 744,
+      "sha256": "648d842ce897073cb2cff6b987eb097e218c8cca8665de44f3ab528650f26079"
+    },
+    {
+      "path": "src/review/public-error.mjs",
+      "bytes": 7853,
+      "sha256": "332c5f420642cb8ca4a4cf1601dc507f67e0513fedee535bd94f2f5ee405b79a"
+    },
+    {
+      "path": "src/review/router.mjs",
+      "bytes": 555,
+      "sha256": "a2c53f5967282727967a243744972f70598f86741435e921caac0b150fc894f0"
+    },
+    {
+      "path": "src/review/run-review.mjs",
+      "bytes": 4786,
+      "sha256": "2982d35b2418b1de293f74c9831ea3f94009d0779c091f926e58776c71286e16"
+    },
+    {
+      "path": "src/review/validate-capsule.mjs",
+      "bytes": 7462,
+      "sha256": "670f8ac3bb394f65eb3de9640fa982dbccf843000cb9dd596344a18741c06358"
+    },
+    {
+      "path": "src/review/write-capsule.mjs",
+      "bytes": 4974,
+      "sha256": "303c10c8bc6e74f463b016906c2fdea3066b620e71ff85a06c0c1786a878ca03"
+    },
+    {
+      "path": "tests/build-week-demo.test.mjs",
+      "bytes": 5705,
+      "sha256": "70072645e385a3ce8f4868080ee98f196e781631cff1bbdf7bc5634802c67c7a"
+    },
+    {
+      "path": "tests/build-week-docs.test.mjs",
+      "bytes": 8996,
+      "sha256": "1aa27b0c2462e557c7cf395e378781785dd06e918f18934861882af97a80eb38"
+    },
+    {
+      "path": "tests/claude-provider.test.mjs",
+      "bytes": 8064,
+      "sha256": "157755dc9a0a61a29152bd8a6d1d4d6759ca3f9d87c1873b44e85dd25d8ceaff"
+    },
+    {
+      "path": "tests/clean-evidence-binding.test.mjs",
+      "bytes": 54950,
+      "sha256": "f08a5069ddbdea1140add5d8802b5c62c1a7db30295eb3741bb1a5acbcfc6a32"
+    },
+    {
+      "path": "tests/cli-smoke.test.mjs",
+      "bytes": 1994,
+      "sha256": "06c3529451d5098904e3ebde66690fd4ae3060087c7003f34932516dad9f14e0"
+    },
+    {
+      "path": "tests/codex-capabilities.test.mjs",
+      "bytes": 13824,
+      "sha256": "568bf4eefab49d54fc80086f4213b61e374707f4238b08cae1ba276c4eaa21b3"
+    },
+    {
+      "path": "tests/codex-launch.test.mjs",
+      "bytes": 6748,
+      "sha256": "2df05a45454c9cf8101ca3ceac920287ab592b8aca71c0b576ffe6dc7ae50b62"
+    },
+    {
+      "path": "tests/codex-plugin-build.test.mjs",
+      "bytes": 12509,
+      "sha256": "b0278f079ae87a4440b3fb61573dd8f0d4245871ccda9c80a062b6d4f788aed1"
+    },
+    {
+      "path": "tests/codex-proof-adapter.test.mjs",
+      "bytes": 6128,
+      "sha256": "5b64d46b91c11bddc2c2abe3426de4f42bf3f487de1720cb3bc206fd31806f7d"
+    },
+    {
+      "path": "tests/codex-provider.test.mjs",
+      "bytes": 21308,
+      "sha256": "57ebedcaaee405f6b9ad32d628fc17fd4f7252f652f3d80a7a0dc239f791d1b8"
+    },
+    {
+      "path": "tests/compatibility-evidence.test.mjs",
+      "bytes": 47156,
+      "sha256": "d78c97d22fe5f0d81c789c9cb8bc88cd4a6e1d14953b146e6fc14088f63aad5e"
+    },
+    {
+      "path": "tests/detect-hosts.test.mjs",
+      "bytes": 9604,
+      "sha256": "4d9adce84a7dceb7697f496fab1a4d7f99d5e4f7ce3ac8cb473ab1f46fe341d9"
+    },
+    {
+      "path": "tests/evaluation-cases.test.mjs",
+      "bytes": 2757,
+      "sha256": "ebb569f07668da9d008403d558402449576fc91dd7f3664554c16d0199efe661"
+    },
+    {
+      "path": "tests/evaluation-live-runner.test.mjs",
+      "bytes": 1660,
+      "sha256": "5552d8847a42ee1a035106897ec11c2616146e10f10f9c26fde67a2577b81e22"
+    },
+    {
+      "path": "tests/evaluation-live-workflow.test.mjs",
+      "bytes": 1239,
+      "sha256": "db2eda04f3e0b6d5603b9b7cb3d1f3c07b2e2c5ed9836b54a9d05c02b1cf0944"
+    },
+    {
+      "path": "tests/evaluation-live.test.mjs",
+      "bytes": 5468,
+      "sha256": "0483542b3187b858d437ade58aa570660efec05fae073196748857067a3baa21"
+    },
+    {
+      "path": "tests/evaluation-offline.test.mjs",
+      "bytes": 703,
+      "sha256": "d6d41510f7f7f4cf50527135f48f8b731c812942351ce134ff9da1f82a815094"
+    },
+    {
+      "path": "tests/evaluation-report.test.mjs",
+      "bytes": 893,
+      "sha256": "97a24ed1ebdba05e492ed5bf116a314dd6cbd574a402da3d68ac96bc159db6c9"
+    },
+    {
+      "path": "tests/evaluation-result-safety.test.mjs",
+      "bytes": 5164,
+      "sha256": "811068f601869936d07482b44d660ce0246ca98a719e24651c6829ab08dbac95"
+    },
+    {
+      "path": "tests/evaluation-results.test.mjs",
+      "bytes": 3033,
+      "sha256": "46fef822ab2365877a9ca8c3d773e7c40f0ee8c5291e289d5dad24a100e68f55"
+    },
+    {
+      "path": "tests/evaluation-scoring.test.mjs",
+      "bytes": 1687,
+      "sha256": "0d5f8a424e0f635c03c405c700c3277566c4ce9e17c68346e172bfcdcdd312a8"
+    },
+    {
+      "path": "tests/github-workflows.test.mjs",
+      "bytes": 23004,
+      "sha256": "027dbef778cf8da8705c27cb7f38dfea4913b042c95b3c41f0e9821cc5c64c41"
+    },
+    {
+      "path": "tests/helpers/compatibility-evidence-fixture.mjs",
+      "bytes": 14626,
+      "sha256": "f68aac09af6a597740deb7c25bc0a0702d7b8a4591d5f131404171dd9dc59360"
+    },
+    {
+      "path": "tests/helpers/irsa003-fixture.mjs",
+      "bytes": 14037,
+      "sha256": "f035b0c3c9cea4e3a703c8caa35a90f31786c42691e9154693a4f952b4551ebf"
+    },
+    {
+      "path": "tests/helpers/irsa003-phase.mjs",
+      "bytes": 3003,
+      "sha256": "8d0a7ed253a31a105db011faeaeb3c2a17a38a0defe0eec7eb0fd8420facb935"
+    },
+    {
+      "path": "tests/helpers/snapshot-clone-cases.py",
+      "bytes": 22474,
+      "sha256": "2e0bc5c319be7bcba4a9d1a134e78c3fff2fd5ad6b25a0345ea6ff2219249070"
+    },
+    {
+      "path": "tests/helpers/workspace-accounting-cases.py",
+      "bytes": 8261,
+      "sha256": "c55f781a9cf71ec41dac241ce3b15e5a878b99aa9ac9d2dc603f1f6e8a0e4cd8"
+    },
+    {
+      "path": "tests/host-expansion-gate.test.mjs",
+      "bytes": 1138,
+      "sha256": "c8ea26cdbbb077f0eaefb9efea742fdcc27e15c408efc4f25879c8a53e8f71fd"
+    },
+    {
+      "path": "tests/host-parity.test.mjs",
+      "bytes": 6062,
+      "sha256": "531a7e658e24be1bde36b4ebb9fd832ef8b4f7f9dd041b45f5fa39dd15b381a7"
+    },
+    {
+      "path": "tests/host-registry.test.mjs",
+      "bytes": 950,
+      "sha256": "eefdedb441affa3016d1d174cba83640d5d60f8f8282580f2d36fc90d2fe1c94"
+    },
+    {
+      "path": "tests/install-apply.test.mjs",
+      "bytes": 6420,
+      "sha256": "3f3a9ff8bbea5ef8b06281419062700765002a2d7dd9c6f1fb90a03ed8d07385"
+    },
+    {
+      "path": "tests/install-planning.test.mjs",
+      "bytes": 6904,
+      "sha256": "861d4482a9e28aa0aa262fd623791d7e3b909af254e1f4dd77653ade2dd399ad"
+    },
+    {
+      "path": "tests/irsa003-actual-integration.test.mjs",
+      "bytes": 14413,
+      "sha256": "90538300a75b44676a4ea21e3916db89fe131bba9b9c9928291b2aa87029b017"
+    },
+    {
+      "path": "tests/irsa003-lifecycle.test.mjs",
+      "bytes": 9918,
+      "sha256": "80b7d1c07dea9c79cb9674b6c849741ce8f656be75a07897b61b8bbc366a590c"
+    },
+    {
+      "path": "tests/irsa003-phase-notification.test.mjs",
+      "bytes": 4964,
+      "sha256": "dd05b40fb2c6c540e35e42d30ad92d6488e707e228c171af211f1129d19801c0"
+    },
+    {
+      "path": "tests/irsa003-snapshot-clone.test.mjs",
+      "bytes": 8041,
+      "sha256": "52f77697c25911734f4d1740b89df032c3bbb765e8538502c04344826461902d"
+    },
+    {
+      "path": "tests/irsa003-trusted-launch.test.mjs",
+      "bytes": 9277,
+      "sha256": "af5100dd50d895797bdc8da9440f4d0f56d13a3514faecb4438e0184e98e3d23"
+    },
+    {
+      "path": "tests/irsa003-workspace-accounting.test.mjs",
+      "bytes": 2811,
+      "sha256": "be8f0d630be46af2835a9981692e3fc3f7038cef68622b6a127593b856999cbb"
+    },
+    {
+      "path": "tests/linmas-cli-review.test.mjs",
+      "bytes": 3035,
+      "sha256": "3b170e5447c232dc2fa7931cdc91cb61d40803c8c098647358ba147891654c57"
+    },
+    {
+      "path": "tests/linmas-cli.test.mjs",
+      "bytes": 30548,
+      "sha256": "12477d3ccb408dd36166d977ea115fc525aa730615323e6a5ea74181fb3f8b60"
+    },
+    {
+      "path": "tests/list-skills.test.mjs",
+      "bytes": 3109,
+      "sha256": "4c0300a528bf554a4d88105b378f4ebae65a5e032cafa4be8eb516347c25ea0c"
+    },
+    {
+      "path": "tests/manifest-doctor-onboard.test.mjs",
+      "bytes": 18350,
+      "sha256": "5bcb4bc31c72513a95d9e67bddf04179b505b8994178148c4bad8a7f67d9b85d"
+    },
+    {
+      "path": "tests/mcp-server.test.mjs",
+      "bytes": 26833,
+      "sha256": "c338f21d1d1f9d57660ea417d5eda8360945ef4d819296338581b7fc3d8c4336"
+    },
+    {
+      "path": "tests/parse-args.test.mjs",
+      "bytes": 5316,
+      "sha256": "7f48334f80fa0c1272e29ecb916968933977f9ebf292a8a03d360b6d5bf5e7a9"
+    },
+    {
+      "path": "tests/policy-builtins.test.mjs",
+      "bytes": 1190,
+      "sha256": "2114dc3b252ac7932eb379b97267a6b384579df584a0b7cac70a65c85e8e935e"
+    },
+    {
+      "path": "tests/policy-evaluation.test.mjs",
+      "bytes": 2455,
+      "sha256": "e7415fb7dd2fb53da23a51f2cc1d41598d9f4cafd9ecac4e5e99c23d0a186166"
+    },
+    {
+      "path": "tests/policy-loading.test.mjs",
+      "bytes": 1516,
+      "sha256": "9d90a73af6837a8ce3529d100daa499d16f6af9f4f17abd2b4cb91e94b5ea309"
+    },
+    {
+      "path": "tests/policy-output.test.mjs",
+      "bytes": 1353,
+      "sha256": "71386c780f6afcb5aecf890bc8f31bed2d7655e97abb20d6e8401c8570432ed0"
+    },
+    {
+      "path": "tests/policy-validation.test.mjs",
+      "bytes": 2348,
+      "sha256": "571881ea855a86a961d6801435bd204ae4c9ef59afcbb835c1f9d32b6d5c9c70"
+    },
+    {
+      "path": "tests/proof-chain.test.mjs",
+      "bytes": 8119,
+      "sha256": "d6da70e8a8b81f239ca74b0f8e6fed67b8753d3fed9494d5d4d9fde20f36d7c3"
+    },
+    {
+      "path": "tests/proof-codex-branches.test.mjs",
+      "bytes": 7211,
+      "sha256": "714c1561d74efe7dc3b31bc5567adfeb268da01885adbae3f2d7757b8163d772"
+    },
+    {
+      "path": "tests/proof-demo.test.mjs",
+      "bytes": 1937,
+      "sha256": "364d3e70682efbe04bd56c79052cf91670c548fa04cf7cc80e2d44c55306589a"
+    },
+    {
+      "path": "tests/proof-edge.test.mjs",
+      "bytes": 21271,
+      "sha256": "68d400cd03b351c1edf3e2f23fce83630bd30941e9fc79b8b599cde75914a9d7"
+    },
+    {
+      "path": "tests/provider-parity.test.mjs",
+      "bytes": 725,
+      "sha256": "eb1895609933c8b9e8d53d5172fd1caf459d703786056232839dd4b06b7afaab"
+    },
+    {
+      "path": "tests/provider-registry.test.mjs",
+      "bytes": 13156,
+      "sha256": "a358ab2ad1cedfaa716934393aa53a69edae2e26336a26f5995508b61287bf34"
+    },
+    {
+      "path": "tests/public-error.test.mjs",
+      "bytes": 2284,
+      "sha256": "88e88df3190a718542e1f1b6e723b8a8ebbed3ffd1814bae0dc87a14c8b34eba"
+    },
+    {
+      "path": "tests/registry-result.test.mjs",
+      "bytes": 2636,
+      "sha256": "712252f0468fc842106730606c699e80381246e9948cfd33eda8216765a2e136"
+    },
+    {
+      "path": "tests/release-authorization.test.mjs",
+      "bytes": 18445,
+      "sha256": "ca2bc8cf437da1095ec7755efab41bba4ce58f31d3b8b175ccd04a93a3cf4603"
+    },
+    {
+      "path": "tests/release-tag.test.mjs",
+      "bytes": 4225,
+      "sha256": "b075eafc15fd273839d7af9e0dd4da12a49d0281e3575abfb95048df53acca63"
+    },
+    {
+      "path": "tests/review-capsule.test.mjs",
+      "bytes": 14215,
+      "sha256": "129bb9aa0e299afc96be2f391363c1a70f0c0cdd5061dbb212f21d17f581aaba"
+    },
+    {
+      "path": "tests/review-input.test.mjs",
+      "bytes": 1364,
+      "sha256": "d9e573ab699e7290f434f3f8069a5fe0536141a2b00d150b1bcd33d63aec936b"
+    },
+    {
+      "path": "tests/review-output.test.mjs",
+      "bytes": 1959,
+      "sha256": "07a54b90b0bfbb7e298c6d456ef9624f7f703e1c00ba81d8bbd79cf536315ded"
+    },
+    {
+      "path": "tests/review-policy.test.mjs",
+      "bytes": 2454,
+      "sha256": "0cdfb727511444995cdfeb33f12f8905e5fcbc511655e2a1436425bd7b599e65"
+    },
+    {
+      "path": "tests/review-prepare.test.mjs",
+      "bytes": 1596,
+      "sha256": "ae792bcb0789dbd1110a96985a0cb0b20bc7cce1d5e08a60e601b1eee167bdd9"
+    },
+    {
+      "path": "tests/review-provider-parity.test.mjs",
+      "bytes": 4646,
+      "sha256": "a2b8f2f86875ae5e1b5a172e27b99006b2acbfd0505aeccdec9985bd68a8779e"
+    },
+    {
+      "path": "tests/review-run.test.mjs",
+      "bytes": 7543,
+      "sha256": "cf0936bb814eafbbaf26792e13ac259e76e5e349c04d31d8a56c13df5efabea6"
+    },
+    {
+      "path": "tests/security-delta.test.mjs",
+      "bytes": 5202,
+      "sha256": "afed3063bdb8e10901484e246f4fe278604f819934d8a4f50d44811b42b0a661"
+    },
+    {
+      "path": "tests/skill-catalog.test.mjs",
+      "bytes": 1497,
+      "sha256": "8b3732086a88f1d53b2237f1345cc8e800df76aed61d25060ea6ed16f9c30b06"
+    },
+    {
+      "path": "tests/smoke-published-package.test.mjs",
+      "bytes": 1826,
+      "sha256": "944f4100077cf68fed2f48d3c6e420ef985648d6b7b46d0fd281bcb6fba1afca"
+    },
+    {
+      "path": "tests/source-coverage-inventory.test.mjs",
+      "bytes": 997,
+      "sha256": "899eefe865815bc87b149b3b4eeb6b3260c8605f8db1cf9984b74e8d2b99579b"
+    },
+    {
+      "path": "tests/sync-local-docs.test.mjs",
+      "bytes": 4934,
+      "sha256": "3d3126a6d8a4703ce002755ca562fbdb5a389671881c6ec5b39af82713e10f53"
+    },
+    {
+      "path": "tests/uninstall.test.mjs",
+      "bytes": 36128,
+      "sha256": "fb88e355d874233f6a92d3a60a0016e12e2a7ccc1f9802cb4e413e4f9771ee74"
+    },
+    {
+      "path": "tests/validate-skills.test.mjs",
+      "bytes": 18654,
+      "sha256": "cffff7a143a70109dbd3fce1d542c31c377cc793a9350eaba580abff652aff8f"
+    },
+    {
+      "path": "tests/verify-checksum.test.mjs",
+      "bytes": 2312,
+      "sha256": "aded8a8b585beddc10792d36e484883a3456d1bbaa5c230c5fb6b9df8ad8d548"
+    },
+    {
+      "path": "tests/version.test.mjs",
+      "bytes": 8680,
+      "sha256": "e67352a12e1ad065414eabffa7a2d6f3adb9098db4ce231e56a7df550eeeb754"
+    },
+    {
+      "path": "tests/windows-security.test.mjs",
+      "bytes": 8630,
+      "sha256": "488550177ad0c7d5ac1107b3cbbc6cc0247a0b76ac0090568992fb908c6fd23c"
+    },
+    {
+      "path": "TRADEMARK.md",
+      "bytes": 1328,
+      "sha256": "0fa59c25afb3baddc2a7b7ad772b04f2a9b8cd90b508a105be5190aaae3d7db4"
+    },
+    {
+      "path": "USAGE.md",
+      "bytes": 26556,
+      "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
+    }
+  ],
+  "contentDigest": "ed2dddd31540ddd4cdfad7153a2dd517c3b73b7eae10c3ce640724d725203caa"
+}
