@@ -29,6 +29,8 @@ import { collectFreshEvidence } from '../scripts/evidence-operations.mjs';
 import { resolveTrustedGitPath } from '../scripts/child-environment.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const CURRENT_VERSION = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8')).version;
+const CURRENT_PACKAGE_FILENAME = `linmas-${CURRENT_VERSION}.tgz`;
 const RECORD_PATH = 'docs/compatibility/evidence/v0.9.0-record.json';
 const SNAPSHOT_PATH = 'docs/compatibility/evidence/v0.9.0-snapshot.json';
 const HISTORICAL_EXCLUSIONS = [RECORD_PATH, SNAPSHOT_PATH, CLEAN_IDENTITY_PATH];
@@ -347,8 +349,8 @@ function createFixture() {
     collectionDate: '2026-09-08',
     status: 'UNRELEASED',
     candidate: {
-      packageVersion: '0.9.0',
-      pluginVersion: '0.9.0',
+      packageVersion: CURRENT_VERSION,
+      pluginVersion: CURRENT_VERSION,
       implementationHead: baseImplementationHead,
       workingTreeState: 'dirty',
       baseline: {
@@ -362,7 +364,7 @@ function createFixture() {
       sourceRevision,
       snapshot: { path: SNAPSHOT_PATH, digest: snapshot.snapshotDigest },
       packageArtifact: {
-        filename: 'linmas-0.9.0.tgz',
+        filename: CURRENT_PACKAGE_FILENAME,
         entryCount: 1,
         bytes: 1,
         sha256: '3'.repeat(64),
@@ -413,9 +415,9 @@ function createFixture() {
   const measured = measureReleaseArtifacts({
     repositoryRoot: root,
     artifactRoot,
-    packagePath: 'linmas-0.9.0.tgz',
+    packagePath: CURRENT_PACKAGE_FILENAME,
     pluginPath: 'plugin/linmas',
-    expectedVersion: '0.9.0'
+    expectedVersion: CURRENT_VERSION
   });
   const artifactBinding = {
     package: {
@@ -486,7 +488,7 @@ function createFixture() {
     schemaVersion: 1,
     bindingKind: 'clean-candidate-evidence',
     status: 'UNRELEASED',
-    packageVersion: '0.9.0',
+    packageVersion: CURRENT_VERSION,
     implementationHead,
     workingTreeState: 'clean',
     contentIdentity: {
@@ -520,9 +522,9 @@ function buildArtifactBinding(repositoryRoot) {
   const measured = measureReleaseArtifacts({
     repositoryRoot,
     artifactRoot,
-    packagePath: 'linmas-0.9.0.tgz',
+    packagePath: CURRENT_PACKAGE_FILENAME,
     pluginPath: 'plugin/linmas',
-    expectedVersion: '0.9.0'
+    expectedVersion: CURRENT_VERSION
   });
   return {
     artifactRoot,
@@ -748,7 +750,7 @@ test('artifact validation rejects changed bytes, wrong metadata, and entry-count
 
   const metadata = createFixture();
   t.after(() => cleanup(metadata));
-  metadata.acceptance.artifactBinding.package.packageVersion = '0.9.1';
+  metadata.acceptance.artifactBinding.package.packageVersion = '9.9.9';
   assert.throws(() => validateCleanEvidenceBinding({
     repositoryRoot: metadata.root,
     identity: metadata.identity,
@@ -790,7 +792,7 @@ test('artifact validation rejects an unsafe tar symlink and a plugin tree mismat
   assert.throws(() => measurePackageArtifact({
     repositoryRoot: fixture.root,
     artifactPath: unsafeArchive,
-    expectedVersion: '0.9.0'
+    expectedVersion: CURRENT_VERSION
   }), /non-regular entry/);
 
   const pluginFile = path.join(fixture.artifactRoot, fixture.acceptance.artifactBinding.plugin.path, 'package.json');
@@ -800,7 +802,7 @@ test('artifact validation rejects an unsafe tar symlink and a plugin tree mismat
     artifactRoot: fixture.artifactRoot,
     packagePath: fixture.acceptance.artifactBinding.package.path,
     pluginPath: fixture.acceptance.artifactBinding.plugin.path,
-    expectedVersion: '0.9.0'
+    expectedVersion: CURRENT_VERSION
   }), /plugin artifact differs/);
 });
 
@@ -812,7 +814,7 @@ test('artifact paths must remain in an external tool-owned root', (t) => {
     artifactRoot: fixture.root,
     packagePath: fixture.acceptance.artifactBinding.package.path,
     pluginPath: fixture.acceptance.artifactBinding.plugin.path,
-    expectedVersion: '0.9.0'
+    expectedVersion: CURRENT_VERSION
   }), /outside the repository checkout/);
 });
 
@@ -860,7 +862,7 @@ test('artifact verification keeps measured artifacts read-only and uses separate
     artifactRoot: fixture.artifactRoot,
     packagePath: fixture.acceptance.artifactBinding.package.path,
     pluginPath: fixture.acceptance.artifactBinding.plugin.path,
-    expectedVersion: '0.9.0'
+    expectedVersion: CURRENT_VERSION
   });
   assert.equal(measured.package.sha256, fixture.acceptance.artifactBinding.package.sha256);
   assert.equal(measured.plugin.contentDigest, fixture.acceptance.artifactBinding.plugin.contentDigest);
@@ -1007,16 +1009,16 @@ test('historical identity normalization derives names, accepts an explicit schem
     schemaVersion: 1,
     sourceSchemaVersion: 1,
     normalization: 'measured-artifact-v1',
-    package: { name: 'linmas', version: '0.9.0' },
-    plugin: { name: 'linmas', version: '0.9.0' }
+    package: { name: 'linmas', version: CURRENT_VERSION },
+    plugin: { name: 'linmas', version: CURRENT_VERSION }
   });
 
   const explicitRecord = readJson(path.join(fixture.root, RECORD_PATH));
   explicitRecord.candidate.identitySchemaVersion = 2;
   explicitRecord.candidate.packageArtifact.packageName = 'linmas';
-  explicitRecord.candidate.packageArtifact.packageVersion = '0.9.0';
+  explicitRecord.candidate.packageArtifact.packageVersion = CURRENT_VERSION;
   explicitRecord.candidate.pluginParity.pluginName = 'linmas';
-  explicitRecord.candidate.pluginParity.pluginVersion = '0.9.0';
+  explicitRecord.candidate.pluginParity.pluginVersion = CURRENT_VERSION;
   const explicit = deriveHistoricalEvidence({
     repositoryRoot: fixture.root,
     sourceBytes: Buffer.from(`${JSON.stringify(explicitRecord)}\n`),

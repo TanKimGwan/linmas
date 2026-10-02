@@ -30,6 +30,7 @@ export const EVIDENCE_OPERATION_TIMEOUT_MS = 120_000;
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const SHA256 = /^[a-f0-9]{64}$/u;
+const VERSION = /^\d+\.\d+\.\d+$/u;
 const TEST_PATH = 'tests/mcp-server.test.mjs';
 const SAFETY_BOUNDARY = Object.freeze({
   satisfied: true,
@@ -39,6 +40,12 @@ const SAFETY_BOUNDARY = Object.freeze({
 
 function sha256(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
+}
+
+function currentPackageVersion(rootDir) {
+  const packageJson = readJson(rootDir, 'package.json');
+  if (packageJson.name !== 'linmas' || !VERSION.test(packageJson.version)) throw new Error('current package version is invalid');
+  return packageJson.version;
 }
 
 function canonicalize(value) {
@@ -457,8 +464,9 @@ function sourceProvenanceResult(rootDir) {
   const pluginPackage = readJson(rootDir, 'plugins/linmas/package.json');
   const pluginManifest = readJson(rootDir, 'plugins/linmas/.codex-plugin/plugin.json');
   const roadmap = fs.readFileSync(resolveInside(rootDir, 'docs/roadmap/versions/v0.9.0.md'), 'utf8');
+  const currentVersion = currentPackageVersion(rootDir);
   const values = [packageJson.version, lockJson.packages?.['']?.version, pluginPackage.version, pluginManifest.version];
-  if (packageJson.name !== 'linmas' || values.some((value) => value !== '0.9.0') || !/^## 12\. Implementation Checklist$/mu.test(roadmap)) {
+  if (values.some((value) => value !== currentVersion) || !/^## 12\. Implementation Checklist$/mu.test(roadmap)) {
     throw new Error('provenance operation did not satisfy the version and roadmap contract');
   }
   return {
@@ -667,15 +675,17 @@ function runPackageOperation(rootDir, artifactRoot, artifactBinding) {
   fs.mkdirSync(first);
   fs.mkdirSync(second);
   try {
+    const currentVersion = currentPackageVersion(rootDir);
+    const packageFilename = `linmas-${currentVersion}.tgz`;
     const tool = trustedNpmTool();
     const isolated = createIsolatedNpmEnvironment(operationRoot, tool);
     const npmArgs = [tool.npmCli.path, 'pack', '--ignore-scripts', '--silent'];
     execFileSync(process.execPath, [...npmArgs, '--pack-destination', first], { cwd: rootDir, env: isolated.env, stdio: 'ignore', timeout: EVIDENCE_OPERATION_TIMEOUT_MS });
     execFileSync(process.execPath, [...npmArgs, '--pack-destination', second], { cwd: rootDir, env: isolated.env, stdio: 'ignore', timeout: EVIDENCE_OPERATION_TIMEOUT_MS });
-    const firstPath = path.join(first, 'linmas-0.9.0.tgz');
-    const secondPath = path.join(second, 'linmas-0.9.0.tgz');
-    const measured = measurePackageArtifact({ repositoryRoot: rootDir, artifactPath: firstPath, expectedVersion: '0.9.0' });
-    const repeated = measurePackageArtifact({ repositoryRoot: rootDir, artifactPath: secondPath, expectedVersion: '0.9.0' });
+    const firstPath = path.join(first, packageFilename);
+    const secondPath = path.join(second, packageFilename);
+    const measured = measurePackageArtifact({ repositoryRoot: rootDir, artifactPath: firstPath, expectedVersion: currentVersion });
+    const repeated = measurePackageArtifact({ repositoryRoot: rootDir, artifactPath: secondPath, expectedVersion: currentVersion });
     const result = packageResult(measured, repeated, tool.execution);
     if (!result.repeatability.byteIdentical) throw new Error('package operation produced different independent outputs');
     if (artifactBinding && (result.package.sha256 !== artifactBinding.package.sha256 || result.package.bytes !== artifactBinding.package.bytes || result.package.entryCount !== artifactBinding.package.entryCount || result.package.inventorySha256 !== artifactBinding.package.inventorySha256)) throw new Error('package operation output does not match the authorized artifact binding');
@@ -696,7 +706,7 @@ function runPluginOperation(rootDir, artifactRoot, artifactBinding) {
       stdio: 'ignore',
       timeout: EVIDENCE_OPERATION_TIMEOUT_MS
     });
-    const measured = measurePluginParity({ pluginPath: target, canonicalPath: path.join(rootDir, 'plugins/linmas'), expectedVersion: '0.9.0' });
+    const measured = measurePluginParity({ pluginPath: target, canonicalPath: path.join(rootDir, 'plugins/linmas'), expectedVersion: currentPackageVersion(rootDir) });
     const result = pluginResult(measured, {
       runner: 'node-execfile-fixed-v1',
       environmentPolicy: childEnvironment.policy,
@@ -739,7 +749,7 @@ async function runOperation(rootDir, artifactRoot, artifactBinding, contractItem
 }
 
 function actualArtifactBinding({ repositoryRoot, artifactRoot, packagePath, pluginPath }) {
-  const measured = measureReleaseArtifacts({ repositoryRoot, artifactRoot, packagePath, pluginPath, expectedVersion: '0.9.0' });
+  const measured = measureReleaseArtifacts({ repositoryRoot, artifactRoot, packagePath, pluginPath, expectedVersion: currentPackageVersion(repositoryRoot) });
   return {
     schemaVersion: 1,
     package: {
@@ -812,7 +822,10 @@ export function validateOperationResult(contractItem, result, { artifactBinding,
   }
   switch (contractItem.recordId) {
     case 'R090-PROVENANCE':
-      if (result.roadmapHeading !== '12. Implementation Checklist' || Object.values(result.versionSurfaces || {}).some((value) => value !== '0.9.0')) throw new Error('provenance operation result is incomplete');
+      {
+        const versions = Object.values(result.versionSurfaces || {});
+        if (result.roadmapHeading !== '12. Implementation Checklist' || versions.length !== 4 || !VERSION.test(versions[0]) || versions.some((value) => value !== versions[0]) || (artifactBinding && versions[0] !== artifactBinding.package.packageVersion)) throw new Error('provenance operation result is incomplete');
+      }
       break;
     case 'R090-PACKAGE-001':
       if (!result.repeatability?.byteIdentical || result.repeatability.packCount !== 2 || !result.package || !SHA256.test(result.package.sha256) || !SHA256.test(result.package.inventorySha256)) throw new Error('package operation result is incomplete');
@@ -988,7 +1001,7 @@ if (path.resolve(process.argv[1] || '') === SCRIPT_PATH) {
     if (args.get('--mode') !== 'collect') throw new Error('mode must be collect');
     const repositoryRoot = path.resolve(args.get('--root-dir') || process.cwd());
     const artifactRoot = path.resolve(args.get('--artifact-root') || '');
-    const packagePath = args.get('--package-path') || 'linmas-0.9.0.tgz';
+    const packagePath = args.get('--package-path') || `linmas-${currentPackageVersion(repositoryRoot)}.tgz`;
     const pluginPath = args.get('--plugin-path') || 'plugin/linmas';
     const collected = await collectFreshEvidenceAsync({ repositoryRoot, artifactRoot, packagePath, pluginPath });
     process.stdout.write(`${JSON.stringify(collected)}\n`);
