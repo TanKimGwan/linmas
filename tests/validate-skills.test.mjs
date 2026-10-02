@@ -147,7 +147,7 @@ test('README separates installation hosts and execution providers', async () => 
   assert.match(text, /human review/i);
 });
 
-test('0.8.0 marketplace guidance distinguishes moving refs from pinned migration', async () => {
+test('marketplace guidance distinguishes moving refs from current and historical pinned migrations', async () => {
   const releaseNotes = await readFile(path.join(rootDir, 'releases', '0.8.0.md'), 'utf8');
   for (const text of [
     'Existing moving-ref marketplace',
@@ -162,12 +162,20 @@ test('0.8.0 marketplace guidance distinguishes moving refs from pinned migration
     'fresh task'
   ]) assert.match(releaseNotes, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 
-  for (const file of ['README.md', 'USAGE.md', 'PANDUAN-PENGGUNAAN.md']) {
+  for (const file of ['USAGE.md', 'PANDUAN-PENGGUNAAN.md']) {
     const text = await readFile(path.join(rootDir, file), 'utf8');
     assert.match(text, /moving ref|ref bergerak/i);
     assert.match(text, /does not change an[\s\S]*immutable `v0\.7\.0`|tidak mengubah ref immutable `v0\.7\.0`/i);
     assert.match(text, /releases\/0\.8\.0\.md#upgrade-070--080/);
   }
+
+  const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+  assert.match(readme, /moving ref/i);
+  assert.match(readme, /does not change an[\s\S]*immutable `v0\.8\.0`/i);
+  assert.match(readme, /second `marketplace add` with `--ref v0\.9\.0` is[\s\S]*rejected/i);
+  assert.match(readme, /remove the installed plugin and old marketplace/i);
+  assert.match(readme, /releases\/0\.9\.0\.md#upgrade-from-080/);
+  assert.match(readme, /restart Codex and start a fresh task/i);
 });
 
 test('README defines policy decision limits', async () => {

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/linmas.jpg" alt="Linmas logo" width="180">
+  <img src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/linmas-logo.png" alt="Linmas logo" width="180" height="180">
 
   <h1>Linmas Proof Review</h1>
 
@@ -9,10 +9,10 @@
 
   <p>
     <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.8.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.9.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm total downloads" src="https://badgen.net/npm/dt/linmas?label=total%20downloads"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/linmas?label=weekly%20downloads"></a>
-    <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.8.0"><img alt="release v0.8.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
+    <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.9.0"><img alt="release v0.9.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
     <a href="LICENSE"><img alt="License: Apache-2.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/license.svg"></a>
     <img alt="Node.js 24+" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/node.svg">
     <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex primary" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/codex.svg"></a>
@@ -22,6 +22,23 @@
     <img alt="Security: defensive only" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/security.svg">
   </p>
 </div>
+
+## Released: v0.9.0
+
+Linmas 0.9.0 is available on [npm](https://www.npmjs.com/package/linmas/v/0.9.0) and [GitHub Releases](https://github.com/TanKimGwan/linmas/releases/tag/v0.9.0).
+
+- Operation-level compatibility guidance for eleven security skills and seven MCP tools.
+- Clear boundaries between native integration, managed skill installation, and manual skill reuse.
+- Verified Linux and Windows CI, plus package integrity checks and release provenance. Human review remains required; publication does not establish live provider or production runtime behavior.
+
+Install the published CLI with Node.js 24 or newer:
+
+```bash
+npm install --global linmas@0.9.0
+linmas --version
+```
+
+See the [0.9.0 release notes and upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Existing 0.8.0 users do not need a data migration.
 
 ## Try it in 60 seconds
 
@@ -88,7 +105,7 @@ GitHub's standard repository navigation exposes fixed tabs; these public usage g
 
 Linmas remains **Codex-first as a native integration** while staying portable across AI coding agents. Codex was also the primary integration used in the historical OpenAI Build Week 2026 project. The [compatibility evidence policy](docs/compatibility/COMPATIBILITY.md) defines the limits of current claims. Installation detection is not runtime conformance; compatibility with other agents depends on the integration level below.
 
-Version 0.9.0 is an **UNRELEASED candidate**; pinned 0.8.0 installation examples refer to the existing release. Its [content identity](compatibility/evidence/v0.9.0-content-identity.json) and external clean acceptance are revision-bound. A prior accepted SHA does not automatically accept content after a merge; the changed revision requires regenerated identity, remeasured artifacts, and a separate acceptance decision. Neither the identity file nor offline fixtures establish live host or model behavior.
+Version 0.9.0 is released. Its [content identity](compatibility/evidence/v0.9.0-content-identity.json) is revision-bound; release artifact hashes and provenance bind the bytes actually published. A prior accepted SHA does not automatically qualify later source changes. Neither the identity file, offline fixtures, nor publication establishes live host or model behavior.
 
 | AI agent or surface | Status | Supported integration |
 | --- | --- | --- |
@@ -270,7 +287,7 @@ Installation hosts and execution providers are independent:
 | Installation hosts | Claude Code and Codex managed skill directories |
 | Execution providers | Claude and Codex provider-native configuration |
 
-Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.8.0. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
+Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.9.0. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
 
 ```bash
 npx linmas list
@@ -333,14 +350,14 @@ codex plugin list
 This is a public **GitHub repository marketplace**, not yet an entry in the global Codex/ChatGPT Plugins Directory. Therefore, Linmas will not automatically appear in search on another computer just because you are signed in to the same ChatGPT account. Add the marketplace once on each computer:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.8.0
+codex plugin marketplace add TanKimGwan/linmas --ref v0.9.0
 codex plugin add linmas@linmas
 codex plugin list
 ```
 
 After installation, restart Codex completely and create a new task. If `linmas@linmas` is still not listed, verify that the computer has Git, Node.js 24+, and network access to GitHub. The official Plugins Directory is a separate publication channel that requires OpenAI submission, review, and approval; GitHub and npm publication do not automatically add Linmas to that global catalog.
 
-To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.8.0`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
+To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.9.0`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
 
 To refresh an existing marketplace installation that follows a moving ref such
 as `main`, run:
@@ -353,11 +370,11 @@ codex plugin list --json
 ```
 
 `marketplace upgrade` refreshes the configured ref; it does not change an
-immutable `v0.7.0` ref, and a second `marketplace add` with `--ref v0.8.0` is
-rejected while the old source is registered. For the pinned `v0.7.0` →
-`v0.8.0` migration, remove the installed plugin and old marketplace, re-add it
-with `--ref v0.8.0`, install the plugin again, and verify the configured ref and
-installed version as shown in the [0.8.0 release migration](releases/0.8.0.md#upgrade-070--080).
+immutable `v0.8.0` ref, and a second `marketplace add` with `--ref v0.9.0` is
+rejected while the old source is registered. To move a pinned installation from
+`v0.8.0` to `v0.9.0`, remove the installed plugin and old marketplace, re-add it
+with `--ref v0.9.0`, install the plugin again, and verify the configured ref and
+installed version. See the [0.9.0 upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md#upgrade-from-080).
 Always restart Codex and start a fresh task after verification.
 
 The public marketplace tracks a ready-to-install plugin at `plugins/linmas`. Maintainers regenerate it from canonical sources and verify every file byte-for-byte:
