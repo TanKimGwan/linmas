@@ -7,6 +7,9 @@ import { repositoryRoot, createFixture, cleanup, runGit, writePolicy, runBoundar
 import { buildContentIdentity, CLEAN_IDENTITY_PATH, GENERATED_EVIDENCE_PATHS, computeFreshEvidenceDigest } from '../scripts/validate-evidence-binding.mjs';
 import { collectFreshEvidence } from '../scripts/evidence-operations.mjs';
 
+const currentVersion = JSON.parse(fs.readFileSync(path.join(repositoryRoot, 'package.json'), 'utf8')).version;
+const currentPackageFilename = `linmas-${currentVersion}.tgz`;
+
 function writeJson(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
@@ -130,12 +133,12 @@ for (const instrumentBuilder of [false, true]) test(`actual full verifier consum
   const beforeNpm=process.env.LINMAS_APPROVED_NPM_CLI;
   process.env.LINMAS_APPROVED_NPM_CLI=npmCli;
   let collected;
-  try { collected=collectFreshEvidence({repositoryRoot:f.candidateRoot,artifactRoot:f.artifactRoot,packagePath:'linmas-0.9.0.tgz',pluginPath:'plugin/linmas'}); }
+  try { collected=collectFreshEvidence({repositoryRoot:f.candidateRoot,artifactRoot:f.artifactRoot,packagePath:currentPackageFilename,pluginPath:'plugin/linmas'}); }
   finally { if(beforeNpm===undefined) delete process.env.LINMAS_APPROVED_NPM_CLI; else process.env.LINMAS_APPROVED_NPM_CLI=beforeNpm; }
   collected.disposition.contentIdentityDigest=identity.contentDigest;
   collected.disposition.evidenceDigest=computeFreshEvidenceDigest(collected.disposition);
   fs.chmodSync(f.acceptancePath,0o600);
-  writeJson(f.acceptancePath,{schemaVersion:1,bindingKind:'clean-candidate-evidence',status:'UNRELEASED',packageVersion:'0.9.0',implementationHead:commit,workingTreeState:'clean',contentIdentity:{path:CLEAN_IDENTITY_PATH,sha256:sha256(fs.readFileSync(path.join(f.candidateRoot,CLEAN_IDENTITY_PATH))),contentDigest:identity.contentDigest},artifactBinding:collected.artifactBinding,evidenceDisposition:collected.disposition});
+  writeJson(f.acceptancePath,{schemaVersion:1,bindingKind:'clean-candidate-evidence',status:'UNRELEASED',packageVersion:currentVersion,implementationHead:commit,workingTreeState:'clean',contentIdentity:{path:CLEAN_IDENTITY_PATH,sha256:sha256(fs.readFileSync(path.join(f.candidateRoot,CLEAN_IDENTITY_PATH))),contentDigest:identity.contentDigest},artifactBinding:collected.artifactBinding,evidenceDisposition:collected.disposition});
   fs.chmodSync(f.acceptancePath,0o400);
   f.policy.authorizedRevision={commit,tree};
   f.policy.request.acceptance.sha256=sha256(fs.readFileSync(f.acceptancePath));

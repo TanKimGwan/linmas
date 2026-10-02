@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-10-02T13:11:04.319Z",
+  "generatedAt": "2026-10-02T13:28:21.605Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -1664,8 +1664,8 @@
     },
     {
       "path": "scripts/evidence-operations.mjs",
-      "bytes": 52767,
-      "sha256": "92849efd40e2b8af0b6120a67c3c01045a85d5e16c73783d97196cda0334a6e7"
+      "bytes": 53502,
+      "sha256": "43c8f8adcdbdcf35a6871f66aae0dce97818e1155485991f0666890114a8ed1f"
     },
     {
       "path": "scripts/irsa003-trusted-bootstrap.c",
@@ -2074,8 +2074,8 @@
     },
     {
       "path": "tests/clean-evidence-binding.test.mjs",
-      "bytes": 54950,
-      "sha256": "f08a5069ddbdea1140add5d8802b5c62c1a7db30295eb3741bb1a5acbcfc6a32"
+      "bytes": 55243,
+      "sha256": "c1c2c20158d950db3ceeddd953f61d96db3771e8835a082e8a302ce8c3be2a9f"
     },
     {
       "path": "tests/cli-smoke.test.mjs",
@@ -2109,8 +2109,8 @@
     },
     {
       "path": "tests/compatibility-evidence.test.mjs",
-      "bytes": 47156,
-      "sha256": "d78c97d22fe5f0d81c789c9cb8bc88cd4a6e1d14953b146e6fc14088f63aad5e"
+      "bytes": 46070,
+      "sha256": "c0dc4ce6743d0dafd2233fef74b34b902ced0e4b24ead608861b0762c027f0f1"
     },
     {
       "path": "tests/detect-hosts.test.mjs",
@@ -2219,8 +2219,8 @@
     },
     {
       "path": "tests/irsa003-actual-integration.test.mjs",
-      "bytes": 14413,
-      "sha256": "90538300a75b44676a4ea21e3916db89fe131bba9b9c9928291b2aa87029b017"
+      "bytes": 14599,
+      "sha256": "7288e4169a14a6a3d842a59f93c1599ca1c06216f9910eedef367928e2943b52"
     },
     {
       "path": "tests/irsa003-lifecycle.test.mjs",
@@ -2448,5 +2448,5 @@
       "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
     }
   ],
-  "contentDigest": "af96cc163a11ca73cbe1f16f626d09021401f5ecb43a5cb4d3b6772aa0353d17"
+  "contentDigest": "5ce210ae189d628e6a38445707aae1198cf793ed312b5e14e2c3b9b87675c059"
 }

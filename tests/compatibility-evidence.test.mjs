@@ -20,6 +20,7 @@ import { createCompatibilityEvidenceFixture } from './helpers/compatibility-evid
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RECORD_PATH = 'docs/compatibility/evidence/v0.9.0-record.json';
 const SNAPSHOT_PATH = 'docs/compatibility/evidence/v0.9.0-snapshot.json';
+const HISTORICAL_VERSION = '0.9.0';
 const BASELINE_COMMIT = '68a5cd175b16d26fd58834acd489ebcbe8a8ec57';
 const BASELINE_TAG = 'v0.8.0';
 const BASELINE_TAG_OBJECT = 'd03d7f4e5f63cf2c76a3e24f87854681ffac9959';
@@ -173,27 +174,11 @@ export function validateCompatibilityEvidence({
 
 function validateCandidateMetadata(repositoryRoot, candidate, fail) {
   if (!candidate || typeof candidate !== 'object') return;
-  const readJsonFile = (relativePath) => {
-    try {
-      return JSON.parse(fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8'));
-    } catch (error) {
-      fail(`candidate metadata file is unavailable: ${relativePath} (${error.message})`);
-      return null;
-    }
-  };
-  const packageJson = readJsonFile('package.json');
-  const lockJson = readJsonFile('package-lock.json');
-  const pluginPackage = readJsonFile('plugins/linmas/package.json');
-  const pluginManifest = readJsonFile('plugins/linmas/.codex-plugin/plugin.json');
-  if (packageJson && candidate.packageVersion !== packageJson.version) fail('candidate package version does not match package.json');
-  if (lockJson && candidate.packageVersion !== lockJson.packages?.['']?.version) fail('candidate package version does not match package-lock.json');
-  if (pluginPackage && candidate.pluginVersion !== pluginPackage.version) fail('candidate plugin version does not match plugin package metadata');
-  if (pluginManifest && candidate.pluginVersion !== pluginManifest.version) fail('candidate plugin version does not match plugin manifest');
-  if (packageJson && packageJson.name !== 'linmas') fail('package metadata name is invalid');
-  if (pluginPackage && pluginPackage.name !== 'linmas') fail('plugin package metadata name is invalid');
-  if (pluginManifest && pluginManifest.name !== 'linmas') fail('plugin manifest name is invalid');
+  void repositoryRoot;
+  if (candidate.packageVersion !== HISTORICAL_VERSION) fail('candidate package version does not match the historical record');
+  if (candidate.pluginVersion !== HISTORICAL_VERSION) fail('candidate plugin version does not match the historical record');
   if (candidate.packageArtifact) {
-    if (candidate.packageArtifact.filename !== 'linmas-0.9.0.tgz') fail('package artifact filename is invalid');
+    if (candidate.packageArtifact.filename !== `linmas-${HISTORICAL_VERSION}.tgz`) fail('package artifact filename is invalid');
     if (candidate.packageArtifact.entryCount !== 151) fail('package artifact entry count is invalid');
     if (candidate.packageArtifact.bytes !== 1751129) fail('package artifact byte count is invalid');
     if (candidate.packageArtifact.sha256 !== 'e96ff656bc398485f60fd0062e995008539d5e93c37210c20851b22f90e2e3b0') fail('package artifact digest is invalid');
