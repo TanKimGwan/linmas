@@ -170,9 +170,11 @@ test('marketplace guidance distinguishes moving refs from current and historical
   }
 
   const readme = await readFile(path.join(rootDir, 'README.md'), 'utf8');
+  const currentVersion = JSON.parse(await readFile(path.join(rootDir, 'package.json'), 'utf8')).version;
+  const currentVersionPattern = currentVersion.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   assert.match(readme, /moving ref/i);
   assert.match(readme, /does not change an[\s\S]*immutable `v0\.8\.0`/i);
-  assert.match(readme, /second `marketplace add` with `--ref v0\.9\.0` is[\s\S]*rejected/i);
+  assert.match(readme, new RegExp('second `marketplace add` with `--ref v' + currentVersionPattern + '` is[\\s\\S]*rejected', 'i'));
   assert.match(readme, /remove the installed plugin and old marketplace/i);
   assert.match(readme, /releases\/0\.9\.0\.md#upgrade-from-080/);
   assert.match(readme, /restart Codex and start a fresh task/i);
