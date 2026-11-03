@@ -3,169 +3,109 @@ import path from 'node:path';
 
 function binaryExists(envPath, names) {
   for (const dir of (envPath || '').split(path.delimiter).filter(Boolean)) {
-    for (const name of names) {
-      if (fs.existsSync(path.join(dir, name))) return true;
-    }
+    for (const name of names) if (fs.existsSync(path.join(dir, name))) return true;
   }
   return false;
 }
 
-export function createClaudeAdapter({ homedir }) {
-  const rootPath = path.join(homedir, '.claude');
-  const installRoot = path.join(rootPath, 'skills');
-  const manifestPath = path.join(rootPath, 'linmas-manifest.json');
-
-  const checkWritable = (dir) => {
+function writableFromExistingPath(targetPath) {
+  let current = targetPath;
+  while (true) {
     try {
-      fs.accessSync(dir, fs.constants.W_OK);
-      return true;
-    } catch {
-      return false;
+      const stat = fs.lstatSync(current);
+      if (stat.isSymbolicLink() || !stat.isDirectory()) return false;
+      try { fs.accessSync(current, fs.constants.W_OK); return true; } catch { return false; }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') return false;
+      const parent = path.dirname(current);
+      if (parent === current) return false;
+      current = parent;
     }
-  };
+  }
+}
 
-  const getTargetWritability = () => {
-    if (fs.existsSync(rootPath)) {
-      return checkWritable(rootPath);
-    }
-    // If rootPath does not exist, check if its parent is writable
-    const parentDir = path.dirname(rootPath);
-    if (fs.existsSync(parentDir)) {
-      return checkWritable(parentDir);
-    }
-    return false;
-  };
+function directoryPath(value, name, fallback) {
+  if (value === undefined) return fallback;
+  if (typeof value !== 'string' || !value || !path.isAbsolute(value)) {
+    throw new Error(`${name} must be an absolute directory path`);
+  }
+  return path.resolve(value);
+}
+
+function projectPath(value) {
+  const resolved = path.resolve(value);
+  const stat = fs.lstatSync(resolved);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('Project root must be an existing non-symlink directory');
+  return resolved;
+}
+
+export function createClaudeAdapter({ homedir, env = process.env }) {
+  const home = path.resolve(homedir);
+  const globalConfig = directoryPath(env.CLAUDE_CONFIG_DIR, 'CLAUDE_CONFIG_DIR', path.join(home, '.claude'));
+  const legacyRoot = globalConfig;
+
+  function resolveTarget({ scope = 'global', projectRoot = process.cwd() } = {}) {
+    if (!['project', 'global'].includes(scope)) throw new Error(`Invalid installation scope: ${scope}`);
+    const scopeRoot = scope === 'project' ? projectPath(projectRoot) : home;
+    const rootPath = scope === 'project' ? path.join(scopeRoot, '.claude') : globalConfig;
+    const installRoot = path.join(rootPath, 'skills');
+    const stateRoot = path.join(scopeRoot, '.agents');
+    return {
+      host: 'claude', scope, scopeRoot, rootPath, installRoot,
+      manifestPath: path.join(stateRoot, 'linmas-manifest.json'),
+      canonicalRoot: path.join(stateRoot, 'skills')
+    };
+  }
+
+  function detect({ env: detectEnv = env, platform = process.platform, scope, projectRoot } = {}) {
+    void platform;
+    const target = scope ? resolveTarget({ scope, projectRoot }) : {
+      host: 'claude', rootPath: legacyRoot, installRoot: path.join(legacyRoot, 'skills'),
+      manifestPath: path.join(legacyRoot, 'linmas-manifest.json')
+    };
+    const rootExists = fs.existsSync(target.rootPath);
+    const skillsExists = fs.existsSync(target.installRoot);
+    const hasBinary = binaryExists(detectEnv.PATH, ['claude', 'claude-code']);
+    const writable = writableFromExistingPath(target.rootPath);
+
+    if (skillsExists) return { ...target, status: 'detected', reason: `${target.installRoot} exists`, writable };
+    if (rootExists) return {
+      ...target,
+      status: hasBinary && writable ? 'detected' : 'probably_detected',
+      reason: !writable
+        ? `${target.rootPath} exists but is not writable`
+        : hasBinary
+        ? `skills root is missing but ${target.rootPath} exists and target root can be created safely`
+        : `${target.rootPath} exists but skills root is missing`,
+      writable
+    };
+    if (hasBinary && writable) return {
+      ...target,
+      status: 'detected',
+      reason: scope
+        ? `skills root is missing but ${target.rootPath} can be created safely`
+        : `skills root is missing but ${target.rootPath} exists and target root can be created safely`,
+      writable
+    };
+    return { ...target, status: 'not_detected', reason: 'no host directory or binary found', writable: false };
+  }
 
   const adapter = {
-    getInstallRoot() { return installRoot; },
-    getManifestPath() { return manifestPath; },
-    validateTarget() {
-      const exists = fs.existsSync(rootPath);
-      let writable = false;
-      if (exists) {
-        writable = checkWritable(rootPath);
-      } else {
-        const parentDir = path.dirname(rootPath);
-        if (fs.existsSync(parentDir)) {
-          writable = checkWritable(parentDir);
-        }
-      }
-      const creatable = writable && !fs.existsSync(installRoot);
-
-      if (writable) {
-        return {
-          status: 'detected',
-          writable,
-          reason: creatable
-            ? `skills root is missing but ${rootPath} exists and target root can be created safely`
-            : `${installRoot} exists and target root is writable`
-        };
-      } else {
-        return {
-          status: 'probably_detected',
-          writable,
-          reason: `${rootPath} exists but is not writable`
-        };
-      }
-    },
-    detect({ env = process.env, platform = process.platform } = {}) {
-      void platform;
-      const rootExists = fs.existsSync(rootPath);
-      const skillsExists = fs.existsSync(installRoot);
-      const hasBinary = binaryExists(env.PATH, ['claude', 'claude-code']);
-      const writable = getTargetWritability();
-
-      if (skillsExists) {
-        return {
-          host: 'claude',
-          status: 'detected',
-          reason: `${installRoot} exists`,
-          rootPath,
-          installRoot,
-          manifestPath,
-          writable
-        };
-      }
-
-      if (rootExists) {
-        // Wait: the existing test passes env = {}, which means we don't have binary evidence (no binary in PATH).
-        // Wait, why did the old implementation return probably_detected?
-        // Ah! If it is rootExists, but NO binary is in PATH, does it mean we should only return detected if validateTarget() is called?
-        // Wait! The old test expects:
-        // "detectHosts reports probably_detected when root exists but skills does not"
-        // Wait, does the old test call detectHosts with env: {}? Yes!
-        // So when env.PATH is empty/doesn't have binary, it should return 'probably_detected'.
-        // But if PATH has the binary, OR we explicitly validate the target, it gets upgraded to detected?
-        // Wait! Let's re-read the brief's Step 1:
-        // "const results = detectHosts({ env: { PATH: '/bin' }, homedir: home, platform: 'linux' });"
-        // Here, PATH: '/bin' is passed, and Claude status becomes 'detected'.
-        // Why? Because `/bin` has the binary `claude` (in `/bin/claude` or `/usr/bin/claude` which might be present in the container/system where the tests are run, or we mock it, or we detect it from PATH)!
-        // Wait, `/bin/claude` DOES exist on the system (we checked: `/bin/claude -> ../lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe`)!
-        // Ah! So when PATH is `/bin`, `claude` binary IS found in `/bin`!
-        // When PATH is empty `{}`, `claude` binary is NOT found in PATH.
-        // So, if we have rootExists:
-        // If we have binary in PATH -> status is 'detected' (since it is writable).
-        // If we do NOT have binary in PATH -> status is 'probably_detected'.
-        // Let's implement that!
-        // If rootExists:
-        //   - if hasBinary:
-        //       - validation = validateTarget()
-        //       - status = validation.status
-        //   - else:
-        //       - status = 'probably_detected'
-        //       - reason = `${rootPath} exists but skills root is missing`
-        // Wait, what if hasBinary is true, but rootExists is false?
-        // Then we check if we can create rootPath safely.
-        // If so, and it is writable, we can return 'detected' (or 'probably_detected' if not writable).
-        // Let's structure the `detect` logic:
-        const validation = adapter.validateTarget();
-        if (rootExists && !hasBinary) {
-          return {
-            host: 'claude',
-            status: 'probably_detected',
-            reason: `${rootPath} exists but skills root is missing`,
-            rootPath,
-            installRoot,
-            manifestPath,
-            writable
-          };
-        }
-
-        return {
-          host: 'claude',
-          status: validation.status,
-          reason: validation.reason,
-          rootPath,
-          installRoot,
-          manifestPath,
-          writable: validation.writable
-        };
-      }
-
-      if (hasBinary) {
-        const validation = adapter.validateTarget();
-        return {
-          host: 'claude',
-          status: validation.status,
-          reason: validation.reason,
-          rootPath,
-          installRoot,
-          manifestPath,
-          writable: validation.writable
-        };
-      }
-
+    getInstallRoot() { return path.join(legacyRoot, 'skills'); },
+    getManifestPath() { return path.join(legacyRoot, 'linmas-manifest.json'); },
+    validateTarget({ scope = 'global', projectRoot } = {}) {
+      const target = resolveTarget({ scope, projectRoot });
+      const writable = writableFromExistingPath(target.rootPath);
       return {
-        host: 'claude',
-        status: 'not_detected',
-        reason: 'no host directory or binary found',
-        rootPath,
-        installRoot,
-        manifestPath,
-        writable: false
+        status: writable ? 'detected' : 'probably_detected',
+        writable,
+        reason: writable
+          ? `target can be created safely under ${target.rootPath}`
+          : `${target.rootPath} has no writable, non-symlink directory ancestor`
       };
-    }
+    },
+    detect
   };
-
+  Object.defineProperty(adapter, 'resolveTarget', { value: resolveTarget });
   return adapter;
 }

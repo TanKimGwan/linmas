@@ -11,7 +11,7 @@ Linmas is a Codex-first defensive security review toolkit for AI-assisted softwa
 
 Linmas does not require an OpenAI API key for subscription-first Codex use. Codex owns provider authentication. Live review is opt-in and requires explicit confirmation before input leaves the machine.
 
-The deterministic offline workflow, declared CLI entrypoint, and isolated Codex launch preparation are tested on Linux and Windows. Destructive uninstall and cleanup are not available on Windows: Node.js 24 does not expose a handle-relative Windows mutation primitive that can preserve Linmas's anti-substitution invariant. Those operations return `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE` before filesystem or manifest mutation instead of using an unsafe path-based fallback.
+The deterministic offline workflow, declared CLI entrypoint, and isolated Codex launch preparation are tested on Linux and Windows. Scoped managed install and uninstall apply are not available on Windows: Node.js 24 does not expose a handle-relative Windows mutation primitive that can preserve Linmas's anti-substitution invariant. Both return `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE` before filesystem or manifest mutation instead of using an unsafe path-based fallback. Scoped preview, dry-run, doctor, and other read-only commands remain available. This does not establish Windows support for the older unscoped install flow.
 
 ## Choose an installation path
 
@@ -178,26 +178,76 @@ codex plugin marketplace remove linmas
 
 This is a Codex plugin marketplace installation. It does not make Linmas appear in the ChatGPT `@` plugin catalog. ChatGPT plugins/apps are a separate surface and would require a separately hosted ChatGPT App or remote MCP integration.
 
-## Install skills in Claude Code
+## Install managed skills with Linmas
 
-Install all eleven managed skills from the published package:
-
-```bash
-npx --yes linmas@0.8.0 detect
-npx --yes linmas@0.8.0 install --all
-```
-
-Choose `Claude` when the interactive host prompt appears. Linmas writes managed skills under `~/.claude/skills` and records ownership in `~/.claude/linmas-manifest.json`. To install only one specialist:
+When the 0.9.2 package is available from npm, run `npx --yes linmas@0.9.2 install` to start the interactive wizard. To select a project scope and method explicitly:
 
 ```bash
-npx --yes linmas@0.8.0 install linmas-secure-code-reviewer
+npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
 ```
 
-Verify the managed installation:
+From this source checkout, the native installer manages Claude Code and Codex skills in a project or your user home. `--project` must name an existing directory. Project scope writes inside that directory; global scope writes under your home and is separate from an npm global executable install.
+
+Preview a project symlink install, then confirm it:
 
 ```bash
-npx --yes linmas@0.8.0 doctor
+node bin/linmas.mjs install --skill linmas-secure-code-reviewer --agent claude --scope project --method symlink --dry-run
+node bin/linmas.mjs install --skill linmas-secure-code-reviewer --agent claude --scope project --method symlink --yes
 ```
+
+Use `--agent codex` or repeat `--agent` to select both hosts. `--all` selects all Linmas skills, not all hosts. `--method copy` makes independent files; `--method symlink` stores one durable payload under `.agents/skills` and attaches Claude with a relative link. Because `.agents` is shared discovery space, another compatible harness may also see that payload.
+
+Check ownership and remove only the selected skill and host:
+
+```bash
+node bin/linmas.mjs doctor --scope project --project /path/to/project
+node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude --scope project --project /path/to/project --dry-run
+node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude --scope project --project /path/to/project --yes
+```
+
+Local edits and files without a valid Linmas ownership record are preserved. `--yes` does not approve replacing modified or unmanaged content; use the interactive preview and backup confirmation. Scoped apply is supported on POSIX systems with the required safe filesystem primitives; Windows fails closed before writing. This installer writes skill files and its own manifest; it does not install the Codex MCP plugin, credentials, hooks, or repository policy. Skills that require `linmas_review_decide` need the Linmas MCP plugin for that tool; skill files alone do not provide the MCP server.
+
+The older unscoped install/uninstall commands and version 1 host manifests remain available. For a global Claude migration, the legacy command and managed installer target the same `$CLAUDE_CONFIG_DIR/skills/<skill>` path (default `$HOME/.claude/skills/<skill>`). Archive and verify the legacy directory and manifest, remove the v1 entry, then install the managed global copy; running legacy uninstall after the scoped install can delete the replacement. For Claude Code, create and verify an archive on a POSIX system:
+
+```bash
+SKILL=linmas-secure-code-reviewer
+LEGACY_ROOT="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+BACKUP_DIR="$(mktemp -d)"
+mkdir "$BACKUP_DIR/verify"
+tar -cpf "$BACKUP_DIR/legacy.tar" -C "$LEGACY_ROOT" "skills/$SKILL" linmas-manifest.json
+tar -xpf "$BACKUP_DIR/legacy.tar" -C "$BACKUP_DIR/verify"
+diff -r "$LEGACY_ROOT/skills/$SKILL" "$BACKUP_DIR/verify/skills/$SKILL"
+cmp "$LEGACY_ROOT/linmas-manifest.json" "$BACKUP_DIR/verify/linmas-manifest.json"
+```
+
+Only after both comparisons succeed, retain the archive and remove the legacy v1 entry by choosing Claude and confirming:
+
+```bash
+node bin/linmas.mjs uninstall "$SKILL"
+test ! -e "$LEGACY_ROOT/skills/$SKILL"
+```
+
+Then install and verify the managed global copy:
+
+```bash
+node bin/linmas.mjs install --skill "$SKILL" --agent claude --scope global --method copy --yes
+node bin/linmas.mjs doctor --scope global
+```
+
+Repeat the archive and verification with the detected legacy host root for Codex. Verifying the destination does not show whether local edits or extra files were copied; the archive is their recovery copy. Do not treat a `skills` CLI lock or marketplace cache as Linmas-managed state.
+
+## Install with the Agent Skills CLI
+
+The ecosystem-managed path has its own lock file and lifecycle. This example pins the CLI version:
+
+```bash
+npx --yes skills@1.7.6 add TanKimGwan/linmas --skill linmas-secure-code-reviewer --agent claude-code --copy --yes
+npx --yes skills@1.7.6 list --agent claude-code
+npx --yes skills@1.7.6 update linmas-secure-code-reviewer --yes
+npx --yes skills@1.7.6 remove linmas-secure-code-reviewer --agent claude-code --yes
+```
+
+The repository argument follows its default remote ref; the version pin applies to the CLI. This route installs skill files only and does not configure Linmas MCP. Use the Codex marketplace path above for the plugin and MCP tools.
 
 Live Claude provider execution is a separate opt-in surface. It requires `ANTHROPIC_API_KEY`, an explicit model through `LINMAS_EVAL_MODEL` or the CLI, and confirmation before the named input leaves the machine. Installing skills does not transmit review data.
 
@@ -251,9 +301,9 @@ linmas review \
 
 Do not use live review with secrets or data you are not authorized to transmit.
 
-### Windows uninstall contract
+### Windows managed apply contract
 
-`linmas uninstall` dry-run remains available on Windows and does not mutate data. A confirmed destructive uninstall fails closed with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`; the managed skill and manifest remain unchanged. Use a supported POSIX environment for destructive uninstall, or remove the installation only through a separately reviewed native Windows implementation. Do not replace this guard with a `realpath`/`lstat` check followed by path-based rename or deletion.
+Scoped `linmas install` and `linmas uninstall` dry-run previews remain available on Windows and do not mutate data. Confirmed managed apply for either command fails closed with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`; skill files and manifests remain unchanged. Use a supported POSIX environment for these scoped mutations. Do not replace this guard with a `realpath`/`lstat` check followed by path-based rename or deletion. This limitation does not establish Windows support for the older unscoped installer.
 
 ## Use Linmas in Codex
 
@@ -512,9 +562,9 @@ Install Node.js 24 or newer and verify it:
 node --version
 ```
 
-### Windows uninstall reports `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`
+### Windows managed install or uninstall reports `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`
 
-This is the expected fail-closed security contract. Linmas will not delete or rename by lexical path when Node cannot bind the destructive operation to an authenticated Windows filesystem handle. The dry-run preview, non-destructive commands, and offline review remain available.
+This is the expected fail-closed security contract for scoped managed apply. Linmas will not write, delete, or rename by lexical path when Node cannot bind the mutation to an authenticated Windows filesystem handle. Dry-run previews, other non-destructive commands, and offline review remain available.
 
 ### ChatGPT cannot find Linmas in its plugin catalog
 

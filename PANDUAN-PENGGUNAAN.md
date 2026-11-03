@@ -11,6 +11,8 @@ Linmas adalah toolkit review keamanan defensif Codex-first untuk software yang d
 
 Linmas tidak meminta API key OpenAI untuk penggunaan Codex berbasis subscription. Autentikasi provider tetap dikelola Codex. Live review bersifat opt-in dan memerlukan konfirmasi eksplisit sebelum input keluar dari komputer.
 
+Installer managed native melakukan mutasi install/uninstall hanya pada platform yang menyediakan primitive filesystem aman yang diperlukan. Di Windows, apply scoped managed install maupun uninstall berhenti dengan `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE` sebelum mengubah file atau manifest; preview, dry-run, doctor, dan command read-only tetap dapat digunakan. Ini tidak mengklaim dukungan Windows untuk alur install lama tanpa scope.
+
 ## Pilih jalur instalasi
 
 | Jalur | Cocok untuk | Yang dipasang |
@@ -176,28 +178,78 @@ codex plugin marketplace remove linmas
 
 Ini adalah instalasi plugin marketplace Codex. Linmas tidak otomatis muncul di katalog plugin ChatGPT `@...`. Plugin/app ChatGPT adalah surface terpisah dan memerlukan ChatGPT App atau remote MCP yang di-host secara terpisah.
 
-## Instalasi skill di Claude Code
+## Instalasi managed skill dengan Linmas
 
-Pasang seluruh sebelas managed skill dari package yang dipublish:
-
-```bash
-npx --yes linmas@0.8.0 detect
-npx --yes linmas@0.8.0 install --all
-```
-
-Pilih `Claude` ketika prompt host interaktif muncul. Linmas menulis managed skill ke `~/.claude/skills` dan mencatat ownership pada `~/.claude/linmas-manifest.json`. Untuk memasang satu specialist saja:
+Setelah paket 0.9.2 tersedia di npm, jalankan `npx --yes linmas@0.9.2 install` untuk membuka wizard interaktif. Untuk memilih scope project dan metode secara eksplisit:
 
 ```bash
-npx --yes linmas@0.8.0 install linmas-secure-code-reviewer
+npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
 ```
 
-Verifikasi managed installation:
+Dari source checkout ini, installer native mengelola skill untuk Claude Code dan Codex pada scope project atau home pengguna. `--project` harus menunjuk direktori yang sudah ada. Scope project menulis di direktori itu; scope global menulis di home dan berbeda dari pemasangan executable npm global.
+
+Lihat preview instalasi project dengan symlink, lalu konfirmasi:
 
 ```bash
-npx --yes linmas@0.8.0 doctor
+node bin/linmas.mjs install --skill linmas-secure-code-reviewer --agent claude --scope project --method symlink --dry-run
+node bin/linmas.mjs install --skill linmas-secure-code-reviewer --agent claude --scope project --method symlink --yes
 ```
 
-Live execution melalui provider Claude adalah surface opt-in yang terpisah. Jalur tersebut membutuhkan `ANTHROPIC_API_KEY`, model eksplisit melalui `LINMAS_EVAL_MODEL` atau CLI, serta konfirmasi sebelum input yang disebutkan keluar dari komputer. Instalasi skill tidak mentransmisikan data review.
+Gunakan `--agent codex` atau ulangi `--agent` untuk memilih kedua host. `--all` memilih semua skill Linmas, bukan semua host. `--method copy` membuat file terpisah; `--method symlink` menyimpan satu payload permanen di `.agents/skills` dan memasang symlink relatif untuk Claude. Karena `.agents` adalah folder discovery bersama, harness kompatibel lain dapat melihat payload tersebut.
+
+Periksa ownership dan hapus hanya skill serta host yang dipilih:
+
+```bash
+node bin/linmas.mjs doctor --scope project --project /path/to/project
+node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude --scope project --project /path/to/project --dry-run
+node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude --scope project --project /path/to/project --yes
+```
+
+Edit lokal dan file tanpa catatan ownership Linmas yang valid akan dipertahankan. `--yes` tidak menyetujui penggantian file yang diubah atau unmanaged; gunakan preview interaktif dan konfirmasi backup. Installer ini menulis file skill dan manifest miliknya; installer tidak memasang plugin MCP Codex, credential, hooks, atau kebijakan repository. Skill yang memerlukan `linmas_review_decide` membutuhkan plugin MCP Linmas untuk memakai tool tersebut; file skill saja tidak menyediakan MCP server.
+
+Perintah install/uninstall lama tanpa opsi scope dan manifest host versi 1 tetap tersedia. Untuk migrasi Claude global, perintah legacy dan installer managed memakai lokasi yang sama, `$CLAUDE_CONFIG_DIR/skills/<skill>` (default `$HOME/.claude/skills/<skill>`). Arsipkan dan verifikasi direktori serta manifest legacy, hapus entri v1, lalu pasang salinan global managed; menjalankan uninstall legacy setelah install scoped dapat menghapus salinan pengganti. Untuk instalasi legacy Claude Code, buat lalu verifikasi arsip pada sistem POSIX:
+
+```bash
+SKILL=linmas-secure-code-reviewer
+LEGACY_ROOT="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+BACKUP_DIR="$(mktemp -d)"
+mkdir "$BACKUP_DIR/verify"
+tar -cpf "$BACKUP_DIR/legacy.tar" -C "$LEGACY_ROOT" "skills/$SKILL" linmas-manifest.json
+tar -xpf "$BACKUP_DIR/legacy.tar" -C "$BACKUP_DIR/verify"
+diff -r "$LEGACY_ROOT/skills/$SKILL" "$BACKUP_DIR/verify/skills/$SKILL"
+cmp "$LEGACY_ROOT/linmas-manifest.json" "$BACKUP_DIR/verify/linmas-manifest.json"
+```
+
+Setelah kedua perbandingan sukses, simpan arsip lalu hapus entri v1 legacy dengan memilih Claude dan mengonfirmasi:
+
+```bash
+node bin/linmas.mjs uninstall "$SKILL"
+test ! -e "$LEGACY_ROOT/skills/$SKILL"
+```
+
+Sesudah itu baru pasang dan verifikasi salinan global managed:
+
+```bash
+node bin/linmas.mjs install --skill "$SKILL" --agent claude --scope global --method copy --yes
+node bin/linmas.mjs doctor --scope global
+```
+
+Ulangi pengarsipan dan verifikasi dengan root host legacy Codex yang terdeteksi. Tujuan managed yang sehat tidak membuktikan bahwa edit atau file tambahan legacy sudah disalin; arsip adalah salinan pemulihannya. Jangan memperlakukan lock CLI `skills` atau cache marketplace sebagai state yang dikelola Linmas.
+
+## Instalasi dengan Agent Skills CLI
+
+Jalur yang dikelola ekosistem memiliki lock file dan lifecycle sendiri. Contoh ini mem-pin versi CLI:
+
+```bash
+npx --yes skills@1.7.6 add TanKimGwan/linmas --skill linmas-secure-code-reviewer --agent claude-code --copy --yes
+npx --yes skills@1.7.6 list --agent claude-code
+npx --yes skills@1.7.6 update linmas-secure-code-reviewer --yes
+npx --yes skills@1.7.6 remove linmas-secure-code-reviewer --agent claude-code --yes
+```
+
+Argumen repository mengikuti ref remote default; pin versi hanya berlaku pada CLI. Jalur ini memasang file skill saja dan tidak mengatur MCP Linmas. Gunakan jalur marketplace Codex di atas untuk plugin dan MCP tools.
+
+Live execution melalui provider Claude adalah surface opt-in yang terpisah. Jalur itu membutuhkan `ANTHROPIC_API_KEY`, model eksplisit melalui `LINMAS_EVAL_MODEL` atau CLI, serta konfirmasi sebelum input yang disebutkan keluar dari komputer. Instalasi skill tidak mentransmisikan data review.
 
 ## Menggunakan Linmas dengan Gemini atau AI coding agent lain
 

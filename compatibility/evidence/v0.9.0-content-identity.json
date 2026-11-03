@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-10-02T13:28:21.605Z",
+  "generatedAt": "2026-11-03T14:52:06.100Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -198,6 +198,7 @@
       "plugins/linmas/src/core/list-skills.mjs",
       "plugins/linmas/src/core/manifest.mjs",
       "plugins/linmas/src/core/onboard.mjs",
+      "plugins/linmas/src/core/scoped-skills.mjs",
       "plugins/linmas/src/core/skill-catalog.mjs",
       "plugins/linmas/src/core/uninstall-skills.mjs",
       "plugins/linmas/src/core/version.mjs",
@@ -273,6 +274,7 @@
       "releases/0.8.0.md",
       "releases/0.9.0.md",
       "releases/0.9.1.md",
+      "releases/0.9.2.md",
       "scripts/artifact-integrity.mjs",
       "scripts/bootstrap-github-repo.mjs",
       "scripts/build-codex-plugin.mjs",
@@ -313,6 +315,7 @@
       "src/core/list-skills.mjs",
       "src/core/manifest.mjs",
       "src/core/onboard.mjs",
+      "src/core/scoped-skills.mjs",
       "src/core/skill-catalog.mjs",
       "src/core/uninstall-skills.mjs",
       "src/core/version.mjs",
@@ -426,6 +429,7 @@
       "tests/review-prepare.test.mjs",
       "tests/review-provider-parity.test.mjs",
       "tests/review-run.test.mjs",
+      "tests/scoped-installer.test.mjs",
       "tests/security-delta.test.mjs",
       "tests/skill-catalog.test.mjs",
       "tests/smoke-published-package.test.mjs",
@@ -614,8 +618,8 @@
     },
     {
       "path": "bin/linmas.mjs",
-      "bytes": 8936,
-      "sha256": "f6f682d701015c6ce353cbed0cb770b50b4aea9436764ece8902a23cf3203a28"
+      "bytes": 23840,
+      "sha256": "42be99be6d6b9d8bb42e785c9972c8c5e5a287ddc1feb92840bc0966ae89ed1a"
     },
     {
       "path": "CODE_OF_CONDUCT.md",
@@ -915,17 +919,17 @@
     {
       "path": "package-lock.json",
       "bytes": 543,
-      "sha256": "8b13d668218889d8cae720ceed0630fdd4c131fdfc7887df3b4dfbcaa10544fe"
+      "sha256": "d900f32b7bcc745077054a34ea3176004417e3c8943479e8a17d6d97ee82dd17"
     },
     {
       "path": "package.json",
       "bytes": 1773,
-      "sha256": "d21509222408949c8f7e0becb29d379c649777765d1f894ca0e03a4ef4f02ef6"
+      "sha256": "4edf70d4b024d7179a459431c8f2cdb1b5ffa17ae6c5d20da01c02a908356f6b"
     },
     {
       "path": "PANDUAN-PENGGUNAAN.md",
-      "bytes": 26317,
-      "sha256": "7df2e914357da707467e861288c7c131c3972fe554d4ff0e742ab1b7b81c57ef"
+      "bytes": 30900,
+      "sha256": "ed914e0b52879bc7db0e3b16cb0e8bd417e5489ab280ce547eab77e2295c2aeb"
     },
     {
       "path": "plugin/assets/linmas-logo-dark.png",
@@ -945,7 +949,7 @@
     {
       "path": "plugins/linmas/.codex-plugin/plugin.json",
       "bytes": 1392,
-      "sha256": "1121e63b74357084d06e06dedc60ed32ec758dbcdbd3cd5c3d45321cbecf0642"
+      "sha256": "bcf0f8bf04faae0373b7841e9915c3249cf3b51f3996277d437c34ec6221f313"
     },
     {
       "path": "plugins/linmas/.mcp.json",
@@ -970,7 +974,7 @@
     {
       "path": "plugins/linmas/package.json",
       "bytes": 1773,
-      "sha256": "d21509222408949c8f7e0becb29d379c649777765d1f894ca0e03a4ef4f02ef6"
+      "sha256": "4edf70d4b024d7179a459431c8f2cdb1b5ffa17ae6c5d20da01c02a908356f6b"
     },
     {
       "path": "plugins/linmas/policies/baseline-appsec.json",
@@ -1209,13 +1213,13 @@
     },
     {
       "path": "plugins/linmas/src/cli/parse-args.mjs",
-      "bytes": 4500,
-      "sha256": "33258aa2213d223c1aaa195dd2fe290a5456744b25818a088d3e6777710f78aa"
+      "bytes": 7797,
+      "sha256": "b45707eb801f527e5bc590c88d1a7eb19ca5b59241f29b0a5cd4b5bee3b81132"
     },
     {
       "path": "plugins/linmas/src/core/detect-hosts.mjs",
-      "bytes": 329,
-      "sha256": "a65e7a3f083577314dc4dd5878997ef140447d6a6eaf2ffbf2d55d80615dd48d"
+      "bytes": 456,
+      "sha256": "4aa1732a6c037ae9f03393ca897f434e6931c1192f7a9e1c84d63b72256d48c4"
     },
     {
       "path": "plugins/linmas/src/core/doctor.mjs",
@@ -1229,8 +1233,8 @@
     },
     {
       "path": "plugins/linmas/src/core/install-skills.mjs",
-      "bytes": 11465,
-      "sha256": "7ae298285569255034a8bdbabdb80035f02a18833ae2e04b93a1cf08ae294911"
+      "bytes": 11871,
+      "sha256": "a6e1025922f24e7ec0cc539bfe11784f5b396d89c965c1e74921ad04474f2214"
     },
     {
       "path": "plugins/linmas/src/core/list-skills.mjs",
@@ -1239,13 +1243,18 @@
     },
     {
       "path": "plugins/linmas/src/core/manifest.mjs",
-      "bytes": 3101,
-      "sha256": "027a86f7c51a1a86067f788b42a0f223b1c3414cd13ec2d840cb9f0f51a69f1b"
+      "bytes": 9850,
+      "sha256": "60fc8262dd787ad43eeba03c64c74b6a21a11a70bbcfe95635d0c3f5409ee855"
     },
     {
       "path": "plugins/linmas/src/core/onboard.mjs",
       "bytes": 4287,
       "sha256": "a8bdb8c41c8e6e50928c8e8dd3c828970fe469bcee28b95b802a51cc7a38aebb"
+    },
+    {
+      "path": "plugins/linmas/src/core/scoped-skills.mjs",
+      "bytes": 57607,
+      "sha256": "c8339453843a77064d5af628ab241b3f6e1937113cfea1f41583d6e539baafe1"
     },
     {
       "path": "plugins/linmas/src/core/skill-catalog.mjs",
@@ -1254,8 +1263,8 @@
     },
     {
       "path": "plugins/linmas/src/core/uninstall-skills.mjs",
-      "bytes": 18707,
-      "sha256": "0d161f5171d06905d1d82e83db91122410ef380ac5db5bc6cc6788c653c1d1e4"
+      "bytes": 21679,
+      "sha256": "632b67205af2b2e2990d8ff3ed10ef9cadc26d12059bfb9b4085d936276127c7"
     },
     {
       "path": "plugins/linmas/src/core/version.mjs",
@@ -1304,18 +1313,18 @@
     },
     {
       "path": "plugins/linmas/src/hosts/claude.mjs",
-      "bytes": 6039,
-      "sha256": "32176e012d65995f3a501a9d81ef770061e97b63d9380931004d8452432fc072"
+      "bytes": 4551,
+      "sha256": "4b090f601688cefe1cf96c58e57559178d11c37e690925eddd678933c7b2c870"
     },
     {
       "path": "plugins/linmas/src/hosts/codex.mjs",
-      "bytes": 3673,
-      "sha256": "1b18c215d252b5317c0af8818ebfbce56424de7a581b9bde76c1afc3b585d84d"
+      "bytes": 4368,
+      "sha256": "fcf178ad1a3de6074fb6f33f08a842b262d81b7718326a4718e9baf3d21dfb52"
     },
     {
       "path": "plugins/linmas/src/hosts/registry.mjs",
-      "bytes": 440,
-      "sha256": "2cd98c505293210b90becdde15ca17950ff3511f81d5705cb1e57623174b00ce"
+      "bytes": 469,
+      "sha256": "5b028ec4fcdb82aa82ec47e131deed192667c484c74d49bdeb3e2a969e869f2d"
     },
     {
       "path": "plugins/linmas/src/policy/evaluate-policy.mjs",
@@ -1499,8 +1508,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 31520,
-      "sha256": "7ea1c556f710a02c73ed11e77f16b04fa693488257b469da7a6414ab716cd45e"
+      "bytes": 37067,
+      "sha256": "c3b2966dd41e3729d786b5c4157a1bbbd6a6d993025840cc09d1108301acb228"
     },
     {
       "path": "releases/0.1.1.md",
@@ -1621,6 +1630,11 @@
       "path": "releases/0.9.1.md",
       "bytes": 720,
       "sha256": "10314c70281b91a73402ead90ac55580c57fb9ad91a7d40bbd50b86659dd3426"
+    },
+    {
+      "path": "releases/0.9.2.md",
+      "bytes": 1120,
+      "sha256": "14dd38d63ad479eb6ad0580a997cd7654b041e157eaa430293fa545d1dc53705"
     },
     {
       "path": "scripts/artifact-integrity.mjs",
@@ -1784,13 +1798,13 @@
     },
     {
       "path": "src/cli/parse-args.mjs",
-      "bytes": 4500,
-      "sha256": "33258aa2213d223c1aaa195dd2fe290a5456744b25818a088d3e6777710f78aa"
+      "bytes": 7797,
+      "sha256": "b45707eb801f527e5bc590c88d1a7eb19ca5b59241f29b0a5cd4b5bee3b81132"
     },
     {
       "path": "src/core/detect-hosts.mjs",
-      "bytes": 329,
-      "sha256": "a65e7a3f083577314dc4dd5878997ef140447d6a6eaf2ffbf2d55d80615dd48d"
+      "bytes": 456,
+      "sha256": "4aa1732a6c037ae9f03393ca897f434e6931c1192f7a9e1c84d63b72256d48c4"
     },
     {
       "path": "src/core/doctor.mjs",
@@ -1804,8 +1818,8 @@
     },
     {
       "path": "src/core/install-skills.mjs",
-      "bytes": 11465,
-      "sha256": "7ae298285569255034a8bdbabdb80035f02a18833ae2e04b93a1cf08ae294911"
+      "bytes": 11871,
+      "sha256": "a6e1025922f24e7ec0cc539bfe11784f5b396d89c965c1e74921ad04474f2214"
     },
     {
       "path": "src/core/list-skills.mjs",
@@ -1814,13 +1828,18 @@
     },
     {
       "path": "src/core/manifest.mjs",
-      "bytes": 3101,
-      "sha256": "027a86f7c51a1a86067f788b42a0f223b1c3414cd13ec2d840cb9f0f51a69f1b"
+      "bytes": 9850,
+      "sha256": "60fc8262dd787ad43eeba03c64c74b6a21a11a70bbcfe95635d0c3f5409ee855"
     },
     {
       "path": "src/core/onboard.mjs",
       "bytes": 4287,
       "sha256": "a8bdb8c41c8e6e50928c8e8dd3c828970fe469bcee28b95b802a51cc7a38aebb"
+    },
+    {
+      "path": "src/core/scoped-skills.mjs",
+      "bytes": 57607,
+      "sha256": "c8339453843a77064d5af628ab241b3f6e1937113cfea1f41583d6e539baafe1"
     },
     {
       "path": "src/core/skill-catalog.mjs",
@@ -1829,8 +1848,8 @@
     },
     {
       "path": "src/core/uninstall-skills.mjs",
-      "bytes": 18707,
-      "sha256": "0d161f5171d06905d1d82e83db91122410ef380ac5db5bc6cc6788c653c1d1e4"
+      "bytes": 21679,
+      "sha256": "632b67205af2b2e2990d8ff3ed10ef9cadc26d12059bfb9b4085d936276127c7"
     },
     {
       "path": "src/core/version.mjs",
@@ -1879,18 +1898,18 @@
     },
     {
       "path": "src/hosts/claude.mjs",
-      "bytes": 6039,
-      "sha256": "32176e012d65995f3a501a9d81ef770061e97b63d9380931004d8452432fc072"
+      "bytes": 4551,
+      "sha256": "4b090f601688cefe1cf96c58e57559178d11c37e690925eddd678933c7b2c870"
     },
     {
       "path": "src/hosts/codex.mjs",
-      "bytes": 3673,
-      "sha256": "1b18c215d252b5317c0af8818ebfbce56424de7a581b9bde76c1afc3b585d84d"
+      "bytes": 4368,
+      "sha256": "fcf178ad1a3de6074fb6f33f08a842b262d81b7718326a4718e9baf3d21dfb52"
     },
     {
       "path": "src/hosts/registry.mjs",
-      "bytes": 440,
-      "sha256": "2cd98c505293210b90becdde15ca17950ff3511f81d5705cb1e57623174b00ce"
+      "bytes": 469,
+      "sha256": "5b028ec4fcdb82aa82ec47e131deed192667c484c74d49bdeb3e2a969e869f2d"
     },
     {
       "path": "src/policy/evaluate-policy.mjs",
@@ -2114,8 +2133,8 @@
     },
     {
       "path": "tests/detect-hosts.test.mjs",
-      "bytes": 9604,
-      "sha256": "4d9adce84a7dceb7697f496fab1a4d7f99d5e4f7ce3ac8cb473ab1f46fe341d9"
+      "bytes": 9638,
+      "sha256": "bc53c9ab10b27ceec23f7d73fd86d07b325998f50256770acef66d2ec9816988"
     },
     {
       "path": "tests/evaluation-cases.test.mjs",
@@ -2199,13 +2218,13 @@
     },
     {
       "path": "tests/host-parity.test.mjs",
-      "bytes": 6062,
-      "sha256": "531a7e658e24be1bde36b4ebb9fd832ef8b4f7f9dd041b45f5fa39dd15b381a7"
+      "bytes": 6089,
+      "sha256": "475fc3f06427089dda0ff56ee95313310c16ac7eb4f4e158c5c6f37802a01055"
     },
     {
       "path": "tests/host-registry.test.mjs",
-      "bytes": 950,
-      "sha256": "eefdedb441affa3016d1d174cba83640d5d60f8f8282580f2d36fc90d2fe1c94"
+      "bytes": 3030,
+      "sha256": "faa043c26838082d38784d5bcff91ab2e079de3de1b2b84e8e42a309d89886e1"
     },
     {
       "path": "tests/install-apply.test.mjs",
@@ -2214,8 +2233,8 @@
     },
     {
       "path": "tests/install-planning.test.mjs",
-      "bytes": 6904,
-      "sha256": "861d4482a9e28aa0aa262fd623791d7e3b909af254e1f4dd77653ade2dd399ad"
+      "bytes": 7316,
+      "sha256": "ff6d9f70beab6e283bbbf76fb6b8d6caf234c4a33c2274d5d283a4cdb09cdfc7"
     },
     {
       "path": "tests/irsa003-actual-integration.test.mjs",
@@ -2254,8 +2273,8 @@
     },
     {
       "path": "tests/linmas-cli.test.mjs",
-      "bytes": 30548,
-      "sha256": "12477d3ccb408dd36166d977ea115fc525aa730615323e6a5ea74181fb3f8b60"
+      "bytes": 44399,
+      "sha256": "e27b0a0d75c488ef7f3c9be06b9d9f72e2223ed1e5ebe27746842abe82024386"
     },
     {
       "path": "tests/list-skills.test.mjs",
@@ -2274,8 +2293,8 @@
     },
     {
       "path": "tests/parse-args.test.mjs",
-      "bytes": 5316,
-      "sha256": "7f48334f80fa0c1272e29ecb916968933977f9ebf292a8a03d360b6d5bf5e7a9"
+      "bytes": 7861,
+      "sha256": "740757952e9db9fdb78b6a871c0dfd5f21aedcac706af655aad4addb9b64afda"
     },
     {
       "path": "tests/policy-builtins.test.mjs",
@@ -2388,6 +2407,11 @@
       "sha256": "cf0936bb814eafbbaf26792e13ac259e76e5e349c04d31d8a56c13df5efabea6"
     },
     {
+      "path": "tests/scoped-installer.test.mjs",
+      "bytes": 60392,
+      "sha256": "57740076b1c9b51e32a5f18fcc7f16d912321c2ffc567d8bdc0770ddc4fdb2bb"
+    },
+    {
       "path": "tests/security-delta.test.mjs",
       "bytes": 5202,
       "sha256": "afed3063bdb8e10901484e246f4fe278604f819934d8a4f50d44811b42b0a661"
@@ -2419,8 +2443,8 @@
     },
     {
       "path": "tests/validate-skills.test.mjs",
-      "bytes": 19379,
-      "sha256": "4687b336f4d84a3815a6d31b9a5ec6e57694d1d0a8ca4f76b29bddffab2a81be"
+      "bytes": 20434,
+      "sha256": "14322628b60abed031ea18dd0ecdf7cd501c4cd08d147c98b2eb2da141db89c8"
     },
     {
       "path": "tests/verify-checksum.test.mjs",
@@ -2444,9 +2468,9 @@
     },
     {
       "path": "USAGE.md",
-      "bytes": 26556,
-      "sha256": "c52a747f0aaa5845f70d2c6fa3273bf2480d96e5079e0f5e2d20c93778dd2577"
+      "bytes": 30952,
+      "sha256": "67564fb01477ec451ab97a88a5d8f66259c7136ce2278e657f126786909512b6"
     }
   ],
-  "contentDigest": "5ce210ae189d628e6a38445707aae1198cf793ed312b5e14e2c3b9b87675c059"
+  "contentDigest": "779311ca771d762931976c1531eae6af07e54dbb6ceb0dca14084a294cbbab1d"
 }

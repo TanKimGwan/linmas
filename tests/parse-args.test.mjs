@@ -123,3 +123,42 @@ test('preserves option terminator semantics for dash-prefixed positionals', () =
   assert.equal(args.skillName, '--literal-skill-name');
   assert.equal(args.installAll, false);
 });
+
+test('parses repeated scoped install selections and aliases', () => {
+  const args = parseArgv(['node', 'linmas', 'install', '--skill', 'linmas-secure-code-reviewer', '--skill', 'security-domain-router', '-a', 'claude-code', '--agent', 'codex', '--project', '/tmp/project', '--copy', '-y']);
+  assert.deepEqual(args.skillNames, ['linmas-secure-code-reviewer', 'security-domain-router']);
+  assert.deepEqual(args.agents, ['claude-code', 'codex']);
+  assert.equal(args.scope, 'project');
+  assert.equal(args.projectPath, '/tmp/project');
+  assert.equal(args.method, 'copy');
+  assert.equal(args.assumeYes, true);
+  assert.equal(args.managedInstall, true);
+});
+
+test('bare install selects the interactive managed flow and dry-run accepts incomplete choice flags', () => {
+  assert.equal(parseArgv(['node', 'linmas', 'install']).managedInstall, true);
+  const dryRun = parseArgv(['node', 'linmas', 'install', '--dry-run']);
+  assert.equal(dryRun.managedInstall, true);
+  assert.equal(dryRun.dryRun, true);
+});
+
+test('project, scope, method and agent conflicts fail at the CLI trust boundary', () => {
+  assert.throws(() => parseArgv(['node', 'linmas', 'install', '--scope', 'global', '--project', '/tmp/project']), /cannot be combined/i);
+  assert.throws(() => parseArgv(['node', 'linmas', 'install', '--method', 'hardlink']), /invalid --method/i);
+  assert.throws(() => parseArgv(['node', 'linmas', 'install', '--scope', 'workspace']), /invalid --scope/i);
+  assert.throws(() => parseArgv(['node', 'linmas', 'install', '--skill', 'one', '--all']), /either a skill or --all/i);
+});
+
+test('scoped doctor and uninstall flags route to the managed scope', () => {
+  assert.equal(parseArgv(['node', 'linmas', 'doctor', '--project', '/tmp/project']).scope, 'project');
+  const uninstall = parseArgv(['node', 'linmas', 'uninstall', 'linmas-secure-code-reviewer', '--agent', 'claude', '--scope', 'project', '--yes']);
+  assert.equal(uninstall.managedUninstall, true);
+  assert.equal(uninstall.scope, 'project');
+  assert.deepEqual(uninstall.agents, ['claude']);
+});
+
+test('single-skill legacy commands keep v1 routing unless scoped options are supplied', () => {
+  assert.equal(parseArgv(['node', 'linmas', 'install', '--skill', 'linmas-secure-code-reviewer']).managedInstall, false);
+  assert.equal(parseArgv(['node', 'linmas', 'uninstall', '--skill', 'linmas-secure-code-reviewer']).managedUninstall, false);
+  assert.equal(parseArgv(['node', 'linmas', 'install', '--skill', 'linmas-secure-code-reviewer', '--agent', 'codex']).managedInstall, true);
+});

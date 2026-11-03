@@ -51,20 +51,24 @@ export async function promptForInstallTarget(io, detections) {
     throw new Error('No writable target hosts detected. Install aborted.');
   }
 
-  let targetChoice = detected.length > 1 ? 'both' : detected[0].host;
-
-  if (io && typeof io.readLine === 'function' && detected.length > 1) {
+  if (detected.length === 1) return detected[0].host;
+  if (!io || typeof io.readLine !== 'function' || (io.isInteractive === false && !io.allowPipedPrompts)) {
+    throw new Error('Non-interactive install with multiple hosts requires an explicit --agent choice.');
+  }
+  while (true) {
     io.stdout.write('Choose target host: [1] Claude [2] Codex [3] Both\n');
     const line = await io.readLine();
-    if (line !== null) {
-      const ans = line.trim();
-      if (ans === '1') targetChoice = 'claude';
-      else if (ans === '2') targetChoice = 'codex';
-      else targetChoice = 'both';
+    if (line === null) {
+      const error = new Error('Install cancelled before writing files.');
+      error.exitCode = 130;
+      throw error;
     }
+    const answer = line.trim();
+    if (answer === '1' && detected.some((item) => item.host === 'claude')) return 'claude';
+    if (answer === '2' && detected.some((item) => item.host === 'codex')) return 'codex';
+    if (answer === '3') return 'both';
+    io.stdout.write('Invalid target. Choose one available host or both.\n');
   }
-
-  return targetChoice;
 }
 
 export async function promptForInstallConfirmation(io, options = {}) {

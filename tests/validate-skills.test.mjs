@@ -180,6 +180,20 @@ test('marketplace guidance distinguishes moving refs from current and historical
   assert.match(readme, /restart Codex and start a fresh task/i);
 });
 
+test('global Claude legacy migration removes v1 ownership before managed install in all guides', async () => {
+  for (const file of ['README.md', 'USAGE.md', 'PANDUAN-PENGGUNAAN.md']) {
+    const text = await readFile(path.join(rootDir, file), 'utf8');
+    const archiveVerified = text.indexOf('cmp "$LEGACY_ROOT/linmas-manifest.json"');
+    const legacyUninstalled = text.indexOf('node bin/linmas.mjs uninstall "$SKILL"');
+    const managedInstalled = text.indexOf('node bin/linmas.mjs install --skill "$SKILL" --agent claude --scope global');
+
+    assert.ok(archiveVerified >= 0, `${file} verifies the legacy archive`);
+    assert.ok(legacyUninstalled > archiveVerified, `${file} removes legacy ownership after archive verification`);
+    assert.ok(managedInstalled > legacyUninstalled, `${file} installs the managed global copy after legacy removal`);
+    assert.match(text, /running legacy uninstall after the scoped install can delete the replacement|menjalankan uninstall legacy setelah install scoped dapat menghapus salinan pengganti/i);
+  }
+});
+
 test('README defines policy decision limits', async () => {
   const text = await readFile(path.join(rootDir, 'README.md'), 'utf8');
   assert.match(text, /--policy baseline-appsec/);

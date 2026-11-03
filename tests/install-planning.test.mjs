@@ -48,13 +48,11 @@ test('selectTargets returns only detected hosts', () => {
   assert.throws(() => selectTargets(detections, 'invalid_host'), /Target host invalid_host not detected or not writable./);
 });
 
-test('promptForInstallChoices exposes a non-interactive default choice helper', async () => {
-  const result = await promptForInstallChoices({}, [
+test('promptForInstallChoices refuses to expand incomplete non-interactive host selection', async () => {
+  await assert.rejects(promptForInstallChoices({}, [
     { host: 'claude', status: 'detected' },
     { host: 'codex', status: 'detected' }
-  ], [{ name: 'secure-code-reviewer' }]);
-
-  assert.deepEqual(result, { targetChoice: 'both', confirm: false, allowReplaceUnmanaged: false, allowReplaceManaged: false });
+  ], [{ name: 'secure-code-reviewer' }]), /explicit --agent/i);
 });
 
 function createPromptIO(inputs) {
@@ -118,6 +116,17 @@ test('promptForInstallTarget only prompts when multiple detected', async () => {
     { host: 'claude', status: 'detected' }
   ]);
   assert.equal(targetSingle, 'claude');
+});
+
+test('promptForInstallTarget retries invalid input and fails closed without a TTY', async () => {
+  const io = createPromptIO(['invalid', '2']);
+  const detections = [
+    { host: 'claude', status: 'detected' },
+    { host: 'codex', status: 'detected' }
+  ];
+  assert.equal(await promptForInstallTarget(io, detections), 'codex');
+  assert.match(io.getStdout(), /Invalid target/);
+  await assert.rejects(promptForInstallTarget({ isInteractive: false, readLine() {} }, detections), /explicit --agent/i);
 });
 
 test('promptForInstallConfirmation prompts for conflicts and confirm', async () => {
