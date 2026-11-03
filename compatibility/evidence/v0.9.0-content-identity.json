@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-11-03T14:17:15.982Z",
+  "generatedAt": "2026-11-03T14:33:01.375Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -2273,8 +2273,8 @@
     },
     {
       "path": "tests/linmas-cli.test.mjs",
-      "bytes": 43511,
-      "sha256": "32f9bb770e89e3ce698757796d7d169d766f6a9fcb19408d8b470db5f2840e5b"
+      "bytes": 44399,
+      "sha256": "e27b0a0d75c488ef7f3c9be06b9d9f72e2223ed1e5ebe27746842abe82024386"
     },
     {
       "path": "tests/list-skills.test.mjs",
@@ -2472,5 +2472,5 @@
       "sha256": "6a4e866ed21eb9f41bc3b8bfe03b7e5977679a048dc6460d5815cd754178aba1"
     }
   ],
-  "contentDigest": "f5543f0af0244c4b0793fc70d235237498c6e647ec962b6f911c2224fc77ecf1"
+  "contentDigest": "ead861f7d61147ed41b48f05a11dd5e127b5650d9d41f564736d841966fb811e"
 }

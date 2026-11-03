@@ -550,7 +550,7 @@ test('run uninstall command with multi-host target selection and correct flow or
   }
 });
 
-test('scoped non-interactive install, doctor, and uninstall stay inside the selected project', async (t) => {
+test('scoped non-interactive install fails closed on Windows and stays inside the project on POSIX', async (t) => {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-scoped-'));
   const home = path.join(base, 'home');
   const project = path.join(base, 'project');
@@ -561,7 +561,16 @@ test('scoped non-interactive install, doctor, and uninstall stay inside the sele
   const skill = 'linmas-security-operations-lead';
 
   const installIo = createMockIO();
-  assert.equal(await run(['node', cliPath, 'install', '--skill', skill, '--agent', 'codex', '--project', project, '--method', 'copy', '--yes'], installIo, dependencies), 0);
+  const installCode = await run(['node', cliPath, 'install', '--skill', skill, '--agent', 'codex', '--project', project, '--method', 'copy', '--yes'], installIo, dependencies);
+  if (process.platform === 'win32') {
+    assert.equal(installCode, 1);
+    assert.match(installIo.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+    assert.equal(fs.existsSync(path.join(project, '.agents')), false);
+    assert.equal(fs.existsSync(path.join(project, '.claude')), false);
+    assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+    return;
+  }
+  assert.equal(installCode, 0);
   const installedPath = path.join(project, '.agents', 'skills', skill);
   assert.equal(fs.readFileSync(path.join(installedPath, 'SKILL.md'), 'utf8').includes('security-operations-lead'), true);
   assert.equal(fs.existsSync(path.join(home, '.agents')), false);
@@ -713,7 +722,17 @@ test('bare install wizard selects skill and host before scope, rejects multi-sel
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
   const io = createPromptIO(['1', '2', '1,2', '1', '1', 'yes']);
   const code = await run(['node', cliPath, 'install'], io, { homedir: home, cwd: project, env: {} });
-  assert.equal(code, 0);
+  if (process.platform === 'win32') {
+    assert.equal(code, 1);
+    assert.match(io.getStderr(), WINDOWS_SAFE_FILESYSTEM_ERROR);
+    assert.equal(fs.existsSync(path.join(project, '.agents')), false);
+    assert.equal(fs.existsSync(path.join(project, '.claude')), false);
+    assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+  } else {
+    assert.equal(code, 0);
+    assert.equal(fs.existsSync(path.join(project, '.agents', 'skills', 'linmas-security-operations-lead', 'SKILL.md')), true);
+    assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+  }
   assert.ok(io.getStdout().indexOf('Choose skills to install') < io.getStdout().indexOf('Choose host integrations'));
   assert.ok(io.getStdout().indexOf('Choose host integrations') < io.getStdout().indexOf('Choose installation scope'));
   assert.ok(io.getStdout().indexOf('Choose installation scope') < io.getStdout().indexOf('Choose installation method'));
@@ -722,11 +741,13 @@ test('bare install wizard selects skill and host before scope, rejects multi-sel
   assert.match(io.getStdout(), /Choose host integrations/);
   assert.match(io.getStdout(), /Choose installation method/);
   assert.match(io.getStdout(), /Choose one option only/);
-  assert.match(io.getStdout(), /Next: linmas doctor --scope project --project/);
-  assert.match(io.getStdout(), /Next: linmas uninstall --skill linmas-security-operations-lead --agent codex --scope project --project/);
-  assert.doesNotMatch(io.getStdout(), /Next: linmas uninstall .*--yes/);
-  assert.equal(fs.existsSync(path.join(project, '.agents', 'skills', 'linmas-security-operations-lead', 'SKILL.md')), true);
-  assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+  if (process.platform === 'win32') {
+    assert.doesNotMatch(io.getStdout(), /Next: linmas/);
+  } else {
+    assert.match(io.getStdout(), /Next: linmas doctor --scope project --project/);
+    assert.match(io.getStdout(), /Next: linmas uninstall --skill linmas-security-operations-lead --agent codex --scope project --project/);
+    assert.doesNotMatch(io.getStdout(), /Next: linmas uninstall .*--yes/);
+  }
 });
 
 test('scoped install next step keeps subset and quotes shell-special project paths', { skip: process.platform === 'win32' ? 'POSIX shell quoting check' : false }, async (t) => {
