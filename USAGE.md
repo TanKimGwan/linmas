@@ -207,11 +207,11 @@ node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude
 
 Local edits and files without a valid Linmas ownership record are preserved. `--yes` does not approve replacing modified or unmanaged content; use the interactive preview and backup confirmation. Scoped apply is supported on POSIX systems with the required safe filesystem primitives; Windows fails closed before writing. This installer writes skill files and its own manifest; it does not install the Codex MCP plugin, credentials, hooks, or repository policy. Skills that require `linmas_review_decide` need the Linmas MCP plugin for that tool; skill files alone do not provide the MCP server.
 
-The older unscoped install/uninstall commands and version 1 host manifests remain available. Before removing a legacy global skill, keep a complete, verified copy of its directory and manifest because local edits and extra files are not copied into the package-based destination. For Claude Code, create and verify an archive on a POSIX system:
+The older unscoped install/uninstall commands and version 1 host manifests remain available. For a global Claude migration, the legacy command and managed installer target the same `$CLAUDE_CONFIG_DIR/skills/<skill>` path (default `$HOME/.claude/skills/<skill>`). Archive and verify the legacy directory and manifest, remove the v1 entry, then install the managed global copy; running legacy uninstall after the scoped install can delete the replacement. For Claude Code, create and verify an archive on a POSIX system:
 
 ```bash
 SKILL=linmas-secure-code-reviewer
-LEGACY_ROOT="$HOME/.claude"
+LEGACY_ROOT="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 BACKUP_DIR="$(mktemp -d)"
 mkdir "$BACKUP_DIR/verify"
 tar -cpf "$BACKUP_DIR/legacy.tar" -C "$LEGACY_ROOT" "skills/$SKILL" linmas-manifest.json
@@ -220,7 +220,21 @@ diff -r "$LEGACY_ROOT/skills/$SKILL" "$BACKUP_DIR/verify/skills/$SKILL"
 cmp "$LEGACY_ROOT/linmas-manifest.json" "$BACKUP_DIR/verify/linmas-manifest.json"
 ```
 
-Remove the legacy entry only after both comparisons succeed and you retain the archive. Repeat with the detected legacy host root for Codex. Verifying the destination does not show whether local edits or extra files were copied; the archive is their recovery copy. For a managed global destination, install and verify that copy and archive the old legacy directory before removing it. Do not treat a `skills` CLI lock or marketplace cache as Linmas-managed state.
+Only after both comparisons succeed, retain the archive and remove the legacy v1 entry by choosing Claude and confirming:
+
+```bash
+node bin/linmas.mjs uninstall "$SKILL"
+test ! -e "$LEGACY_ROOT/skills/$SKILL"
+```
+
+Then install and verify the managed global copy:
+
+```bash
+node bin/linmas.mjs install --skill "$SKILL" --agent claude --scope global --method copy --yes
+node bin/linmas.mjs doctor --scope global
+```
+
+Repeat the archive and verification with the detected legacy host root for Codex. Verifying the destination does not show whether local edits or extra files were copied; the archive is their recovery copy. Do not treat a `skills` CLI lock or marketplace cache as Linmas-managed state.
 
 ## Install with the Agent Skills CLI
 

@@ -155,6 +155,102 @@ test('global Claude reinstall refuses a different configuration root bound in th
   } finally { fs.rmSync(data.base, { recursive: true, force: true }); }
 });
 
+test('global Claude roots colliding with canonical .agents are rejected during planning', () => {
+  for (const [agents, method] of [[['claude'], 'copy'], [['claude'], 'symlink'], [['claude', 'codex'], 'symlink']]) {
+    const data = fixture('global');
+    try {
+      const collisionRoot = path.join(data.home, '.agents');
+      const registry = createHostRegistry({ homedir: data.home, env: { CLAUDE_CONFIG_DIR: collisionRoot } });
+      const targets = new Map([...registry].map(([host, adapter]) => [
+        host, adapter.resolveTarget({ scope: 'global', projectRoot: data.project })
+      ]));
+
+      assert.throws(() => planScopedInstall({
+        skills: [data.skill], agents, targets, scope: 'global', scopeRoot: data.home,
+        manifest: data.manifest, method
+      }), /Claude.*canonical|overlap.*\.agents/i);
+      assert.equal(fs.existsSync(collisionRoot), false);
+    } finally { fs.rmSync(data.base, { recursive: true, force: true }); }
+  }
+});
+
+test('global Claude collision is rejected when Codex already owns the canonical payload', { skip: POSIX_SAFE_MUTATION }, () => {
+  const data = fixture('global');
+  try {
+    assert.equal(applyScopedInstallPlan(installPlan(data, ['codex'], 'copy')).status, 'COMMITTED');
+    const manifestPath = path.join(data.home, '.agents', 'linmas-manifest.json');
+    const manifestBefore = fs.readFileSync(manifestPath, 'utf8');
+    const canonical = path.join(data.home, '.agents', 'skills', data.skill.name);
+    const registry = createHostRegistry({ homedir: data.home, env: { CLAUDE_CONFIG_DIR: path.join(data.home, '.agents') } });
+    const targets = new Map([...registry].map(([host, adapter]) => [
+      host, adapter.resolveTarget({ scope: 'global', projectRoot: data.project })
+    ]));
+
+    assert.throws(() => planScopedInstall({
+      skills: [data.skill], agents: ['claude'], targets, scope: 'global', scopeRoot: data.home,
+      manifest: readScopedManifest(manifestPath, 'global'), method: 'copy'
+    }), /Claude.*canonical|overlap.*\.agents/i);
+    assert.equal(fs.readFileSync(manifestPath, 'utf8'), manifestBefore);
+    assert.equal(fs.readFileSync(path.join(canonical, 'SKILL.md'), 'utf8'), '# test skill\n');
+    assert.equal(fs.lstatSync(canonical).isDirectory(), true);
+  } finally { fs.rmSync(data.base, { recursive: true, force: true }); }
+});
+
+test('global Claude target creates and verifies missing nested configuration ancestors', { skip: POSIX_SAFE_MUTATION }, () => {
+  const data = fixture('global');
+  const customRoot = path.join(data.home, 'new-parent', 'nested-parent', 'claude');
+  try {
+    const registry = createHostRegistry({ homedir: data.home, env: { CLAUDE_CONFIG_DIR: customRoot } });
+    const targets = new Map([...registry].map(([host, adapter]) => [
+      host, adapter.resolveTarget({ scope: 'global', projectRoot: data.project })
+    ]));
+    const plan = planScopedInstall({
+      skills: [data.skill], agents: ['claude'], targets, scope: 'global', scopeRoot: data.home,
+      manifest: data.manifest, method: 'copy'
+    });
+
+    assert.equal(fs.existsSync(path.join(data.home, 'new-parent')), false);
+    assert.equal(applyScopedInstallPlan(plan).status, 'COMMITTED');
+    assert.equal(fs.readFileSync(path.join(customRoot, 'skills', data.skill.name, 'SKILL.md'), 'utf8'), '# test skill\n');
+    assert.equal(fs.lstatSync(path.join(data.home, 'new-parent', 'nested-parent')).isDirectory(), true);
+    assert.match(formatScopedDoctorReport({
+      manifest: readScopedManifest(path.join(data.home, '.agents', 'linmas-manifest.json'), 'global'),
+      targets, scope: 'global', scopeRoot: data.home
+    }), /claude: managed \(copy\)/);
+  } finally { fs.rmSync(data.base, { recursive: true, force: true }); }
+});
+
+test('global Claude target refuses symlink and file ancestors', { skip: POSIX_SAFE_MUTATION }, () => {
+  for (const kind of ['symlink', 'file']) {
+    const data = fixture('global');
+    const blockedParent = path.join(data.home, 'blocked-parent');
+    const outside = path.join(data.base, 'outside');
+    try {
+      if (kind === 'symlink') {
+        fs.mkdirSync(outside);
+        fs.symlinkSync(outside, blockedParent, 'dir');
+      } else {
+        fs.writeFileSync(blockedParent, 'parent is a file\n');
+      }
+      const customRoot = path.join(blockedParent, 'nested', 'claude');
+      const registry = createHostRegistry({ homedir: data.home, env: { CLAUDE_CONFIG_DIR: customRoot } });
+      const targets = new Map([...registry].map(([host, adapter]) => [
+        host, adapter.resolveTarget({ scope: 'global', projectRoot: data.project })
+      ]));
+      assert.throws(() => {
+        const plan = planScopedInstall({
+          skills: [data.skill], agents: ['claude'], targets, scope: 'global', scopeRoot: data.home,
+          manifest: data.manifest, method: 'copy'
+        });
+        applyScopedInstallPlan(plan);
+      });
+      assert.equal(fs.existsSync(path.join(customRoot, 'skills', data.skill.name)), false);
+      if (kind === 'symlink') assert.deepEqual(fs.readdirSync(outside), []);
+      assert.equal(fs.existsSync(path.join(data.home, '.agents', 'linmas-manifest.json')), false);
+    } finally { fs.rmSync(data.base, { recursive: true, force: true }); }
+  }
+});
+
 test('project symlink install shares one durable payload and identical reinstall is a no-op', { skip: POSIX_SAFE_MUTATION }, () => {
   const data = fixture();
   try {
@@ -215,8 +311,8 @@ test('project symlink state remains managed and removable after moving the proje
   } finally { fs.rmSync(data.base, { recursive: true, force: true }); }
 });
 
-test('staged legacy migration archives local edits and extra files before v1 uninstall', { skip: POSIX_SAFE_MUTATION }, () => {
-  const data = fixture();
+test('global legacy migration archives and removes v1 ownership before managed install', { skip: POSIX_SAFE_MUTATION }, () => {
+  const data = fixture('global');
   const legacyRoot = path.join(data.home, '.claude');
   const legacyInstallRoot = path.join(legacyRoot, 'skills');
   const legacySkillPath = path.join(legacyInstallRoot, data.skill.name);
@@ -235,17 +331,6 @@ test('staged legacy migration archives local edits and extra files before v1 uni
     fs.mkdirSync(legacyRoot, { recursive: true });
     fs.writeFileSync(legacyManifestPath, `${JSON.stringify(legacyManifest, null, 2)}\n`);
     const legacyBytes = fs.readFileSync(legacyManifestPath, 'utf8');
-
-    assert.equal(applyScopedInstallPlan(installPlan(data, ['claude'], 'copy')).status, 'COMMITTED');
-    const scopedPath = path.join(data.project, '.claude', 'skills', data.skill.name);
-    assert.equal(fs.readFileSync(path.join(scopedPath, 'SKILL.md'), 'utf8'), '# test skill\n');
-    assert.equal(fs.readFileSync(legacyManifestPath, 'utf8'), legacyBytes);
-    assert.equal(fs.readFileSync(path.join(legacySkillPath, 'SKILL.md'), 'utf8'), '# locally edited legacy skill\n');
-    assert.equal(fs.readFileSync(path.join(legacySkillPath, 'local-only.txt'), 'utf8'), 'legacy-only data\n');
-    assert.match(formatScopedDoctorReport({
-      manifest: readScopedManifest(path.join(data.project, '.agents', 'linmas-manifest.json'), 'project'),
-      targets: data.targets, scope: 'project', scopeRoot: data.project
-    }), /claude: managed \(copy\)/);
 
     const legacyTargets = [{ host: 'claude', status: 'detected', installRoot: legacyInstallRoot }];
     const legacyPlan = planUninstall({ manifests: [legacyManifest], detections: legacyTargets, skillName: data.skill.name, uninstallAll: false });
@@ -268,12 +353,23 @@ test('staged legacy migration archives local edits and extra files before v1 uni
     );
     assert.deepEqual(removed.removed, [legacySkillPath]);
     assert.equal(fs.existsSync(legacySkillPath), false);
+    assert.equal(JSON.parse(fs.readFileSync(legacyManifestPath, 'utf8')).skills.length, 0);
+
+    const managedManifestPath = path.join(data.home, '.agents', 'linmas-manifest.json');
+    const managedPlan = planScopedInstall({
+      skills: [data.skill], agents: ['claude'], targets: data.targets, scope: 'global',
+      scopeRoot: data.home, manifest: readScopedManifest(managedManifestPath, 'global'), method: 'copy'
+    });
+    assert.equal(applyScopedInstallPlan(managedPlan).status, 'COMMITTED');
+    assert.equal(path.resolve(legacySkillPath), path.resolve(path.join(data.home, '.claude', 'skills', data.skill.name)));
+    assert.equal(fs.readFileSync(path.join(legacySkillPath, 'SKILL.md'), 'utf8'), '# test skill\n');
+    assert.equal(fs.existsSync(path.join(legacySkillPath, 'local-only.txt')), false);
     assert.equal(fs.readFileSync(path.join(verifiedSkillPath, 'SKILL.md'), 'utf8'), '# locally edited legacy skill\n');
     assert.equal(fs.readFileSync(path.join(verifiedSkillPath, 'local-only.txt'), 'utf8'), 'legacy-only data\n');
-    assert.equal(fs.readFileSync(path.join(restoredBackup, 'linmas-manifest.json'), 'utf8'), legacyBytes);
-    assert.equal(fs.readFileSync(path.join(scopedPath, 'SKILL.md'), 'utf8'), '# test skill\n');
-    assert.equal(fs.existsSync(path.join(scopedPath, 'local-only.txt')), false);
-    assert.equal(readScopedManifest(path.join(data.project, '.agents', 'linmas-manifest.json'), 'project').skills.length, 1);
+    assert.match(formatScopedDoctorReport({
+      manifest: readScopedManifest(managedManifestPath, 'global'), targets: data.targets,
+      scope: 'global', scopeRoot: data.home
+    }), /claude: managed \(copy\)/);
   } finally { fs.rmSync(data.base, { recursive: true, force: true }); }
 });
 

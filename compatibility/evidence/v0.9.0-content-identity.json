@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-11-03T14:33:01.375Z",
+  "generatedAt": "2026-11-03T14:52:06.100Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -928,8 +928,8 @@
     },
     {
       "path": "PANDUAN-PENGGUNAAN.md",
-      "bytes": 30465,
-      "sha256": "8dbdaf5c0ef643a0e0eba035921081f6069ae6c6aef71e895f473f625c1e37b8"
+      "bytes": 30900,
+      "sha256": "ed914e0b52879bc7db0e3b16cb0e8bd417e5489ab280ce547eab77e2295c2aeb"
     },
     {
       "path": "plugin/assets/linmas-logo-dark.png",
@@ -1253,8 +1253,8 @@
     },
     {
       "path": "plugins/linmas/src/core/scoped-skills.mjs",
-      "bytes": 56945,
-      "sha256": "574becebaf8776c29ab8c2560e476e7dd4004a50051cde43bf9e9ec9c5e7663d"
+      "bytes": 57607,
+      "sha256": "c8339453843a77064d5af628ab241b3f6e1937113cfea1f41583d6e539baafe1"
     },
     {
       "path": "plugins/linmas/src/core/skill-catalog.mjs",
@@ -1508,8 +1508,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 36699,
-      "sha256": "503862ecff39583eac440f2ba9f8106e54aef02075744e164aad8b085d5d6eaa"
+      "bytes": 37067,
+      "sha256": "c3b2966dd41e3729d786b5c4157a1bbbd6a6d993025840cc09d1108301acb228"
     },
     {
       "path": "releases/0.1.1.md",
@@ -1838,8 +1838,8 @@
     },
     {
       "path": "src/core/scoped-skills.mjs",
-      "bytes": 56945,
-      "sha256": "574becebaf8776c29ab8c2560e476e7dd4004a50051cde43bf9e9ec9c5e7663d"
+      "bytes": 57607,
+      "sha256": "c8339453843a77064d5af628ab241b3f6e1937113cfea1f41583d6e539baafe1"
     },
     {
       "path": "src/core/skill-catalog.mjs",
@@ -2408,8 +2408,8 @@
     },
     {
       "path": "tests/scoped-installer.test.mjs",
-      "bytes": 55410,
-      "sha256": "cf69cca68bd296a92ab410af261c407df9e400c0d6ff0ec1987ba156343f32a4"
+      "bytes": 60392,
+      "sha256": "57740076b1c9b51e32a5f18fcc7f16d912321c2ffc567d8bdc0770ddc4fdb2bb"
     },
     {
       "path": "tests/security-delta.test.mjs",
@@ -2443,8 +2443,8 @@
     },
     {
       "path": "tests/validate-skills.test.mjs",
-      "bytes": 19379,
-      "sha256": "4687b336f4d84a3815a6d31b9a5ec6e57694d1d0a8ca4f76b29bddffab2a81be"
+      "bytes": 20434,
+      "sha256": "14322628b60abed031ea18dd0ecdf7cd501c4cd08d147c98b2eb2da141db89c8"
     },
     {
       "path": "tests/verify-checksum.test.mjs",
@@ -2468,9 +2468,9 @@
     },
     {
       "path": "USAGE.md",
-      "bytes": 30520,
-      "sha256": "6a4e866ed21eb9f41bc3b8bfe03b7e5977679a048dc6460d5815cd754178aba1"
+      "bytes": 30952,
+      "sha256": "67564fb01477ec451ab97a88a5d8f66259c7136ce2278e657f126786909512b6"
     }
   ],
-  "contentDigest": "ead861f7d61147ed41b48f05a11dd5e127b5650d9d41f564736d841966fb811e"
+  "contentDigest": "779311ca771d762931976c1531eae6af07e54dbb6ceb0dca14084a294cbbab1d"
 }

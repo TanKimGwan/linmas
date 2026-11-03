@@ -207,11 +207,11 @@ node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude
 
 Edit lokal dan file tanpa catatan ownership Linmas yang valid akan dipertahankan. `--yes` tidak menyetujui penggantian file yang diubah atau unmanaged; gunakan preview interaktif dan konfirmasi backup. Installer ini menulis file skill dan manifest miliknya; installer tidak memasang plugin MCP Codex, credential, hooks, atau kebijakan repository. Skill yang memerlukan `linmas_review_decide` membutuhkan plugin MCP Linmas untuk memakai tool tersebut; file skill saja tidak menyediakan MCP server.
 
-Perintah install/uninstall lama tanpa opsi scope dan manifest host versi 1 tetap tersedia. Sebelum menghapus skill global lama, simpan arsip lengkap direktori skill dan manifest; keduanya dapat memuat edit lokal atau file tambahan yang tidak disalin ke tujuan berbasis package. Untuk instalasi legacy Claude Code, buat lalu verifikasi arsip pada sistem POSIX:
+Perintah install/uninstall lama tanpa opsi scope dan manifest host versi 1 tetap tersedia. Untuk migrasi Claude global, perintah legacy dan installer managed memakai lokasi yang sama, `$CLAUDE_CONFIG_DIR/skills/<skill>` (default `$HOME/.claude/skills/<skill>`). Arsipkan dan verifikasi direktori serta manifest legacy, hapus entri v1, lalu pasang salinan global managed; menjalankan uninstall legacy setelah install scoped dapat menghapus salinan pengganti. Untuk instalasi legacy Claude Code, buat lalu verifikasi arsip pada sistem POSIX:
 
 ```bash
 SKILL=linmas-secure-code-reviewer
-LEGACY_ROOT="$HOME/.claude"
+LEGACY_ROOT="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 BACKUP_DIR="$(mktemp -d)"
 mkdir "$BACKUP_DIR/verify"
 tar -cpf "$BACKUP_DIR/legacy.tar" -C "$LEGACY_ROOT" "skills/$SKILL" linmas-manifest.json
@@ -220,7 +220,21 @@ diff -r "$LEGACY_ROOT/skills/$SKILL" "$BACKUP_DIR/verify/skills/$SKILL"
 cmp "$LEGACY_ROOT/linmas-manifest.json" "$BACKUP_DIR/verify/linmas-manifest.json"
 ```
 
-Hapus entri legacy hanya setelah kedua perbandingan sukses dan arsip tetap disimpan. Ulangi dengan root host legacy Codex yang terdeteksi. Tujuan managed yang sehat tidak membuktikan bahwa edit atau file tambahan legacy sudah disalin; arsip adalah salinan pemulihannya. Jika tujuan akhir scope global managed, pasang dan verifikasi salinan global serta arsipkan direktori legacy sebelum menghapusnya. Jangan memperlakukan lock CLI `skills` atau cache marketplace sebagai state yang dikelola Linmas.
+Setelah kedua perbandingan sukses, simpan arsip lalu hapus entri v1 legacy dengan memilih Claude dan mengonfirmasi:
+
+```bash
+node bin/linmas.mjs uninstall "$SKILL"
+test ! -e "$LEGACY_ROOT/skills/$SKILL"
+```
+
+Sesudah itu baru pasang dan verifikasi salinan global managed:
+
+```bash
+node bin/linmas.mjs install --skill "$SKILL" --agent claude --scope global --method copy --yes
+node bin/linmas.mjs doctor --scope global
+```
+
+Ulangi pengarsipan dan verifikasi dengan root host legacy Codex yang terdeteksi. Tujuan managed yang sehat tidak membuktikan bahwa edit atau file tambahan legacy sudah disalin; arsip adalah salinan pemulihannya. Jangan memperlakukan lock CLI `skills` atau cache marketplace sebagai state yang dikelola Linmas.
 
 ## Instalasi dengan Agent Skills CLI
 

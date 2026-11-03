@@ -44,12 +44,20 @@ function digestDirectory(directory) {
 
 function ensureDirectory(directory) {
   const resolved = path.resolve(directory);
+  const current = lstatMaybe(resolved);
+  if (current) {
+    if (current.isSymbolicLink() || !current.isDirectory()) throw new Error(`Unsafe directory: ${directory}`);
+    const verify = openSafeMutationAnchors(resolved, resolved);
+    verify.close();
+    return;
+  }
   const parent = path.dirname(resolved);
-  const name = path.basename(resolved);
+  if (parent === resolved) throw new Error(`Unsafe directory: ${directory}`);
+  ensureDirectory(parent);
   const parentAnchor = openSafeMutationAnchors(parent, parent);
   try {
     parentAnchor.assertCurrent();
-    const child = path.join(parentAnchor.parentPath, name);
+    const child = path.join(parentAnchor.parentPath, path.basename(resolved));
     const stat = lstatMaybe(child);
     if (stat) {
       if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`Unsafe directory: ${directory}`);
@@ -252,6 +260,11 @@ export function planScopedInstall({ skills, agents, targets, scope, scopeRoot, m
   if (!['copy', 'symlink'].includes(method)) throw new Error(`Invalid installation method: ${method}`);
   validateScopedManifest(manifest, scope);
   const selectedAgents = normalizeAgents(agents);
+  const claudeRoot = targets.get('claude')?.rootPath;
+  if (scope === 'global' && selectedAgents.includes('claude') && claudeRoot
+    && path.resolve(claudeRoot) === path.resolve(path.join(scopeRoot, '.agents'))) {
+    throw new Error('Claude configuration root overlaps the canonical .agents directory');
+  }
   const desired = [];
   const operations = [];
   const conflicts = [];
