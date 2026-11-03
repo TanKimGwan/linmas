@@ -10,7 +10,7 @@ import { createCodexAdapter } from '../src/hosts/codex.mjs';
 import { createHostRegistry } from '../src/hosts/registry.mjs';
 
 test('host registry exposes validated Claude and Codex adapters in stable order', () => {
-  const registry = createHostRegistry();
+  const registry = createHostRegistry({ homedir: os.homedir(), env: {} });
   assert.deepEqual([...registry.keys()], ['claude', 'codex']);
   assert.equal(typeof registry.get('claude').detect, 'function');
   assert.equal(typeof registry.get('codex').detect, 'function');

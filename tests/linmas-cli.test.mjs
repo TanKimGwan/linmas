@@ -14,7 +14,17 @@ const cliPath = path.join(rootDir, 'bin', 'linmas.mjs');
 const WINDOWS_SAFE_FILESYSTEM_ERROR = /secure destructive filesystem operations are unavailable on Windows/i;
 
 function homeEnv(home) {
-  return { ...process.env, HOME: home, USERPROFILE: home };
+  return {
+    ...process.env,
+    HOME: home,
+    USERPROFILE: home,
+    CODEX_HOME: path.join(home, '.codex'),
+    CLAUDE_CONFIG_DIR: path.join(home, '.claude')
+  };
+}
+
+function homeDependencies(home) {
+  return { homedir: home, env: {} };
 }
 
 function createMockIO() {
@@ -23,6 +33,7 @@ function createMockIO() {
   return {
     stdin: { async *[Symbol.asyncIterator]() {} },
     isTTY: false,
+    isInteractive: false,
     async readLine() { return ''; },
     stdout: {
       write(chunk) {
@@ -52,6 +63,7 @@ function createPromptIO(inputs) {
   return {
     stdin: { async *[Symbol.asyncIterator]() {} },
     isTTY: true,
+    isInteractive: true,
     stdout: {
       write(chunk) {
         stdoutData += chunk;
@@ -358,8 +370,8 @@ test('run install command perform dry-run preview or actual install', async () =
     fs.mkdirSync(installRoot, { recursive: true });
     fs.mkdirSync(path.join(codexDir, 'skills'), { recursive: true });
 
-    const dryRunIo = createMockIO();
-    const dryRunCode = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead', '--dry-run'], dryRunIo);
+    const dryRunIo = createPromptIO(['1']);
+    const dryRunCode = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead', '--dry-run'], dryRunIo, homeDependencies(tempHome));
 
     assert.equal(dryRunCode, 0);
     assert.match(dryRunIo.getStdout(), /Linmas install preview:/);
@@ -367,7 +379,7 @@ test('run install command perform dry-run preview or actual install', async () =
     assert.equal(fs.existsSync(path.join(installRoot, 'linmas-security-operations-lead')), false);
 
     const installIo = createPromptIO(['1', 'yes']);
-    const installCode = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], installIo);
+    const installCode = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], installIo, homeDependencies(tempHome));
 
     assert.equal(installCode, 0);
     assert.match(installIo.getStdout(), /Choose target host: \[1\] Claude \[2\] Codex \[3\] Both/);
@@ -394,7 +406,7 @@ test('run install command with cancellation', async () => {
     fs.mkdirSync(installRoot, { recursive: true });
 
     const io = createPromptIO(['no']);
-    const code = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], io);
+    const code = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], io, homeDependencies(tempHome));
     assert.equal(code, 1);
     assert.match(io.getStderr(), /Install cancelled by user/);
   } finally {
@@ -428,7 +440,7 @@ test('run uninstall command performs dry-run preview or actual uninstall', async
     fs.writeFileSync(manifestPath, JSON.stringify(manifest));
 
     const dryRunIo = createMockIO();
-    const dryRunCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead', '--dry-run'], dryRunIo);
+    const dryRunCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead', '--dry-run'], dryRunIo, homeDependencies(tempHome));
 
     assert.equal(dryRunCode, 0);
     assert.match(dryRunIo.getStdout(), /Linmas uninstall preview:/);
@@ -436,7 +448,7 @@ test('run uninstall command performs dry-run preview or actual uninstall', async
     assert.equal(fs.existsSync(skillPath), true);
 
     const uninstallIo = createPromptIO(['yes']);
-    const uninstallCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo);
+    const uninstallCode = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo, homeDependencies(tempHome));
 
     assert.match(uninstallIo.getStdout(), /Linmas uninstall preview:/);
     if (process.platform === 'win32') {
@@ -472,7 +484,7 @@ test('run install command with multi-host conflict isolation and correct flow or
     fs.writeFileSync(path.join(codexConflictPath, 'SKILL.md'), 'unmanaged content');
 
     const installIo = createPromptIO(['1', 'yes']);
-    const code = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], installIo);
+    const code = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], installIo, homeDependencies(tempHome));
 
     assert.equal(code, 0);
     assert.match(installIo.getStdout(), /Linmas install preview:/);
@@ -515,7 +527,7 @@ test('run uninstall command with multi-host target selection and correct flow or
     fs.writeFileSync(codexManifestPath, JSON.stringify({ ...manifest, host: 'codex', skills: [{ name: 'security-operations-lead', path: codexSkillPath, backupPath: null }] }));
 
     const uninstallIo = createPromptIO(['claude', 'yes']);
-    const code = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo);
+    const code = await run(['node', 'bin/linmas.mjs', 'uninstall', 'security-operations-lead'], uninstallIo, homeDependencies(tempHome));
 
     assert.match(uninstallIo.getStdout(), /Linmas uninstall preview:/);
     assert.match(uninstallIo.getStdout(), /- claude: remove security-operations-lead/);
@@ -536,6 +548,227 @@ test('run uninstall command with multi-host target selection and correct flow or
     os.homedir = originalHomedir;
     fs.rmSync(tempHome, { recursive: true, force: true });
   }
+});
+
+test('scoped non-interactive install, doctor, and uninstall stay inside the selected project', async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-scoped-'));
+  const home = path.join(base, 'home');
+  const project = path.join(base, 'project');
+  fs.mkdirSync(home);
+  fs.mkdirSync(project);
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const dependencies = { homedir: home, cwd: project, env: {} };
+  const skill = 'linmas-security-operations-lead';
+
+  const installIo = createMockIO();
+  assert.equal(await run(['node', cliPath, 'install', '--skill', skill, '--agent', 'codex', '--project', project, '--method', 'copy', '--yes'], installIo, dependencies), 0);
+  const installedPath = path.join(project, '.agents', 'skills', skill);
+  assert.equal(fs.readFileSync(path.join(installedPath, 'SKILL.md'), 'utf8').includes('security-operations-lead'), true);
+  assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+
+  const doctorIo = createMockIO();
+  assert.equal(await run(['node', cliPath, 'doctor', '--scope', 'project', '--project', project], doctorIo, dependencies), 0);
+  assert.match(doctorIo.getStdout(), /codex: managed \(direct\)/);
+
+  const uninstallIo = createMockIO();
+  assert.equal(await run(['node', cliPath, 'uninstall', skill, '--agent', 'codex', '--project', project, '--yes'], uninstallIo, dependencies), 0);
+  assert.equal(fs.existsSync(installedPath), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(project, '.agents', 'linmas-manifest.json'), 'utf8')).skills, []);
+});
+
+test('scoped dry-run validates a complete choice without creating files', async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-scoped-dry-run-'));
+  const home = path.join(base, 'home');
+  const project = path.join(base, 'project');
+  fs.mkdirSync(home);
+  fs.mkdirSync(project);
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const io = createMockIO();
+  const code = await run(['node', cliPath, 'install', '--skill', 'linmas-security-operations-lead', '--agent', 'claude', '--project', project, '--method', 'symlink', '--dry-run'], io, { homedir: home, cwd: project, env: {} });
+  assert.equal(code, 0);
+  assert.match(io.getStdout(), /Dry run: no files or lock state will be written/);
+  assert.equal(fs.existsSync(path.join(project, '.agents')), false);
+  assert.equal(fs.existsSync(path.join(project, '.claude')), false);
+});
+
+test('interactive unavailable-symlink fallback shows and confirms a fresh copy preview', { skip: process.platform === 'win32' ? 'scoped destructive apply is unavailable on Windows' : false }, async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-symlink-fallback-'));
+  const home = path.join(base, 'home');
+  const project = path.join(base, 'project');
+  fs.mkdirSync(home);
+  fs.mkdirSync(project);
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const io = createPromptIO(['yes', 'yes']);
+  const originalSymlink = fs.symlinkSync;
+  fs.symlinkSync = function unavailableSymlink(...args) {
+    if (String(args[1]).includes('.linmas-stage.')) {
+      const error = new Error('symlinks unavailable in this fixture');
+      error.code = 'EOPNOTSUPP';
+      throw error;
+    }
+    return originalSymlink.apply(this, args);
+  };
+  try {
+    const code = await run([
+      'node', cliPath, 'install', '--skill', 'linmas-security-operations-lead',
+      '--agent', 'claude', '--project', project, '--method', 'symlink'
+    ], io, { homedir: home, cwd: project, env: {} });
+    assert.equal(code, 0);
+    assert.match(io.getStderr(), /Symlink creation is unavailable/);
+    assert.match(io.getStdout(), /Requested method: symlink[\s\S]*Requested method: copy/);
+    assert.match(io.getStdout(), /Install the new copy preview\? \[yes\/no\]/);
+    assert.equal(fs.lstatSync(path.join(project, '.claude', 'skills', 'linmas-security-operations-lead')).isDirectory(), true);
+    assert.equal(fs.existsSync(path.join(project, '.agents', 'skills', 'linmas-security-operations-lead')), false);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(project, '.agents', 'linmas-manifest.json'), 'utf8')).skills[0].attachments[0].method, 'copy');
+  } finally {
+    fs.symlinkSync = originalSymlink;
+  }
+});
+
+test('permission errors during symlink creation fail closed without copy fallback', { skip: process.platform === 'win32' ? 'scoped destructive apply is unavailable on Windows' : false }, async (t) => {
+  const originalSymlink = fs.symlinkSync;
+  for (const codeName of ['EPERM', 'EACCES']) {
+    const base = fs.mkdtempSync(path.join(os.tmpdir(), `linmas-cli-symlink-${codeName.toLowerCase()}-`));
+    const home = path.join(base, 'home');
+    const project = path.join(base, 'project');
+    fs.mkdirSync(home);
+    fs.mkdirSync(project);
+    t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+    const io = createPromptIO(['yes']);
+    fs.symlinkSync = function deniedSymlink(...args) {
+      if (String(args[1]).includes('.linmas-stage.')) {
+        const error = new Error(`injected ${codeName}`);
+        error.code = codeName;
+        throw error;
+      }
+      return originalSymlink.apply(this, args);
+    };
+    try {
+      const code = await run([
+        'node', cliPath, 'install', '--skill', 'linmas-security-operations-lead',
+        '--agent', 'claude', '--project', project, '--method', 'symlink'
+      ], io, { homedir: home, cwd: project, env: {} });
+      assert.equal(code, 1);
+      assert.match(io.getStderr(), new RegExp(codeName));
+      assert.doesNotMatch(io.getStderr(), /Symlink creation is unavailable/);
+      assert.doesNotMatch(io.getStdout(), /Requested method: copy|Install the new copy preview/);
+      assert.equal(fs.existsSync(path.join(project, '.claude', 'skills', 'linmas-security-operations-lead')), false);
+      assert.equal(fs.existsSync(path.join(project, '.agents', 'skills', 'linmas-security-operations-lead')), false);
+    } finally {
+      fs.symlinkSync = originalSymlink;
+    }
+  }
+});
+
+test('unsupported symlink fallback preserves incomplete rollback recovery details', { skip: process.platform === 'win32' ? 'scoped destructive apply is unavailable on Windows' : false }, async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-fallback-recovery-'));
+  const home = path.join(base, 'home');
+  const project = path.join(base, 'project');
+  const skill = 'linmas-secure-code-reviewer';
+  const destination = path.join(project, '.claude', 'skills', skill);
+  fs.mkdirSync(home);
+  fs.mkdirSync(destination, { recursive: true });
+  fs.writeFileSync(path.join(destination, 'local.txt'), 'original user data');
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+
+  const io = createPromptIO(['yes', 'yes']);
+  const originalSymlink = fs.symlinkSync;
+  fs.symlinkSync = function injectRollbackCollision(...args) {
+    if (String(args[1]).includes('.linmas-stage.')) {
+      fs.mkdirSync(destination);
+      fs.writeFileSync(path.join(destination, 'foreign.txt'), 'concurrent data');
+      const error = new Error('injected unsupported symlink');
+      error.code = 'EOPNOTSUPP';
+      throw error;
+    }
+    return originalSymlink.apply(this, args);
+  };
+  let code;
+  try {
+    code = await run([
+      'node', cliPath, 'install', '--skill', skill, '--agent', 'claude',
+      '--project', project, '--method', 'symlink'
+    ], io, { homedir: home, cwd: project, env: {} });
+  } finally {
+    fs.symlinkSync = originalSymlink;
+  }
+
+  const stderr = io.getStderr();
+  assert.equal(code, 1);
+  assert.match(stderr, /Recovery data retained at: .*\.linmas-backups/);
+  assert.doesNotMatch(stderr, /copy fallback has conflicts|Symlink creation is unavailable/);
+  assert.doesNotMatch(io.getStdout(), /Requested method: copy|Install the new copy preview/);
+  assert.equal(fs.readFileSync(path.join(destination, 'foreign.txt'), 'utf8'), 'concurrent data');
+  const recoveryPath = stderr.match(/Recovery data retained at: ([^\n]+)/)?.[1];
+  assert.ok(recoveryPath);
+  assert.equal(fs.readFileSync(path.join(recoveryPath, 'local.txt'), 'utf8'), 'original user data');
+});
+
+test('bare install wizard selects skill and host before scope, rejects multi-select scope, and chooses method', async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-scoped-wizard-'));
+  const home = path.join(base, 'home');
+  const project = path.join(base, 'project');
+  fs.mkdirSync(home);
+  fs.mkdirSync(project);
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const io = createPromptIO(['1', '2', '1,2', '1', '1', 'yes']);
+  const code = await run(['node', cliPath, 'install'], io, { homedir: home, cwd: project, env: {} });
+  assert.equal(code, 0);
+  assert.ok(io.getStdout().indexOf('Choose skills to install') < io.getStdout().indexOf('Choose host integrations'));
+  assert.ok(io.getStdout().indexOf('Choose host integrations') < io.getStdout().indexOf('Choose installation scope'));
+  assert.ok(io.getStdout().indexOf('Choose installation scope') < io.getStdout().indexOf('Choose installation method'));
+  assert.match(io.getStdout(), /Choose installation scope/);
+  assert.match(io.getStdout(), /Choose skills to install/);
+  assert.match(io.getStdout(), /Choose host integrations/);
+  assert.match(io.getStdout(), /Choose installation method/);
+  assert.match(io.getStdout(), /Choose one option only/);
+  assert.match(io.getStdout(), /Next: linmas doctor --scope project --project/);
+  assert.match(io.getStdout(), /Next: linmas uninstall --skill linmas-security-operations-lead --agent codex --scope project --project/);
+  assert.doesNotMatch(io.getStdout(), /Next: linmas uninstall .*--yes/);
+  assert.equal(fs.existsSync(path.join(project, '.agents', 'skills', 'linmas-security-operations-lead', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(home, '.agents')), false);
+});
+
+test('scoped install next step keeps subset and quotes shell-special project paths', { skip: process.platform === 'win32' ? 'POSIX shell quoting check' : false }, async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-scoped-next-step-'));
+  const home = path.join(base, 'home');
+  const project = path.join(base, "project space 'with $dollar and `tick`");
+  fs.mkdirSync(home);
+  fs.mkdirSync(project);
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const dependencies = { homedir: home, cwd: base, env: {} };
+  const first = 'linmas-security-operations-lead';
+  const selected = 'linmas-secure-code-reviewer';
+
+  assert.equal(await run(['node', cliPath, 'install', '--skill', first, '--agent', 'codex', '--project', project, '--method', 'copy', '--yes'], createMockIO(), dependencies), 0);
+  const io = createMockIO();
+  assert.equal(await run(['node', cliPath, 'install', '--skill', selected, '--agent', 'codex', '--project', project, '--method', 'copy', '--yes'], io, dependencies), 0);
+  const uninstallLine = io.getStdout().split('\n').find((line) => line.startsWith('Next: linmas uninstall'));
+  assert.match(uninstallLine, /--skill linmas-secure-code-reviewer/);
+  assert.doesNotMatch(uninstallLine, /--all|--yes/);
+  const quotedProject = uninstallLine.slice(uninstallLine.indexOf('--project ') + '--project '.length);
+  assert.equal(execFileSync('/bin/sh', ['-c', `printf '%s' ${quotedProject}`], { encoding: 'utf8' }), project);
+  assert.equal(fs.existsSync(path.join(project, '.agents', 'skills', first, 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(project, '.agents', 'skills', selected, 'SKILL.md')), true);
+});
+
+test('scoped wizard EOF during confirmation returns 130 with zero writes', async (t) => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-scoped-eof-'));
+  const home = path.join(base, 'home');
+  const project = path.join(base, 'project');
+  fs.mkdirSync(home);
+  fs.mkdirSync(project);
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const io = createMockIO();
+  io.isInteractive = true;
+  const inputs = ['1', '1', '1', '1', null];
+  io.readLine = async () => inputs.shift() ?? null;
+
+  assert.equal(await run(['node', cliPath, 'install'], io, { homedir: home, cwd: project, env: {} }), 130);
+  assert.match(io.getStdout(), /install preview/i);
+  assert.equal(fs.existsSync(path.join(project, '.agents')), false);
+  assert.equal(fs.existsSync(path.join(project, '.claude')), false);
+  assert.equal(fs.existsSync(path.join(home, '.agents')), false);
 });
 
 test('direct CLI install can prompt via process stdin/stdout', () => {
@@ -576,7 +809,7 @@ test('install summary includes task 3 details without regressing task 2 flow', a
     fs.mkdirSync(path.join(codexDir, 'skills'), { recursive: true });
 
     const io = createPromptIO(['1', 'yes']);
-    const code = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], io);
+    const code = await run(['node', 'bin/linmas.mjs', 'install', 'security-operations-lead'], io, homeDependencies(tempHome));
 
     assert.equal(code, 0);
     assert.match(io.getStdout(), /Installed skills:/);
@@ -603,7 +836,7 @@ test('direct CLI install aborts immediately when replacement is declined', () =>
     const result = spawnSync(process.execPath, [cliPath, 'install', 'security-operations-lead'], {
       cwd: rootDir,
       env: homeEnv(tempHome),
-      input: 'cancel\n',
+      input: '1\ncancel\n',
       encoding: 'utf8'
     });
 

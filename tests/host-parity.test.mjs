@@ -21,7 +21,7 @@ function completeAdapter(detection) {
 test('current host adapters satisfy the same contract', () => {
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-host-contract-'));
   try {
-    const registry = createHostRegistry({ homedir: tempHome });
+    const registry = createHostRegistry({ homedir: tempHome, env: {} });
     for (const [id, adapter] of registry) {
       assert.equal(assertHostAdapter(id, adapter), adapter);
     }
@@ -77,7 +77,7 @@ test('rejects invalid detection identity and status with field-specific errors',
 });
 
 test('registered hosts preserve detection parity across filesystem states', async (t) => {
-  const hostIds = [...createHostRegistry({ homedir: '/home/test' }).keys()];
+  const hostIds = [...createHostRegistry({ homedir: '/home/test', env: {} }).keys()];
   const cases = [
     {
       name: 'absent',
@@ -142,7 +142,7 @@ test('registered hosts preserve detection parity across filesystem states', asyn
             fs.writeFileSync(path.join(binPath, id), 'test binary');
           }
 
-          const adapter = createHostRegistry({ homedir: tempHome }).get(id);
+          const adapter = createHostRegistry({ homedir: tempHome, env: {} }).get(id);
           const detection = adapter.detect({ env: { PATH: parityCase.binary ? binPath : '' }, platform: 'linux' });
 
           assert.deepEqual(detection, parityCase.expected(context));

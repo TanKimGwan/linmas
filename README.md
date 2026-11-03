@@ -35,10 +35,14 @@ Install the published CLI with Node.js 24 or newer:
 
 ```bash
 npm install --global linmas@0.9.1
-linmas --version
+linmas list
 ```
 
 See the [0.9.1 release notes](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.1.md) and the full [0.9.0 release and upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Existing 0.8.0 users do not need a data migration.
+
+## Upcoming: v0.9.2
+
+The planned 0.9.2 release adds a native managed skill installer for Claude Code and Codex. It supports selected skills at project or user-home scope, copy or symlink attachments, previews, ownership checks, and scoped removal. Managed apply will fail closed on Windows where the required safe filesystem mutation primitives are unavailable. See the [0.9.2 release notes](releases/0.9.2.md). The package and release are not available yet; installation examples below apply after publication.
 
 ## Try it in 60 seconds
 
@@ -287,7 +291,7 @@ Installation hosts and execution providers are independent:
 | Installation hosts | Claude Code and Codex managed skill directories |
 | Execution providers | Claude and Codex provider-native configuration |
 
-Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.9.1. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
+Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.9.2. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
 
 ```bash
 npx linmas list
@@ -332,8 +336,65 @@ Codex contributed as the provider-native review engine, implementation collabora
 - The verified live evidence was collected on Linux.
 - Codex executable discovery covers native POSIX and Windows layouts; unsafe Windows `.cmd` and `.bat` shims are rejected.
 - Codex authentication isolation is cross-platform: POSIX uses no-follow/nonblocking descriptor reads, while Windows validates file identity before reading only from the opened descriptor. User `config.toml` content is never inherited by the isolated launch.
-- Destructive uninstall and cleanup fail closed on Windows with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`. Node.js 24 does not expose the handle-relative Windows rename/delete primitive needed to preserve Linmas's anti-substitution invariant; install, list, doctor, offline review, and package execution remain available.
+- Scoped managed install and uninstall apply both fail closed on Windows with `SAFE_FILESYSTEM_OPERATION_UNAVAILABLE`. Node.js 24 does not expose the handle-relative mutation primitive needed to preserve Linmas's anti-substitution invariant. Scoped preview, dry-run, doctor, list, offline review, and package execution remain read-only/available; this statement does not establish Windows support for legacy install flows.
 - The native MCP stdio path is verified on Linux with Node.js 24+. Native Windows MCP and a successful live Windows provider run are not currently claimed.
+
+## Install managed skills
+
+When the 0.9.2 package is available from npm, `npx --yes linmas@0.9.2 install` starts the interactive wizard. To choose a project scope and method explicitly:
+
+```bash
+npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
+```
+
+From this source checkout, the native installer manages Claude Code and Codex skills in a project or your user home. `--project` must name an existing directory; project scope writes under that directory, while global scope writes under your home. This is not an npm global executable install.
+
+Preview a project symlink install, then confirm it:
+
+```bash
+node bin/linmas.mjs install --skill linmas-secure-code-reviewer --agent claude --scope project --method symlink --dry-run
+node bin/linmas.mjs install --skill linmas-secure-code-reviewer --agent claude --scope project --method symlink --yes
+```
+
+Use `--agent codex` or repeat `--agent` to select both hosts. `--all` selects every Linmas skill but does not select every host. `--method copy` creates independent files; `--method symlink` keeps one durable copy under `.agents/skills` and attaches Claude with a relative link. The `.agents` directory is shared discovery space, so a skill may be visible to another compatible harness even when only one host was selected.
+
+Inspect ownership and remove only the selected skill and host:
+
+```bash
+node bin/linmas.mjs doctor --scope project --project /path/to/project
+node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude --scope project --project /path/to/project --dry-run
+node bin/linmas.mjs uninstall --skill linmas-secure-code-reviewer --agent claude --scope project --project /path/to/project --yes
+```
+
+Local edits and files without a valid Linmas ownership record are preserved. `--yes` does not approve replacing modified or unmanaged content; use the interactive preview and backup confirmation. The managed installer writes skill files and its own manifest only. It does not install or register the Codex MCP plugin, provider credentials, hooks, or repository policy. Skills that require `linmas_review_decide` need the Linmas MCP plugin for that interactive tool; skill files alone do not provide the MCP server.
+
+The older unscoped install/uninstall path and its version 1 host manifests remain available. Before removing a legacy global skill, keep a complete, verified copy of the legacy directory and manifest: those files may contain local edits or extra files that the package-based destination does not copy. For a Claude Code legacy install, create and verify an archive on a POSIX system:
+
+```bash
+SKILL=linmas-secure-code-reviewer
+LEGACY_ROOT="$HOME/.claude"
+BACKUP_DIR="$(mktemp -d)"
+mkdir "$BACKUP_DIR/verify"
+tar -cpf "$BACKUP_DIR/legacy.tar" -C "$LEGACY_ROOT" "skills/$SKILL" linmas-manifest.json
+tar -xpf "$BACKUP_DIR/legacy.tar" -C "$BACKUP_DIR/verify"
+diff -r "$LEGACY_ROOT/skills/$SKILL" "$BACKUP_DIR/verify/skills/$SKILL"
+cmp "$LEGACY_ROOT/linmas-manifest.json" "$BACKUP_DIR/verify/linmas-manifest.json"
+```
+
+Confirm both comparisons succeed and retain the archive before running the legacy `uninstall <skill>` command. Repeat with the detected legacy host root for Codex. A healthy managed destination does not prove that legacy edits or extra files were copied there; the archive is their recovery copy. If the final destination should be global, install and verify the managed global copy and archive the legacy directory before removing it. Do not mix native ownership with the `skills` CLI lock or a marketplace cache; those paths have their own lifecycle.
+
+### Install through the Agent Skills CLI
+
+For the separate ecosystem-managed route, pin the `skills` CLI version and let it manage its own lock and lifecycle:
+
+```bash
+npx --yes skills@1.7.6 add TanKimGwan/linmas --skill linmas-secure-code-reviewer --agent claude-code --copy --yes
+npx --yes skills@1.7.6 list --agent claude-code
+npx --yes skills@1.7.6 update linmas-secure-code-reviewer --yes
+npx --yes skills@1.7.6 remove linmas-secure-code-reviewer --agent claude-code --yes
+```
+
+The repository argument follows its default remote ref; it is separate from the pinned CLI version. This route installs skill files only and does not configure Linmas MCP. Use the Codex marketplace section below when you want the plugin and MCP tools.
 
 ## Native MCP plugin
 
@@ -357,7 +418,7 @@ codex plugin list
 
 After installation, restart Codex completely and create a new task. If `linmas@linmas` is still not listed, verify that the computer has Git, Node.js 24+, and network access to GitHub. The official Plugins Directory is a separate publication channel that requires OpenAI submission, review, and approval; GitHub and npm publication do not automatically add Linmas to that global catalog.
 
-To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.9.1`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
+To pin the currently published immutable release instead of following `main`, replace `--ref main` with `--ref v0.9.1`. After 0.9.2 is published, replace that ref with `v0.9.2` to select the newer release. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
 
 To refresh an existing marketplace installation that follows a moving ref such
 as `main`, run:
@@ -370,10 +431,11 @@ codex plugin list --json
 ```
 
 `marketplace upgrade` refreshes the configured ref; it does not change an
-immutable `v0.8.0` ref, and a second `marketplace add` with `--ref v0.9.1` is
-rejected while the old source is registered. To move a pinned installation from
-`v0.8.0` to `v0.9.1`, remove the installed plugin and old marketplace, re-add it
-with `--ref v0.9.1`, install the plugin again, and verify the configured ref and
+immutable `v0.8.0` ref, and a second `marketplace add` with `--ref v0.9.2` is
+rejected while the old source is registered. After v0.9.2 is published, move a
+pinned installation from `v0.8.0` to `v0.9.2` with these steps: remove the installed plugin and old marketplace,
+re-add with `--ref v0.9.2`, install the plugin again,
+and verify the configured ref and
 installed version. See the [0.9.0 upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md#upgrade-from-080).
 Always restart Codex and start a fresh task after verification.
 
@@ -453,7 +515,7 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 - Codex Security adapter input must be a completed sealed scan directory; findings-only JSON is not treated as verified evidence.
 - Live review transmits the explicit input to the selected provider after confirmation.
 - No claim is made that a read-only sandbox limits provider reads to the Linmas input.
-- Windows destructive uninstall and cleanup are unavailable until a handle-relative native implementation can authenticate the object being mutated; Linmas does not fall back to lexical path deletion.
+- Scoped managed install and uninstall apply are unavailable on Windows until a handle-relative native implementation can authenticate filesystem mutations; Linmas does not fall back to lexical path writes, renames, or deletion.
 - Native MCP support is bounded to the documented Node.js 24+ Linux-verified path; Codex fresh-task discovery requires a separately verified host reinstall and is not implied by direct stdio validation.
 
 ## Contributing, security, and license
