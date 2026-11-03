@@ -16,6 +16,10 @@ function assertSecureDestructiveFilesystem(platform) {
   throw error;
 }
 
+export function assertSafeDestructiveFilesystem(platform = process.platform) {
+  assertSecureDestructiveFilesystem(platform);
+}
+
 export function planUninstall({ manifests, detections, skillName, uninstallAll }) {
   if (!uninstallAll && !skillName) {
     throw new Error('uninstall requires a skill name or --all');
@@ -155,8 +159,11 @@ function openCanonicalDirectory(targetPath) {
 }
 
 function openMutationAnchors(installRoot, parentPath) {
+  const expectedRoot = fs.lstatSync(installRoot, { bigint: true });
+  if (!expectedRoot.isDirectory() || expectedRoot.isSymbolicLink()) {
+    throw new Error('Install root changed or is not a safe directory');
+  }
   const rootPath = fs.realpathSync(installRoot);
-  const expectedRoot = fs.statSync(rootPath, { bigint: true });
   const root = openCanonicalDirectory(rootPath);
   try {
     if (!sameDirectory(expectedRoot, root.identity)) throw new Error('Install root changed during uninstall');
@@ -188,9 +195,11 @@ function openMutationAnchors(installRoot, parentPath) {
 
 function assertAnchorCurrent(anchor, targetPath, label) {
   let current;
-  try { current = fs.statSync(targetPath, { bigint: true }); }
+  try { current = fs.lstatSync(targetPath, { bigint: true }); }
   catch { throw new Error(`${label} changed during uninstall`); }
-  if (!sameDirectory(anchor.identity, current)) throw new Error(`${label} changed during uninstall`);
+  if (!current.isDirectory() || current.isSymbolicLink() || !sameDirectory(anchor.identity, current)) {
+    throw new Error(`${label} changed during uninstall`);
+  }
 }
 
 function closeMutationAnchors(operations) {
@@ -202,6 +211,26 @@ function closeMutationAnchors(operations) {
       try { fs.closeSync(anchor.fd); } catch { /* operation outcome remains authoritative */ }
     }
   }
+}
+
+export function openSafeMutationAnchors(installRoot, parentPath) {
+  const anchors = openMutationAnchors(installRoot, parentPath);
+  let closed = false;
+  return {
+    rootPath: anchors.root.path,
+    parentPath: anchors.parent.path,
+    rootIdentity: anchors.root.identity,
+    parentIdentity: anchors.parent.identity,
+    assertCurrent() {
+      assertAnchorCurrent(anchors.root, installRoot, 'Install root');
+      assertAnchorCurrent(anchors.parent, parentPath, 'Mutation parent');
+    },
+    close() {
+      if (closed) return;
+      closed = true;
+      closeMutationAnchors([{ rootAnchor: anchors.root, parentAnchor: anchors.parent }]);
+    }
+  };
 }
 
 function cleanupRelativePath(installRoot, backupPath) {
@@ -296,6 +325,41 @@ function removeIdentityBoundBackup({ parentAnchor, backupName, backupIdentity, r
   } catch (cause) {
     restoreCleanupCandidate(quarantinePath, backupPath, cause);
     throw cause;
+  }
+}
+
+export function removeSafeLeaf(installRoot, targetPath, expectedIdentity, { platform = process.platform } = {}) {
+  assertSecureDestructiveFilesystem(platform);
+  const parentPath = path.dirname(targetPath);
+  const anchors = openMutationAnchors(installRoot, parentPath);
+  const name = path.basename(targetPath);
+  const originalPath = path.join(anchors.parent.path, name);
+  const quarantinePath = path.join(anchors.parent.path, `.linmas-remove.${process.pid}.${randomUUID()}.tmp`);
+  try {
+    assertAnchorCurrent(anchors.root, installRoot, 'Install root');
+    assertAnchorCurrent(anchors.parent, parentPath, 'Mutation parent');
+    const current = statWithoutFollowing(originalPath);
+    if (!current) return false;
+    if (!expectedIdentity || !sameDirectory(expectedIdentity, current)) {
+      throw new Error('Refusing to remove a changed filesystem entry');
+    }
+    if (pathExists(quarantinePath)) throw new Error('Removal quarantine already exists');
+    fs.renameSync(originalPath, quarantinePath);
+    try {
+      const moved = statWithoutFollowing(quarantinePath);
+      if (!moved || !sameDirectory(expectedIdentity, moved)) throw new Error('Filesystem entry changed during removal');
+      if (moved.isSymbolicLink() || moved.isFile()) fs.unlinkSync(quarantinePath);
+      else if (moved.isDirectory()) fs.rmSync(quarantinePath, { recursive: true, force: false });
+      else throw new Error('Refusing to remove a non-regular filesystem entry');
+      if (statWithoutFollowing(quarantinePath)) throw new Error('Filesystem entry remains after removal');
+      return true;
+    } catch (cause) {
+      try { if (pathExists(quarantinePath) && !pathExists(originalPath)) fs.renameSync(quarantinePath, originalPath); }
+      catch (rollbackCause) { cause.rollbackErrors = [...(cause.rollbackErrors ?? []), rollbackCause]; }
+      throw cause;
+    }
+  } finally {
+    closeMutationAnchors([{ rootAnchor: anchors.root, parentAnchor: anchors.parent }]);
   }
 }
 

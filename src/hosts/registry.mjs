@@ -3,9 +3,9 @@ import { assertHostAdapter } from './adapter-contract.mjs';
 import { createClaudeAdapter } from './claude.mjs';
 import { createCodexAdapter } from './codex.mjs';
 
-export function createHostRegistry({ homedir = os.homedir() } = {}) {
+export function createHostRegistry({ homedir = os.homedir(), env = process.env } = {}) {
   return new Map([
-    ['claude', assertHostAdapter('claude', createClaudeAdapter({ homedir }))],
-    ['codex', assertHostAdapter('codex', createCodexAdapter({ homedir }))]
+    ['claude', assertHostAdapter('claude', createClaudeAdapter({ homedir, env }))],
+    ['codex', assertHostAdapter('codex', createCodexAdapter({ homedir, env }))]
   ]);
 }

@@ -6,14 +6,31 @@ const COMMAND_OPTIONS = {
   doctor: {},
   onboard: {},
   install: {
-    skill: { type: 'string' },
+    skill: { type: 'string', multiple: true },
     all: { type: 'boolean' },
-    'dry-run': { type: 'boolean' }
+    'dry-run': { type: 'boolean' },
+    agent: { type: 'string', multiple: true, short: 'a' },
+    scope: { type: 'string' },
+    global: { type: 'boolean', short: 'g' },
+    copy: { type: 'boolean' },
+    method: { type: 'string' },
+    project: { type: 'string' },
+    yes: { type: 'boolean', short: 'y' }
   },
   uninstall: {
-    skill: { type: 'string' },
+    skill: { type: 'string', multiple: true },
     all: { type: 'boolean' },
-    'dry-run': { type: 'boolean' }
+    'dry-run': { type: 'boolean' },
+    agent: { type: 'string', multiple: true, short: 'a' },
+    scope: { type: 'string' },
+    global: { type: 'boolean', short: 'g' },
+    project: { type: 'string' },
+    yes: { type: 'boolean', short: 'y' }
+  },
+  doctor: {
+    scope: { type: 'string' },
+    global: { type: 'boolean', short: 'g' },
+    project: { type: 'string' }
   },
   review: {
     skill: { type: 'string' },
@@ -69,11 +86,14 @@ function parseOptions(args, options) {
   const seen = new Set();
   for (const token of parsed.tokens) {
     if (token.kind !== 'option') continue;
-    if (seen.has(token.name)) throw new Error(`Duplicate option --${token.name}`);
+    if (seen.has(token.name) && !options[token.name]?.multiple) throw new Error(`Duplicate option --${token.name}`);
     seen.add(token.name);
   }
   for (const [name, value] of Object.entries(parsed.values)) {
-    if (options[name]?.type === 'string' && value.length === 0) throw new Error(`Option --${name} requires a non-empty value`);
+    if (options[name]?.type === 'string'
+      && (Array.isArray(value) ? value.some((item) => item.length === 0) : value.length === 0)) {
+      throw new Error(`Option --${name} requires a non-empty value`);
+    }
   }
   return parsed;
 }
@@ -98,6 +118,9 @@ export function parseArgv(argv) {
     policyFile: null,
     capsulePath: null
   };
+  if (['install', 'uninstall'].includes(argv[2])) {
+    Object.assign(result, { skillNames: [], agents: [], scope: null, projectPath: null, method: null, globalScope: false, copyMode: false });
+  }
   const args = argv.slice(2);
   if (args[0] && !args[0].startsWith('--')) result.command = args.shift();
 
@@ -116,14 +139,43 @@ export function parseArgv(argv) {
     schema = `proof-${result.proofAction}`;
   }
 
-  const { values, positionals } = parseOptions(args, COMMAND_OPTIONS[schema] ?? {});
-  for (const [option, value] of Object.entries(values)) result[OPTION_FIELDS[option]] = value;
+  const { values, positionals, tokens } = parseOptions(args, COMMAND_OPTIONS[schema] ?? {});
+  const installOptionFields = {
+    ...OPTION_FIELDS,
+    skill: 'skillNames',
+    agent: 'agents',
+    scope: 'scope',
+    global: 'globalScope',
+    copy: 'copyMode',
+    method: 'method',
+    project: 'projectPath'
+  };
+  const optionFields = ['install', 'uninstall', 'doctor'].includes(result.command) ? installOptionFields : OPTION_FIELDS;
+  for (const [option, value] of Object.entries(values)) result[optionFields[option]] = value;
 
   if (result.command === 'install' || result.command === 'uninstall') {
     rejectExtraPositionals(positionals, 1, result.command);
-    if (result.skillName && positionals.length) throw new Error(`Duplicate skill argument for ${result.command}`);
-    result.skillName ??= positionals[0] ?? null;
-    if (result.installAll && result.skillName) throw new Error(`${result.command} accepts either a skill or --all`);
+    const names = result.skillNames ?? [];
+    if (names.length && positionals.length) throw new Error(`Duplicate skill argument for ${result.command}`);
+    if (!names.length) result.skillName ??= positionals[0] ?? null;
+    else if (names.length === 1) result.skillName = names[0];
+    if (result.installAll && (names.length || result.skillName)) throw new Error(`${result.command} accepts either a skill or --all`);
+    if (result.scope && !['project', 'global'].includes(result.scope)) throw new Error(`Invalid --scope: ${result.scope}`);
+    if (result.globalScope && result.scope && result.scope !== 'global') throw new Error('--global conflicts with --scope project');
+    if (result.projectPath && (result.globalScope || result.scope === 'global')) throw new Error('--project cannot be combined with global scope');
+    if (result.projectPath) result.scope ??= 'project';
+    if (result.globalScope) result.scope = 'global';
+    if (result.copyMode) {
+      if (result.method && result.method !== 'copy') throw new Error('--copy conflicts with --method symlink');
+      result.method = 'copy';
+    }
+    if (result.method && !['copy', 'symlink'].includes(result.method)) throw new Error(`Invalid --method: ${result.method}`);
+    if (result.command === 'install') {
+      const hasNewOptions = tokens.some((token) => token.kind === 'option' && ['agent', 'scope', 'global', 'copy', 'method', 'project', 'yes'].includes(token.name));
+      result.managedInstall = hasNewOptions || (!result.skillName && !result.installAll) || names.length > 1;
+    } else {
+      result.managedUninstall = Boolean(result.scope || result.projectPath || result.agents?.length || result.assumeYes || names.length > 1);
+    }
   } else if (schema === 'review') {
     rejectExtraPositionals(positionals, 1, 'review');
     if (result.skillName && positionals.length) throw new Error('Duplicate skill argument for review');
@@ -137,6 +189,14 @@ export function parseArgv(argv) {
     result.proofSource = positionals[0] ?? null;
   } else {
     rejectExtraPositionals(positionals, 0, result.command);
+  }
+
+  if (result.command === 'doctor') {
+    if (result.scope && !['project', 'global'].includes(result.scope)) throw new Error(`Invalid --scope: ${result.scope}`);
+    if (result.globalScope && result.scope && result.scope !== 'global') throw new Error('--global conflicts with --scope project');
+    if (result.projectPath && (result.globalScope || result.scope === 'global')) throw new Error('--project cannot be combined with global scope');
+    if (result.projectPath) result.scope ??= 'project';
+    if (result.globalScope) result.scope = 'global';
   }
 
   return result;
