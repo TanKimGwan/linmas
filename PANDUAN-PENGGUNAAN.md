@@ -180,7 +180,7 @@ Ini adalah instalasi plugin marketplace Codex. Linmas tidak otomatis muncul di k
 
 ## Instalasi managed skill dengan Linmas
 
-Setelah paket 0.9.2 tersedia di npm, jalankan `npx --yes linmas@0.9.2 install` untuk membuka wizard interaktif. Untuk memilih scope project dan metode secara eksplisit:
+Jalankan `npx --yes linmas@0.9.2 install` untuk membuka wizard interaktif. Untuk memilih scope project dan metode secara eksplisit:
 
 ```bash
 npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
