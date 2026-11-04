@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-11-03T14:52:06.100Z",
+  "generatedAt": "2026-11-04T00:31:19.655Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -584,7 +584,7 @@
     {
       "path": "assets/badges/npm.svg",
       "bytes": 538,
-      "sha256": "10910784bd9918e8327916fcf90a9e7df7730ceb0712c97f52eb2816917acf49"
+      "sha256": "f84617779128e463bf0d3b96a9406804a4384c4c8495c397d99f970a54dff7a5"
     },
     {
       "path": "assets/badges/openai-build-week.svg",
@@ -594,7 +594,7 @@
     {
       "path": "assets/badges/release.svg",
       "bytes": 551,
-      "sha256": "6546923c17c85e1b60b8f27ddc426c4438645e59953e7a27d94a9b5e1bae2fb4"
+      "sha256": "e65d29eadb1c07c5f308a635a486fec52865257a61f9cfa91c2eee144d8cbb01"
     },
     {
       "path": "assets/badges/security.svg",
@@ -928,8 +928,8 @@
     },
     {
       "path": "PANDUAN-PENGGUNAAN.md",
-      "bytes": 30900,
-      "sha256": "ed914e0b52879bc7db0e3b16cb0e8bd417e5489ab280ce547eab77e2295c2aeb"
+      "bytes": 30863,
+      "sha256": "b1b825b65cfe744def0764b280d73cf2d06652f3b177500841432b762dd54e29"
     },
     {
       "path": "plugin/assets/linmas-logo-dark.png",
@@ -1508,8 +1508,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 37067,
-      "sha256": "c3b2966dd41e3729d786b5c4157a1bbbd6a6d993025840cc09d1108301acb228"
+      "bytes": 36946,
+      "sha256": "fc4a71af06266f694781d3238b4a0ac2303376c692d84a45b960bcc1e44f228d"
     },
     {
       "path": "releases/0.1.1.md",
@@ -2468,9 +2468,9 @@
     },
     {
       "path": "USAGE.md",
-      "bytes": 30952,
-      "sha256": "67564fb01477ec451ab97a88a5d8f66259c7136ce2278e657f126786909512b6"
+      "bytes": 30906,
+      "sha256": "8d679843823d2d3d22dc03144c97d160d0b8f2f53f67b72079f297e246289274"
     }
   ],
-  "contentDigest": "779311ca771d762931976c1531eae6af07e54dbb6ceb0dca14084a294cbbab1d"
+  "contentDigest": "a14c95d5aa24d5796ed9892a2858b90d2e3fc74c81a33758619c3fa29b8d85dc"
 }
