@@ -180,7 +180,7 @@ This is a Codex plugin marketplace installation. It does not make Linmas appear 
 
 ## Install managed skills with Linmas
 
-When the 0.9.2 package is available from npm, run `npx --yes linmas@0.9.2 install` to start the interactive wizard. To select a project scope and method explicitly:
+Run `npx --yes linmas@0.9.2 install` to start the interactive wizard. To select a project scope and method explicitly:
 
 ```bash
 npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
