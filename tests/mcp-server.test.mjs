@@ -920,3 +920,26 @@ test('review execute preview never claims authentication from detected configura
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('review execute classifies a non-object provider JSON response as an invalid provider response', async () => {
+  const root = await setup();
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: async () => ({ provider: 'codex', model: 'fixture-model', usage: null, requestId: null, rawResponse: 'null' }) })
+  }]]);
+  try {
+    const error = await createLinmasDispatcher({ providerRegistry })('linmas_review_execute', {
+      workspace_root: root, input_text: 'fixture', skill_name: 'linmas-secure-code-reviewer', provider: 'codex', confirm_transmission: true
+    }).then(() => null, (failure) => failure);
+    assert.ok(error, 'non-object response must be rejected');
+    const publicError = toPublicReviewError(error);
+    assert.equal(publicError.code, 'PROVIDER_RESPONSE_INVALID');
+    assert.equal(publicError.reasonCode, 'RESPONSE_JSON_INVALID');
+    assert.equal(publicError.stage, 'response-read');
+    assert.equal(publicError.transmissionState, 'response-received');
+    assert.equal(publicError.providerResponseReceived, true);
+    assert.equal(publicError.capsuleWritten, false);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
