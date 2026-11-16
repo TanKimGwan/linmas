@@ -6,10 +6,10 @@ export function normalizeProviderResponse(runResult, { caseId, specialist }) {
   try {
     value = JSON.parse(runResult.rawResponse);
   } catch {
-    throw invalidJsonError(runResult);
+    throw invalidJsonError(runResult, 'invalid JSON');
   }
   // A ReviewResult must be a JSON object; null, arrays, and primitives are not.
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalidJsonError(runResult);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw invalidJsonError(runResult, 'JSON value is not an object');
   value.caseId ??= caseId;
   value.specialist ??= specialist;
   value.modelMetadata = {
@@ -28,8 +28,8 @@ export function normalizeProviderResponse(runResult, { caseId, specialist }) {
   }
 }
 
-function invalidJsonError(runResult) {
-  return new ReviewError('provider response failed contract validation: invalid JSON', 'provider-response-invalid', EXIT_CODES.PROVIDER, {
+function invalidJsonError(runResult, detail) {
+  return new ReviewError(`provider response failed contract validation: ${detail}`, 'provider-response-invalid', EXIT_CODES.PROVIDER, {
     stage: 'response-read', reasonCode: 'RESPONSE_JSON_INVALID', retryable: false,
     provider: runResult?.provider ?? null, transmissionState: 'response-received'
   });

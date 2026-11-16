@@ -72,11 +72,13 @@ function normalizationFailure(rawResponse) {
 test('non-object provider JSON is classified exactly like invalid JSON without echoing the response', () => {
   const invalidJson = classification(normalizationFailure('{not json'));
   assert.equal(invalidJson.reasonCode, 'RESPONSE_JSON_INVALID');
+  assert.equal(invalidJson.message, 'provider response failed contract validation: invalid JSON');
   const cases = ['null', '[]', '"secret-response-text"', '5', 'true', JSON.stringify([validReviewResult])];
   for (const rawResponse of cases) {
     const error = normalizationFailure(rawResponse);
     assert.ok(error, `expected rejection for ${rawResponse}`);
-    assert.deepEqual(classification(error), invalidJson, `classification for ${rawResponse}`);
+    assert.deepEqual({ ...classification(error), message: undefined }, { ...invalidJson, message: undefined }, `classification for ${rawResponse}`);
+    assert.equal(error.message, 'provider response failed contract validation: JSON value is not an object');
     assert.doesNotMatch(error.message, /secret-response-text|schemaVersion|input validation/);
   }
 });
