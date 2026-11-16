@@ -254,6 +254,8 @@ linmas review --skill secure-code-reviewer --input patch.diff
 
 Native MCP tools accept both the namespaced specialist ID and this legacy alias, then normalize both to the same specialist contract. Invalid MCP requests return schema-versioned errors with safe field/reason metadata. Provider failures use granular codes such as `PROVIDER_CONFIGURATION_MISSING`, `PROVIDER_RATE_LIMITED`, and `PROVIDER_TRANSPORT_FAILED`; credentials, review input, raw stderr, and provider responses are never returned.
 
+The [MCP error contract](mcp/ERRORS.md) lists every public code, generic message, and default stage. Internal failures use `INTERNAL_ERROR`; capsule failures after a provider response use `CONTRACT_VIOLATION` at `capsule-write`, and incompatible policy results use `POLICY_RESULT_INCOMPATIBLE` while request policy validation retains `POLICY_UNSUPPORTED`.
+
 Live execution is separately enabled and visibly confirms that data leaves the machine. Linmas constructs the request from the named input and runs Codex in a managed temporary working directory with a read-only sandbox request, approvals disabled, an ephemeral session, and user config and repository rules ignored.
 
 Those controls reduce ambient influence, but this does not guarantee that Codex cannot read other filesystem paths permitted by the host and Codex sandbox.

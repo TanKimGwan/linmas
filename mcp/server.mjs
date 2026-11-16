@@ -7,7 +7,7 @@ import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import { fingerprintReviewInput, buildReviewCapsule } from '../src/review/build-capsule.mjs';
-import { loadAndCompareCapsules } from '../src/review/compare-capsules.mjs';
+import { compareReviewCapsules } from '../src/review/compare-capsules.mjs';
 import { prepareReview } from '../src/review/prepare-review.mjs';
 import { preflightCapsuleDestination, writeReviewCapsule } from '../src/review/write-capsule.mjs';
 import { validateReviewCapsule } from '../src/review/validate-capsule.mjs';
@@ -487,6 +487,7 @@ async function reviewDecide(args, elicit, reviewReferences) {
     return reviewDecisionRecord({ args, decision: null, channel: 'mcp_form', status: first?.action === 'cancel' ? 'cancelled' : 'declined' });
   }
   const disposition = first.content.disposition;
+  validateReviewDecisionArguments({ ...args, decision: first.content });
   if (disposition === 'custom_instruction') {
     const custom = await elicit({
       mode: 'form',
@@ -494,6 +495,7 @@ async function reviewDecide(args, elicit, reviewReferences) {
       requestedSchema: { type: 'object', additionalProperties: false, required: ['custom_instruction'], properties: { custom_instruction: boundedStringSchema(4096) } }
     });
     if (custom?.action !== 'accept' || !custom?.content?.custom_instruction) return reviewDecisionRecord({ args, decision: 'custom_instruction', channel: 'mcp_form', status: custom?.action === 'cancel' ? 'cancelled' : 'declined' });
+    boundedString(custom.content.custom_instruction, 'custom_instruction', 4096);
     return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', customInstruction: custom.content.custom_instruction });
   }
   if (disposition === 'continue_with_note' && (counts.Critical > 0 || counts.High > 0)) {
@@ -508,6 +510,7 @@ async function reviewDecide(args, elicit, reviewReferences) {
       }
     });
     if (risk?.action !== 'accept' || risk.content?.risk_acknowledged !== true || !risk.content?.rationale) return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', status: risk?.action === 'cancel' ? 'cancelled' : 'declined' });
+    boundedString(risk.content.rationale, 'rationale', 4096);
     return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', rationale: risk.content.rationale, riskAcknowledged: true });
   }
   return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form' });
@@ -525,7 +528,7 @@ async function reviewCompare(args) {
   const workspace = await validateWorkspaceRoot(args.workspace_root);
   const before = await resolveExisting(workspace, args.before_capsule_path, 'capsule');
   const after = await resolveExisting(workspace, args.after_capsule_path, 'capsule');
-  const delta = await loadAndCompareCapsules(before, after, { cwd: workspace });
+  const delta = compareReviewCapsules(await readValidatedCapsule(before), await readValidatedCapsule(after));
   return {
     status: 'verified',
     operation: 'review_compare',
@@ -560,7 +563,12 @@ async function proofVerify(args) {
   const allowedSigners = args.allowed_signers_path
     ? await resolveExisting(workspace, args.allowed_signers_path, 'allowed signers')
     : null;
-  const result = await verifyProofBundle(bundle, { allowedSignersPath: allowedSigners });
+  let result;
+  try { result = await verifyProofBundle(bundle, { allowedSignersPath: allowedSigners }); }
+  catch (cause) {
+    if (cause?.failureClass || cause?.toolCode || cause?.name === 'AbortError' || cause?.code === 'ABORT_ERR') throw cause;
+    throw toolError('contract_violation', 'proof bundle failed Linmas validation', cause);
+  }
   return {
     status: 'verified',
     operation: 'proof_verify',
@@ -603,12 +611,15 @@ async function proofCreate(args, signal) {
   throwIfAborted(signal);
   const source = await awaitWithAbort(signal, () => loadProofEvidence(sourcePath));
   throwIfAborted(signal);
-  const receipt = buildDecisionReceipt({
-    subject: { kind: source.kind, sha256: source.sourceSha256 },
-    reviewer: args.reviewer,
-    findings: args.findings,
-    statement: args.statement
-  });
+  let receipt;
+  try {
+    receipt = buildDecisionReceipt({
+      subject: { kind: source.kind, sha256: source.sourceSha256 },
+      reviewer: args.reviewer,
+      findings: args.findings,
+      statement: args.statement
+    });
+  } catch (cause) { throw toolError('invalid_input', 'proof decision receipt is invalid', cause); }
   throwIfAborted(signal);
   let created;
   try {
@@ -700,24 +711,32 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
       policyResult = evaluatePolicy(policy, review);
       throwIfAborted(signal);
     }
-    const capsule = buildReviewCapsule({
-      input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
-      execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
-      review,
-      policyResult
-    });
-    if (capsuleTarget) {
-      throwIfAborted(signal);
-      try {
+    let capsule;
+    try {
+      capsule = buildReviewCapsule({
+        input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
+        execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
+        review,
+        policyResult
+      });
+      if (capsuleTarget) {
         throwIfAborted(signal);
-        await writeReviewCapsule(capsuleTarget, capsule, { signal });
+        try {
+          await writeReviewCapsule(capsuleTarget, capsule, { signal });
+          throwIfAborted(signal);
+        } catch (error) {
+          if (signal?.aborted) await fs.rm(capsuleTarget.path, { force: true }).catch(() => {});
+          throw error;
+        }
+        advanceTransmission(transmission, 'capsule-written');
         throwIfAborted(signal);
-      } catch (error) {
-        if (signal?.aborted) await fs.rm(capsuleTarget.path, { force: true }).catch(() => {});
-        throw error;
       }
-      advanceTransmission(transmission, 'capsule-written');
-      throwIfAborted(signal);
+    } catch (cause) {
+      if (signal?.aborted || cause?.name === 'AbortError' || cause?.code === 'ABORT_ERR'
+        || ['timeout', 'provider-timeout', 'provider-cancelled'].includes(cause?.toolCode ?? cause?.failureClass)) throw cause;
+      throw toolError('contract_violation', 'review capsule failed Linmas contract', cause, {
+        stage: 'capsule-write', reasonCode: 'CAPSULE_CONTRACT_VIOLATION'
+      });
     }
     throwIfAborted(signal);
     const reviewReference = rememberReview(capsule);
@@ -804,6 +823,7 @@ async function readReviewInput(args, workspace) {
 async function readValidatedCapsule(capsulePath) {
   let stat;
   try { stat = await fs.lstat(capsulePath); } catch { throw toolError('invalid_path', 'capsule does not exist'); }
+  if (stat.isSymbolicLink() || !stat.isFile()) throw toolError('invalid_path', 'capsule must be a regular non-symlink file');
   if (stat.size > MAX_CAPSULE_BYTES) throw toolError('input_too_large', 'capsule exceeds the bounded 2 MiB limit');
   const text = await fs.readFile(capsulePath, 'utf8');
   try { return validateReviewCapsule(JSON.parse(text)); }
@@ -812,8 +832,9 @@ async function readValidatedCapsule(capsulePath) {
 
 function assertPolicyAcceptsRequest(policy, specialist, mode = undefined, stage = 'argument-validation') {
   if (!policy.specialists.includes(specialist)) {
-    throw toolError('policy_unsupported', 'policy does not accept the review specialist', undefined, {
-      field: 'skill_name', stage, reasonCode: 'POLICY_SPECIALIST_UNSUPPORTED', allowedValues: policy.specialists
+    throw toolError(stage === 'normalization' ? 'policy_result_incompatible' : 'policy_unsupported', 'policy does not accept the review specialist', undefined, {
+      stage, reasonCode: stage === 'normalization' ? 'POLICY_RESPONSE_SPECIALIST_UNSUPPORTED' : 'POLICY_SPECIALIST_UNSUPPORTED',
+      ...(stage === 'normalization' ? {} : { field: 'skill_name', allowedValues: policy.specialists })
     });
   }
   if (mode !== undefined && !policy.modes.includes(mode)) {

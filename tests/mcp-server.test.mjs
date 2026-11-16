@@ -6,7 +6,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 
 import { buildReviewCapsule } from '../src/review/build-capsule.mjs';
-import { loadCapsuleEvidence } from '../src/proof/load-evidence.mjs';
+import { loadCapsuleEvidence, sha256 } from '../src/proof/load-evidence.mjs';
 import { buildDecisionReceipt } from '../src/proof/validate-receipt.mjs';
 import { writeProofBundle } from '../src/proof/write-bundle.mjs';
 import { toPublicReviewError } from '../src/review/public-error.mjs';
@@ -390,6 +390,7 @@ test('output-too-large preserves post-transmission state with and without a caps
     const withoutCapsule = await call(baseArguments, 46);
     const withoutCapsuleError = withoutCapsule.result.structuredContent.error;
     assert.equal(withoutCapsuleError.code, 'OUTPUT_TOO_LARGE');
+    assert.equal(withoutCapsuleError.stage, 'mcp-execution');
     assert.equal(withoutCapsuleError.transmissionState, 'normalized');
     assert.equal(withoutCapsuleError.transmissionAttempted, true);
     assert.equal(withoutCapsuleError.providerResponseReceived, true);
@@ -399,6 +400,7 @@ test('output-too-large preserves post-transmission state with and without a caps
     const withCapsule = await call({ ...baseArguments, capsule_path: 'oversized-capsule.json' }, 47);
     const withCapsuleError = withCapsule.result.structuredContent.error;
     assert.equal(withCapsuleError.code, 'OUTPUT_TOO_LARGE');
+    assert.equal(withCapsuleError.stage, 'mcp-execution');
     assert.equal(withCapsuleError.transmissionState, 'capsule-written');
     assert.equal(withCapsuleError.transmissionAttempted, true);
     assert.equal(withCapsuleError.providerResponseReceived, true);
@@ -612,6 +614,172 @@ test('proof create requires explicit write confirmation and verifies its own res
   }
 });
 
+test('offline tools classify invalid artifacts and decisions as input or contract failures', async (t) => {
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('F-1', 'High')]);
+  try {
+    await fs.writeFile(path.join(root, 'invalid.json'), JSON.stringify({ schemaVersion: 1, privateFixture: 'private-artifact-content' }));
+    await fs.writeFile(path.join(root, 'malformed.json'), '{ private-artifact-content');
+    const invalidPolicy = JSON.parse(await fs.readFile(new URL('../policies/baseline-appsec.json', import.meta.url), 'utf8'));
+    invalidPolicy.rules = [null];
+    await fs.writeFile(path.join(root, 'null-rule.json'), JSON.stringify(invalidPolicy));
+    const source = await loadCapsuleEvidence(path.join(root, 'before.json'));
+    const receipt = buildDecisionReceipt({ subject: { kind: source.kind, sha256: source.sourceSha256 }, reviewer: { label: 'Fixture', principal: null }, findings: [], statement: 'No action recorded.' });
+    await writeProofBundle(path.join(root, 'bundle'), source, receipt);
+    const manifestPath = path.join(root, 'bundle', 'manifest.json');
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    const proofArgs = { workspace_root: root, source_path: 'before.json', bundle_path: 'new-bundle', reviewer: { label: 'Fixture', principal: null }, findings: [], statement: 'No action recorded.', confirm_write: true };
+    const decisionArgs = { workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest };
+    const cases = [
+      ['prepare conflicting sources', 'linmas_review_prepare', { input_text: 'fixture', input_path: 'before.json' }, 'INPUT_FIELD_INVALID'],
+      ['compare invalid before capsule schema', 'linmas_review_compare', { before_capsule_path: 'invalid.json', after_capsule_path: 'after.json' }, 'CONTRACT_VIOLATION'],
+      ['compare invalid after capsule schema', 'linmas_review_compare', { before_capsule_path: 'before.json', after_capsule_path: 'invalid.json' }, 'CONTRACT_VIOLATION'],
+      ['compare malformed JSON', 'linmas_review_compare', { before_capsule_path: 'malformed.json', after_capsule_path: 'after.json' }, 'CONTRACT_VIOLATION'],
+      ['policy invalid capsule schema', 'linmas_policy_evaluate', { capsule_path: 'invalid.json', policy_id: 'baseline-appsec' }, 'CONTRACT_VIOLATION'],
+      ['policy malformed capsule JSON', 'linmas_policy_evaluate', { capsule_path: 'malformed.json', policy_id: 'baseline-appsec' }, 'CONTRACT_VIOLATION'],
+      ['policy invalid pack schema', 'linmas_policy_evaluate', { capsule_path: 'before.json', policy_path: 'invalid.json' }, 'CONTRACT_VIOLATION'],
+      ['policy malformed pack JSON', 'linmas_policy_evaluate', { capsule_path: 'before.json', policy_path: 'malformed.json' }, 'CONTRACT_VIOLATION'],
+      ['policy null rule', 'linmas_policy_evaluate', { capsule_path: 'before.json', policy_path: 'null-rule.json' }, 'CONTRACT_VIOLATION'],
+      ['proof approval language', 'linmas_proof_create', { ...proofArgs, statement: 'I approve this change.' }, 'INPUT_FIELD_INVALID'],
+      ['proof duplicate finding IDs', 'linmas_proof_create', { ...proofArgs, findings: [{ id: 'F-1', disposition: 'needs-more-evidence', rationale: 'Fixture' }, { id: 'F-1', disposition: 'needs-more-evidence', rationale: 'Fixture' }] }, 'INPUT_FIELD_INVALID'],
+      ['proof finding ID mismatch', 'linmas_proof_create', { ...proofArgs, findings: [{ id: 'missing', disposition: 'needs-more-evidence', rationale: 'Fixture' }] }, 'INPUT_FIELD_INVALID'],
+      ['proof invalid capsule schema', 'linmas_proof_create', { ...proofArgs, source_path: 'invalid.json' }, 'CONTRACT_VIOLATION'],
+      ['proof malformed capsule JSON', 'linmas_proof_create', { ...proofArgs, source_path: 'malformed.json' }, 'INPUT_FIELD_INVALID'],
+      ['decision unknown review handle', 'linmas_review_decide', { ...decisionArgs, review_handle: 'unknown' }, 'INPUT_FIELD_INVALID'],
+      ['decision invalid digest', 'linmas_review_decide', { ...decisionArgs, capsule_digest: 'x' }, 'INPUT_FIELD_INVALID'],
+      ['decision invalid disposition', 'linmas_review_decide', { ...decisionArgs, decision: { disposition: 'private-artifact-content' } }, 'INPUT_FIELD_INVALID'],
+      ['decision missing custom input', 'linmas_review_decide', { ...decisionArgs, decision: { disposition: 'custom_instruction' } }, 'DECISION_INPUT_REQUIRED'],
+      ['decision missing risk acknowledgement', 'linmas_review_decide', { ...decisionArgs, decision: { disposition: 'continue_with_note' } }, 'RISK_ACKNOWLEDGEMENT_REQUIRED']
+    ];
+    const server = createStdioServer({ dispatcher: dispatch });
+    for (const [label, name, arguments_, code] of cases) {
+      await t.test(label, async () => {
+        const response = await server.handle({ jsonrpc: '2.0', id: label, method: 'tools/call', params: { name, arguments: { workspace_root: root, ...arguments_ } } });
+        const error = response.result.structuredContent.error;
+        assert.equal(error.code, code);
+        assert.equal(error.stage, 'argument-validation');
+        assert.equal(error.transmissionAttempted, false);
+        assert.doesNotMatch(JSON.stringify(error), /private-artifact-content|linmas-mcp-/);
+        await assert.rejects(fs.access(path.join(root, 'new-bundle')), { code: 'ENOENT' });
+      });
+    }
+    const invalidManifests = [
+      ['manifest malformed JSON', '{'],
+      ['manifest invalid schema', '{}'],
+      ['manifest null artifact', JSON.stringify({ ...manifest, artifacts: [...manifest.artifacts, null] })]
+    ];
+    for (const [label, contents] of invalidManifests) {
+      await t.test(label, async () => {
+        await fs.writeFile(manifestPath, contents);
+        const response = await server.handle({ jsonrpc: '2.0', id: label, method: 'tools/call', params: { name: 'linmas_proof_verify', arguments: { workspace_root: root, bundle_path: 'bundle' } } });
+        assert.equal(response.result.structuredContent.error.code, 'CONTRACT_VIOLATION');
+        assert.equal(response.result.structuredContent.error.stage, 'argument-validation');
+      });
+    }
+    await t.test('proof signature descriptor missing its public artifact', async () => {
+      await fs.mkdir(path.join(root, 'bundle', 'signature'));
+      await fs.writeFile(path.join(root, 'bundle', 'signature', 'manifest.sig'), 'synthetic fixture');
+      await fs.writeFile(manifestPath, JSON.stringify({ ...manifest, signature: { format: 'ssh-sig', namespace: 'linmas-proof-v1', path: 'signature/manifest.sig', publicKeyPath: 'signature/signer.pub', principal: 'fixture' } }));
+      const response = await server.handle({ jsonrpc: '2.0', id: 'signature', method: 'tools/call', params: { name: 'linmas_proof_verify', arguments: { workspace_root: root, bundle_path: 'bundle' } } });
+      assert.equal(response.result.structuredContent.error.code, 'CONTRACT_VIOLATION');
+      assert.equal(response.result.structuredContent.error.stage, 'argument-validation');
+    });
+    await t.test('proof receipt schema with valid artifact hashes', async () => {
+      const bytes = Buffer.from(JSON.stringify({ ...receipt, summary: { ...receipt.summary, statement: 'I approve this change.' } }));
+      await fs.writeFile(path.join(root, 'bundle', 'decision-receipt.json'), bytes);
+      const amended = structuredClone(manifest);
+      amended.receipt.sha256 = sha256(bytes);
+      Object.assign(amended.artifacts.find((artifact) => artifact.path === 'decision-receipt.json'), { sha256: sha256(bytes), bytes: bytes.length });
+      await fs.writeFile(manifestPath, JSON.stringify(amended));
+      const response = await server.handle({ jsonrpc: '2.0', id: 'receipt', method: 'tools/call', params: { name: 'linmas_proof_verify', arguments: { workspace_root: root, bundle_path: 'bundle' } } });
+      assert.equal(response.result.structuredContent.error.code, 'CONTRACT_VIOLATION');
+      assert.equal(response.result.structuredContent.error.stage, 'argument-validation');
+    });
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('capsule wrapper preserves abort and timeout error objects before the outer timer wins', async (t) => {
+  const failures = [
+    Object.assign(new Error('fixture abort'), { name: 'AbortError' }),
+    Object.assign(new Error('fixture abort code'), { code: 'ABORT_ERR' }),
+    Object.assign(new Error('fixture MCP timeout'), { toolCode: 'timeout' }),
+    Object.assign(new Error('fixture provider timeout'), { failureClass: 'provider-timeout' }),
+    Object.assign(new Error('fixture provider cancellation'), { failureClass: 'provider-cancelled' })
+  ];
+  for (const failure of failures) {
+    await t.test(failure.message, async (t) => {
+      const root = await setup();
+      const providerRegistry = new Map([['codex', {
+        detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+        create: () => ({ run: async () => ({ provider: 'codex', model: 'fixture-model', usage: null, requestId: null, rawResponse: JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary }) }) })
+      }]]);
+      try {
+        t.mock.method(Date.prototype, 'toISOString', () => { throw failure; });
+        await assert.rejects(createLinmasDispatcher({ providerRegistry })('linmas_review_execute', {
+          workspace_root: root, input_text: 'fixture', skill_name: 'secure-code-reviewer', provider: 'codex', confirm_transmission: true
+        }), (error) => {
+          assert.equal(error, failure);
+          assert.equal(error.transmissionState, 'normalized');
+          assert.equal(error.providerResponseReceived, true);
+          assert.equal(error.capsuleWritten, false);
+          return true;
+        });
+      } finally {
+        t.mock.restoreAll();
+        await fs.rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('invalid review decision form content is classified as input validation', async (t) => {
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('F-1', 'High')]);
+  try {
+    const cases = [
+      ['disposition', [{ disposition: 'unknown' }]],
+      ['custom instruction', [{ disposition: 'custom_instruction' }, { custom_instruction: 123 }]],
+      ['risk rationale', [{ disposition: 'continue_with_note' }, { risk_acknowledged: true, rationale: 123 }]]
+    ];
+    for (const [label, replies] of cases) {
+      await t.test(label, async () => {
+        const server = createStdioServer({ dispatcher: (name, args) => dispatch(name, args, { elicit: async () => ({ action: 'accept', content: replies.shift() }) }) });
+        const response = await server.handle({ jsonrpc: '2.0', id: label, method: 'tools/call', params: { name: 'linmas_review_decide', arguments: { workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest } } });
+        assert.equal(response.result.isError, true);
+        assert.equal(response.result.structuredContent.error.code, 'INPUT_FIELD_INVALID');
+        assert.equal(response.result.structuredContent.error.stage, 'argument-validation');
+      });
+    }
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('compare rechecks capsule file type after resolving workspace paths', async (t) => {
+  const root = await setup();
+  const beforePath = path.join(root, 'before.json');
+  const originalLstat = fs.lstat;
+  let inspections = 0;
+  try {
+    t.mock.method(fs, 'lstat', async (target, ...options) => {
+      const stat = await originalLstat(target, ...options);
+      if (target === beforePath && ++inspections === 2) {
+        await fs.rename(beforePath, path.join(root, 'saved-before.json'));
+        await fs.symlink(path.join(root, 'after.json'), beforePath);
+      }
+      return stat;
+    });
+    const response = await createStdioServer().handle({ jsonrpc: '2.0', id: 'recheck', method: 'tools/call', params: {
+      name: 'linmas_review_compare', arguments: { workspace_root: root, before_capsule_path: 'before.json', after_capsule_path: 'after.json' }
+    } });
+    assert.equal(response.result.isError, true);
+    assert.equal(response.result.structuredContent.error.code, 'INVALID_PATH');
+  } finally {
+    t.mock.restoreAll();
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test('review execute is prepared without consent and only executes a mocked provider after consent', async () => {
   const root = await setup();
   let calls = 0;
@@ -807,6 +975,8 @@ test('review execute rejects a specialist the policy does not accept before prob
     const publicError = toPublicReviewError(error);
     assert.equal(publicError.code, 'POLICY_UNSUPPORTED');
     assert.equal(publicError.stage, 'argument-validation');
+    assert.equal(publicError.message, 'The requested policy is not supported.');
+    assert.equal(publicError.reasonCode, 'POLICY_SPECIALIST_UNSUPPORTED');
     assert.equal(publicError.transmissionState, 'not-attempted');
     assert.equal(publicError.transmissionAttempted, false);
     assert.equal(probed, false, 'provider capability probe must not run');
@@ -876,12 +1046,100 @@ test('review execute rejects a provider response whose specialist the policy doe
     assert.equal(calls, 1);
     assert.equal(outcome.result, undefined, 'foreign specialist must not be evaluated against the policy');
     const publicError = toPublicReviewError(outcome.error);
-    assert.equal(publicError.code, 'POLICY_UNSUPPORTED');
+    assert.equal(publicError.code, 'POLICY_RESULT_INCOMPATIBLE');
+    assert.equal(publicError.message, 'The provider response is incompatible with the requested policy.');
+    assert.equal(publicError.reasonCode, 'POLICY_RESPONSE_SPECIALIST_UNSUPPORTED');
+    assert.equal(Object.hasOwn(publicError, 'field'), false);
+    assert.equal(Object.hasOwn(publicError, 'allowedValues'), false);
     assert.equal(publicError.transmissionState, 'normalized');
     assert.equal(publicError.transmissionAttempted, true);
     assert.equal(publicError.providerResponseReceived, true);
     assert.equal(publicError.capsuleWritten, false);
     await assert.rejects(fs.lstat(path.join(root, 'foreign-capsule.json')), { code: 'ENOENT' });
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('capsule write failures after provider response are contract violations', async () => {
+  const root = await setup();
+  const capsulePath = path.join(root, 'occupied-capsule.json');
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: async () => {
+      await fs.writeFile(capsulePath, 'occupied by a concurrent writer');
+      return {
+        provider: 'codex', model: 'fixture-model', usage: null, requestId: null,
+        rawResponse: JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary })
+      };
+    } })
+  }]]);
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ providerRegistry }) });
+    const response = await server.handle({
+      jsonrpc: '2.0', id: 49, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: {
+        workspace_root: root,
+        input_text: 'fixture',
+        skill_name: 'secure-code-reviewer',
+        provider: 'codex',
+        capsule_path: 'occupied-capsule.json',
+        confirm_transmission: true
+      } }
+    });
+    const error = response.result.structuredContent.error;
+    assert.equal(error.code, 'CONTRACT_VIOLATION');
+    assert.equal(error.stage, 'capsule-write');
+    assert.equal(error.transmissionState, 'normalized');
+    assert.equal(error.transmissionAttempted, true);
+    assert.equal(error.providerResponseReceived, true);
+    assert.equal(error.capsuleWritten, false);
+    assert.equal(error.message, 'The review capsule could not be built, validated, or written.');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('unexpected dispatcher errors use the internal error envelope', async () => {
+  const server = createStdioServer({ dispatcher: async () => { throw new TypeError('secret internal path'); } });
+  const response = await server.handle({
+    jsonrpc: '2.0', id: 50, method: 'tools/call',
+    params: { name: 'linmas_review_prepare', arguments: {} }
+  });
+  const error = response.result.structuredContent.error;
+  assert.equal(error.code, 'INTERNAL_ERROR');
+  assert.equal(error.stage, 'mcp-execution');
+  assert.equal(error.message, 'The Linmas tool failed unexpectedly.');
+  assert.doesNotMatch(response.result.content[0].text, /secret|internal path/i);
+});
+
+test('capsule build validation failures keep the normalized transmission state', async () => {
+  const root = await setup();
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    prepareExecution: async (options) => ({ ...options, authMode: 'invalid-fixture-auth' }),
+    create: () => ({ run: async () => ({
+      provider: 'codex', model: 'fixture-model', usage: null, requestId: null,
+      rawResponse: JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary })
+    }) })
+  }]]);
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ providerRegistry }) });
+    const response = await server.handle({
+      jsonrpc: '2.0', id: 51, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: {
+        workspace_root: root, input_text: 'fixture', skill_name: 'secure-code-reviewer',
+        provider: 'codex', confirm_transmission: true
+      } }
+    });
+    const error = response.result.structuredContent.error;
+    assert.equal(error.code, 'CONTRACT_VIOLATION');
+    assert.equal(error.stage, 'capsule-write');
+    assert.equal(error.reasonCode, 'CAPSULE_CONTRACT_VIOLATION');
+    assert.equal(error.transmissionState, 'normalized');
+    assert.equal(error.providerResponseReceived, true);
+    assert.equal(error.capsuleWritten, false);
+    assert.doesNotMatch(response.result.content[0].text, /invalid-fixture-auth|authMode/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
