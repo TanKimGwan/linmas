@@ -825,7 +825,8 @@ async function readValidatedCapsule(capsulePath) {
   try { stat = await fs.lstat(capsulePath); } catch { throw toolError('invalid_path', 'capsule does not exist'); }
   if (stat.isSymbolicLink() || !stat.isFile()) throw toolError('invalid_path', 'capsule must be a regular non-symlink file');
   if (stat.size > MAX_CAPSULE_BYTES) throw toolError('input_too_large', 'capsule exceeds the bounded 2 MiB limit');
-  const text = await fs.readFile(capsulePath, 'utf8');
+  let text;
+  try { text = await fs.readFile(capsulePath, 'utf8'); } catch { throw toolError('invalid_path', 'capsule could not be read'); }
   try { return validateReviewCapsule(JSON.parse(text)); }
   catch (cause) { throw toolError('contract_violation', 'review capsule failed Linmas validation', cause); }
 }

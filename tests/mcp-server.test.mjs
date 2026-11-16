@@ -1201,3 +1201,25 @@ test('review execute classifies a non-object provider JSON response as an invali
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('unreadable capsules map to INVALID_PATH without exposing the path', { skip: process.platform === 'win32' || process.getuid?.() === 0 }, async () => {
+  const root = await setup();
+  try {
+    await fs.chmod(path.join(root, 'before.json'), 0o000);
+    const dispatch = createLinmasDispatcher();
+    for (const [tool, args] of [
+      ['linmas_review_compare', { workspace_root: root, before_capsule_path: 'before.json', after_capsule_path: 'after.json' }],
+      ['linmas_policy_evaluate', { workspace_root: root, capsule_path: 'before.json', policy_id: 'baseline-appsec' }]
+    ]) {
+      const error = await dispatch(tool, args).then(() => null, (failure) => failure);
+      assert.ok(error, `${tool} must reject an unreadable capsule`);
+      const publicError = toPublicReviewError(error);
+      assert.equal(publicError.code, 'INVALID_PATH', tool);
+      assert.doesNotMatch(JSON.stringify(publicError), /before\.json|EACCES|linmas-mcp-/);
+      assert.doesNotMatch(error.message, /before\.json|EACCES|linmas-mcp-/);
+    }
+  } finally {
+    await fs.chmod(path.join(root, 'before.json'), 0o600).catch(() => {});
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
