@@ -773,7 +773,7 @@ function providerPreview(provider, model, env, registry) {
   return {
     provider,
     model: model ?? configuration.defaultModel ?? 'provider default',
-    authMode: configuration.status === 'configured' ? 'configured' : 'unavailable',
+    authMode: configuration.status === 'configured' ? 'unverified' : 'unavailable',
     modelVerified: false,
     configurationStatus: configuration.status,
     missingRequirements: Array.isArray(configuration.missingRequirements) ? configuration.missingRequirements : []

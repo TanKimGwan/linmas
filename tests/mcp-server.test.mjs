@@ -886,3 +886,37 @@ test('review execute rejects a provider response whose specialist the policy doe
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('review execute preview never claims authentication from detected configuration alone', async () => {
+  const root = await setup();
+  const rawResponse = JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary });
+  const configured = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model', missingRequirements: [] }),
+    prepareExecution: async (options) => ({ ...options, model: 'fixture-model', authMode: 'chatgpt', modelVerified: true }),
+    create: ({ model }) => ({ run: async () => ({ provider: 'codex', model, usage: null, requestId: null, rawResponse }) })
+  }]]);
+  const missing = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'missing', defaultModel: null, missingRequirements: ['CODEX_BINARY'] }),
+    create: () => { throw new Error('must not run'); }
+  }]]);
+  const args = { workspace_root: root, input_text: 'safe fixture', skill_name: 'secure-code-reviewer', provider: 'codex', confirm_transmission: false };
+  try {
+    const prepared = await createLinmasDispatcher({ providerRegistry: configured })('linmas_review_execute', args);
+    assert.equal(prepared.status, 'prepared');
+    assert.equal(prepared.provider.authMode, 'unverified');
+    assert.equal(prepared.provider.configurationStatus, 'configured');
+    assert.deepEqual(prepared.provider.missingRequirements, []);
+    assert.equal(prepared.provider.modelVerified, false);
+
+    const unavailable = await createLinmasDispatcher({ providerRegistry: missing })('linmas_review_execute', args);
+    assert.equal(unavailable.provider.authMode, 'unavailable');
+    assert.equal(unavailable.provider.configurationStatus, 'missing');
+    assert.deepEqual(unavailable.provider.missingRequirements, ['CODEX_BINARY']);
+
+    const executed = await createLinmasDispatcher({ providerRegistry: configured })('linmas_review_execute', { ...args, confirm_transmission: true });
+    assert.equal(executed.status, 'executed');
+    assert.equal(executed.provider.authMode, 'chatgpt', 'live execution reports the provider-verified auth mode');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
