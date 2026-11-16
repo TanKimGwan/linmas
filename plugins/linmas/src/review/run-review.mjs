@@ -20,6 +20,9 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   if (args.capsulePath && !args.provider) {
     throw new ReviewError('capsule generation requires --provider', 'input', EXIT_CODES.INPUT);
   }
+  if (args.provider && args.useStdin && !args.assumeYes) {
+    throw new ReviewError('--stdin requires --yes; interactive confirmation cannot share stdin with the review input', 'input', EXIT_CODES.INPUT);
+  }
 
   const input = await loadReviewInput({ inputPath: args.inputPath, useStdin: args.useStdin, stdin: io.stdin, cwd });
   const request = prepareReview({ input, skillName: args.skillName });
@@ -46,7 +49,8 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   const summary = `Outbound review\nsource: ${input.source}\nbytes: ${input.bytes}\nspecialist: ${request.specialist}\nprovider: ${execution.metadata.provider}\nauth: ${execution.metadata.authMode}\nmodel: ${execution.metadata.model}\nmodel verified: ${execution.metadata.modelVerified ? 'yes' : 'no'}\ndata leaves this machine: yes\n`;
   io.stdout.write(summary);
   if (!args.assumeYes) {
-    if (!io.isTTY) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);
+    if (io.isInteractive !== true && io.isTTY !== true) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);
+    io.stdout.write('Type yes to transmit: ');
     const confirmation = await io.readLine();
     if (typeof confirmation !== 'string' || confirmation.trim().toLowerCase() !== 'yes') {
       throw new ReviewError('outbound transmission not confirmed', 'input', EXIT_CODES.INPUT);
