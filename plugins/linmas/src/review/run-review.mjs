@@ -45,6 +45,19 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     );
   }
 
+  let policy = null;
+  if (args.policyId || args.policyFile) {
+    try {
+      policy = loadPolicy({ id: args.policyId, filePath: args.policyFile, rootDir, cwd });
+    } catch (error) {
+      throw new ReviewError(error?.message ?? String(error), 'input', EXIT_CODES.INPUT);
+    }
+    assertPolicyAcceptsSpecialist(policy, request.specialist);
+    if (!policy.modes.includes(request.mode)) {
+      throw new ReviewError(`policy does not accept mode: ${request.mode}`, 'input', EXIT_CODES.INPUT);
+    }
+  }
+
   const execution = await prepareProviderExecution(providerRegistry, args.provider, { model: args.model, cwd });
   const summary = `Outbound review\nsource: ${input.source}\nbytes: ${input.bytes}\nspecialist: ${request.specialist}\nprovider: ${execution.metadata.provider}\nauth: ${execution.metadata.authMode}\nmodel: ${execution.metadata.model}\nmodel verified: ${execution.metadata.modelVerified ? 'yes' : 'no'}\ndata leaves this machine: yes\n`;
   io.stdout.write(summary);
@@ -68,19 +81,9 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   });
 
   let policyResult = null;
-  if (args.policyId || args.policyFile) {
-    const policy = loadPolicy({
-      id: args.policyId,
-      filePath: args.policyFile,
-      rootDir,
-      cwd
-    });
-    if (!policy.specialists.includes(reviewResult.specialist)) {
-      throw new ReviewError(`policy does not accept specialist: ${reviewResult.specialist}`, 'input', EXIT_CODES.INPUT);
-    }
-    if (!policy.modes.includes(request.mode)) {
-      throw new ReviewError(`policy does not accept mode: ${request.mode}`, 'input', EXIT_CODES.INPUT);
-    }
+  if (policy) {
+    // The provider response may carry its own specialist, so re-check it before evaluating.
+    assertPolicyAcceptsSpecialist(policy, reviewResult.specialist);
     policyResult = evaluatePolicy(policy, reviewResult);
   }
 
@@ -108,4 +111,10 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     exitCode: EXIT_CODES.OK,
     output: `${formatReviewResult(reviewResult)}\n${formatPolicyResult(policyResult)}`
   };
+}
+
+function assertPolicyAcceptsSpecialist(policy, specialist) {
+  if (!policy.specialists.includes(specialist)) {
+    throw new ReviewError(`policy does not accept specialist: ${specialist}`, 'input', EXIT_CODES.INPUT);
+  }
 }

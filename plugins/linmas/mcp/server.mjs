@@ -535,6 +535,7 @@ async function policyEvaluate(args, pluginRoot) {
   const capsulePath = await resolveExisting(workspace, args.capsule_path, 'capsule');
   const capsule = await readValidatedCapsule(capsulePath);
   const policy = await loadPolicyForArguments(args, workspace, pluginRoot);
+  assertPolicyAcceptsRequest(policy, capsule.review.specialist);
   const result = evaluatePolicy(policy, capsule.review);
   return {
     status: 'verified',
@@ -671,6 +672,13 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
       };
     }
 
+    const input = await awaitWithAbort(signal, () => readReviewInput(args, workspace));
+    throwIfAborted(signal);
+    const request = prepareReview({ input, skillName: args.skill_name });
+    throwIfAborted(signal);
+    const policy = args.policy_id || args.policy_path ? await awaitWithAbort(signal, () => loadPolicyForArguments(args, workspace, pluginRoot)) : null;
+    if (policy) assertPolicyAcceptsRequest(policy, request.specialist, request.mode);
+    throwIfAborted(signal);
     const execution = await withDeadlineSignal(signal, async (executionSignal) => prepareProviderExecution(registry, args.provider, {
       model: args.model,
       cwd: workspace,
@@ -679,15 +687,9 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
     }));
     const executionMetadata = { ...execution.metadata };
     throwIfAborted(signal);
-    const input = await awaitWithAbort(signal, () => readReviewInput(args, workspace));
-    throwIfAborted(signal);
-    const request = prepareReview({ input, skillName: args.skill_name });
-    throwIfAborted(signal);
     const capsuleTarget = args.capsule_path
       ? await awaitWithAbort(signal, async () => preflightCapsuleDestination(await prepareNewFile(workspace, args.capsule_path, 'capsule'), { cwd: workspace }))
       : null;
-    throwIfAborted(signal);
-    const policy = args.policy_id || args.policy_path ? await awaitWithAbort(signal, () => loadPolicyForArguments(args, workspace, pluginRoot)) : null;
     throwIfAborted(signal);
     const runner = execution.createRunner();
     advanceTransmission('attempted');
@@ -705,6 +707,8 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
     let policyResult = null;
     if (policy) {
       throwIfAborted(signal);
+      // The provider response may carry its own specialist, so re-check it before evaluating.
+      assertPolicyAcceptsRequest(policy, review.specialist, request.mode, 'normalization');
       policyResult = evaluatePolicy(policy, review);
       throwIfAborted(signal);
     }
@@ -797,6 +801,19 @@ async function readValidatedCapsule(capsulePath) {
   const text = await fs.readFile(capsulePath, 'utf8');
   try { return validateReviewCapsule(JSON.parse(text)); }
   catch (cause) { throw toolError('contract_violation', 'review capsule failed Linmas validation', cause); }
+}
+
+function assertPolicyAcceptsRequest(policy, specialist, mode = undefined, stage = 'argument-validation') {
+  if (!policy.specialists.includes(specialist)) {
+    throw toolError('policy_unsupported', 'policy does not accept the review specialist', undefined, {
+      field: 'skill_name', stage, reasonCode: 'POLICY_SPECIALIST_UNSUPPORTED', allowedValues: policy.specialists
+    });
+  }
+  if (mode !== undefined && !policy.modes.includes(mode)) {
+    throw toolError('policy_unsupported', 'policy does not accept the review mode', undefined, {
+      stage, reasonCode: 'POLICY_MODE_UNSUPPORTED', allowedValues: policy.modes
+    });
+  }
 }
 
 async function loadPolicyForArguments(args, workspace, pluginRoot) {

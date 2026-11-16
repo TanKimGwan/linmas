@@ -9,6 +9,7 @@ import { buildReviewCapsule } from '../src/review/build-capsule.mjs';
 import { loadCapsuleEvidence } from '../src/proof/load-evidence.mjs';
 import { buildDecisionReceipt } from '../src/proof/validate-receipt.mjs';
 import { writeProofBundle } from '../src/proof/write-bundle.mjs';
+import { toPublicReviewError } from '../src/review/public-error.mjs';
 import {
   MAX_OUTPUT_BYTES,
   MAX_MCP_LINE_BYTES,
@@ -570,6 +571,109 @@ test('F-006 continue_with_note does not invent risk acknowledgement', async () =
     assert.equal(result.reviewInteraction.riskAcceptance.required, false);
     assert.equal(result.reviewInteraction.riskAcceptance.acknowledged, false);
     assert.equal(result.reviewInteraction.mayContinue, true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('review execute rejects a specialist the policy does not accept before probing or transmitting', async () => {
+  const root = await setup();
+  let probed = false;
+  let created = false;
+  let ran = false;
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    prepareExecution: async (options) => { probed = true; return options; },
+    create: () => { created = true; return { run: async () => { ran = true; return { provider: 'codex', model: 'fixture-model', usage: null, requestId: null, rawResponse: JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary }) }; } }; }
+  }]]);
+  try {
+    const error = await createLinmasDispatcher({ providerRegistry })('linmas_review_execute', {
+      workspace_root: root,
+      input_text: 'fixture',
+      skill_name: 'linmas-cloud-hardening-architect',
+      provider: 'codex',
+      policy_id: 'baseline-appsec',
+      confirm_transmission: true
+    }).then(() => null, (failure) => failure);
+    assert.ok(error, 'policy mismatch must be rejected');
+    const publicError = toPublicReviewError(error);
+    assert.equal(publicError.code, 'POLICY_UNSUPPORTED');
+    assert.equal(publicError.stage, 'argument-validation');
+    assert.equal(publicError.transmissionState, 'not-attempted');
+    assert.equal(publicError.transmissionAttempted, false);
+    assert.equal(probed, false, 'provider capability probe must not run');
+    assert.equal(created, false, 'runner must not be created');
+    assert.equal(ran, false, 'runner must not run');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('review execute with a matching policy still transmits and evaluates the policy', async () => {
+  const root = await setup();
+  let calls = 0;
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: async () => { calls += 1; return { provider: 'codex', model: 'fixture-model', usage: null, requestId: null, rawResponse: JSON.stringify({ schemaVersion: 1, scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary }) }; } })
+  }]]);
+  try {
+    const executed = await createLinmasDispatcher({ providerRegistry })('linmas_review_execute', {
+      workspace_root: root,
+      input_text: 'fixture',
+      skill_name: 'linmas-secure-code-reviewer',
+      provider: 'codex',
+      policy_id: 'baseline-appsec',
+      confirm_transmission: true
+    });
+    assert.equal(executed.status, 'executed');
+    assert.equal(executed.policy.policy.id, 'baseline-appsec');
+    assert.equal(calls, 1);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('policy evaluate rejects a capsule whose specialist the policy does not accept', async () => {
+  const root = await setup();
+  try {
+    await fs.writeFile(path.join(root, 'cloud.json'), `${JSON.stringify(capsule({ specialist: 'cloud-hardening-architect' }), null, 2)}\n`);
+    const error = await createLinmasDispatcher()('linmas_policy_evaluate', { workspace_root: root, capsule_path: 'cloud.json', policy_id: 'baseline-appsec' })
+      .then(() => null, (failure) => failure);
+    assert.ok(error, 'specialist mismatch must be rejected');
+    const publicError = toPublicReviewError(error);
+    assert.equal(publicError.code, 'POLICY_UNSUPPORTED');
+    assert.equal(publicError.transmissionState, 'not-attempted');
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('review execute rejects a provider response whose specialist the policy does not accept and writes no capsule', async () => {
+  const root = await setup();
+  let calls = 0;
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: async () => { calls += 1; return { provider: 'codex', model: 'fixture-model', usage: null, requestId: null, rawResponse: JSON.stringify({ schemaVersion: 1, specialist: 'cloud-hardening-architect', scopeAndAssumptions: ['fixture'], findings: [], deterministicChecks: [], safetyBoundary }) }; } })
+  }]]);
+  try {
+    const outcome = await createLinmasDispatcher({ providerRegistry })('linmas_review_execute', {
+      workspace_root: root,
+      input_text: 'fixture',
+      skill_name: 'linmas-secure-code-reviewer',
+      provider: 'codex',
+      policy_id: 'baseline-appsec',
+      capsule_path: 'foreign-capsule.json',
+      confirm_transmission: true
+    }).then((result) => ({ result }), (error) => ({ error }));
+    assert.equal(calls, 1);
+    assert.equal(outcome.result, undefined, 'foreign specialist must not be evaluated against the policy');
+    const publicError = toPublicReviewError(outcome.error);
+    assert.equal(publicError.code, 'POLICY_UNSUPPORTED');
+    assert.equal(publicError.transmissionState, 'normalized');
+    assert.equal(publicError.transmissionAttempted, true);
+    assert.equal(publicError.providerResponseReceived, true);
+    assert.equal(publicError.capsuleWritten, false);
+    await assert.rejects(fs.lstat(path.join(root, 'foreign-capsule.json')), { code: 'ENOENT' });
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
