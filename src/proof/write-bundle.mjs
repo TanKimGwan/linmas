@@ -34,7 +34,12 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
   let committed = false;
   try {
     throwIfAborted(signal);
-    lock = await fsApi.open(lockPath, 'wx', 0o600);
+    try { lock = await fsApi.open(lockPath, 'wx', 0o600); }
+    catch (cause) {
+      if (cause?.code !== 'EEXIST') throw cause;
+      // Name only the lock file, never the absolute path from the cause.
+      throw new ProofError(`proof bundle could not be written: a lock file (${path.basename(lockPath)}) already exists next to the destination; if no other proof create is running, the lock is stale and can be removed`, 'write', 2);
+    }
     throwIfAborted(signal);
     await fsApi.mkdir(stage, { mode: 0o700 });
     throwIfAborted(signal);

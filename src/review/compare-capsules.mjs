@@ -42,7 +42,10 @@ export function compareReviewCapsules(beforeValue, afterValue) {
     findings: { added, resolved, persistent, changed },
     policyTransition: {
       before: policyDecision(before.policy),
-      after: policyDecision(after.policy)
+      after: policyDecision(after.policy),
+      // Decisions are read from the capsules as recorded; capsules are unsigned
+      // and compare does not re-evaluate them against a policy pack.
+      source: 'capsule-self-reported'
     },
     warnings,
     humanReviewRequired: true,
@@ -68,7 +71,7 @@ export function formatSecurityDelta(delta, { output = 'text' } = {}) {
     `Resolved (absent)   ${list(delta.findings.resolved)}`,
     `Persistent          ${list(delta.findings.persistent)}`,
     `Changed             ${list(delta.findings.changed.map((item) => item.id))}`,
-    `Policy transition   ${delta.policyTransition.before} -> ${delta.policyTransition.after}`
+    `Policy transition   ${delta.policyTransition.before} -> ${delta.policyTransition.after} (self-reported by the capsules; not re-evaluated)`
   ];
   for (const warning of delta.warnings) lines.push(`Warning             ${warning}`);
   lines.push('Human review remains required.', delta.disclaimer, '');

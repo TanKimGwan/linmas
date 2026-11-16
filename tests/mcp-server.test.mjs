@@ -1223,3 +1223,41 @@ test('unreadable capsules map to INVALID_PATH without exposing the path', { skip
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('T9-06 review_decide marks whether the disposition came through human elicitation', async () => {
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('crit-1', 'Critical')]);
+  try {
+    const fallback = await dispatch('linmas_review_decide', {
+      workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest,
+      decision: { disposition: 'continue_with_note', risk_acknowledged: true, rationale: 'Supplied by the caller.' }
+    });
+    assert.equal(fallback.reviewInteraction.channel, 'text_fallback');
+    assert.equal(fallback.reviewInteraction.elicitationConfirmed, false);
+    // The text fallback stays available for hosts without elicitation.
+    assert.equal(fallback.status, 'selected');
+
+    const viaForm = await dispatch('linmas_review_decide', {
+      workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest
+    }, { elicit: async () => ({ action: 'accept', content: { disposition: 'manual_review_required' } }) });
+    assert.equal(viaForm.reviewInteraction.channel, 'mcp_form');
+    assert.equal(viaForm.reviewInteraction.elicitationConfirmed, true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('T11 F-3 elicitationConfirmed is true only for an accepted form answer', async () => {
+  const { root, dispatch, reference } = await decisionContext([reviewFinding('crit-1', 'Critical')]);
+  try {
+    for (const action of ['decline', 'cancel']) {
+      const result = await dispatch('linmas_review_decide', {
+        workspace_root: root, review_handle: reference.handle, capsule_digest: reference.capsuleDigest
+      }, { elicit: async () => ({ action }) });
+      assert.equal(result.reviewInteraction.channel, 'mcp_form');
+      assert.notEqual(result.status, 'selected');
+      assert.equal(result.reviewInteraction.elicitationConfirmed, false, action);
+    }
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

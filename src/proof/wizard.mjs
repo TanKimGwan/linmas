@@ -1,6 +1,7 @@
 import { ProofError } from './errors.mjs';
 import { DISPOSITIONS } from './constants.mjs';
 import { buildDecisionReceipt } from './validate-receipt.mjs';
+import { terminalSafe } from './terminal-text.mjs';
 
 const LABELS = new Map([
   ['1', 'remediation-required'],
@@ -15,7 +16,7 @@ export async function collectDecisionReceipt(source, { io, signing = false, now 
   const principal = signing ? await ask(io, 'SSH signer principal: ') : null;
   const decisions = [];
   for (const finding of source.findings) {
-    io.stdout.write(`\nFinding ${finding.id}${finding.title ? ` — ${finding.title}` : ''} (${finding.severity ?? 'unknown'})\n`);
+    io.stdout.write(`\nFinding ${terminalSafe(finding.id)}${finding.title ? ` — ${terminalSafe(finding.title)}` : ''} (${terminalSafe(finding.severity ?? 'unknown')})\n`);
     io.stdout.write('1) remediation-required  2) accepted-risk  3) false-positive  4) needs-more-evidence\n');
     const choice = await ask(io, 'Disposition: ');
     const disposition = LABELS.get(choice) ?? (DISPOSITIONS.includes(choice) ? choice : null);

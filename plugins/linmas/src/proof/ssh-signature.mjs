@@ -22,18 +22,21 @@ export async function derivePublicKey(privateKeyPath, { fsApi = fs, command = ru
   return Buffer.from(`${publicKeyText}\n`);
 }
 
-export async function verifyManifestSignature({ manifestPath, signaturePath, publicKeyPath, allowedSignersPath = null, principal }, { fsApi = fs, command = runProcess } = {}) {
-  const publicKey = await fsApi.readFile(publicKeyPath, 'utf8');
-  const temporary = allowedSignersPath ? null : await fsApi.mkdtemp(path.join(os.tmpdir(), 'linmas-ssh-'));
+// Verifies already-read bytes: the caller has bounded and hash-checked them, so
+// ssh-keygen only ever reads private copies in a fresh temporary directory.
+export async function verifyManifestSignature({ manifestBytes, signatureBytes, publicKey, allowedSignersPath = null, principal }, { fsApi = fs, command = runProcess } = {}) {
+  const temporary = await fsApi.mkdtemp(path.join(os.tmpdir(), 'linmas-ssh-'));
+  const signaturePath = path.join(temporary, 'manifest.sig');
   const verifierPath = allowedSignersPath ?? path.join(temporary, 'allowed-signers');
-  if (!allowedSignersPath) await fsApi.writeFile(verifierPath, `${principal} ${publicKey.trim()}\n`, { mode: 0o600 });
   try {
-    await run(command, 'ssh-keygen', ['-Y', 'verify', '-f', verifierPath, '-I', principal, '-n', NAMESPACE, '-s', signaturePath], { input: await fsApi.readFile(manifestPath) });
+    await fsApi.writeFile(signaturePath, signatureBytes, { mode: 0o600, flag: 'wx' });
+    if (!allowedSignersPath) await fsApi.writeFile(verifierPath, `${principal} ${Buffer.from(publicKey).toString('utf8').trim()}\n`, { mode: 0o600, flag: 'wx' });
+    await run(command, 'ssh-keygen', ['-Y', 'verify', '-f', verifierPath, '-I', principal, '-n', NAMESPACE, '-s', signaturePath], { input: manifestBytes });
     return { signature: 'valid', identity: allowedSignersPath ? 'trusted' : 'self-asserted' };
   } catch (cause) {
     throw signerError('SSH manifest signature verification failed', cause);
   } finally {
-    if (temporary) await fsApi.rm(temporary, { recursive: true, force: true }).catch(() => {});
+    await fsApi.rm(temporary, { recursive: true, force: true }).catch(() => {});
   }
 }
 

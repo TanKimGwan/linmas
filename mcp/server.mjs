@@ -54,7 +54,7 @@ const TOOL_DEFINITIONS = Object.freeze([
   {
     name: 'linmas_review_decide',
     title: 'Record Linmas Human Review Decision',
-    description: 'Ask for and record a bounded human disposition after findings are available. This never approves a review or bypasses transmission and write consent.',
+    description: 'Ask for and record a bounded human disposition after findings are available. This never approves a review or bypasses transmission and write consent. reviewInteraction.elicitationConfirmed is true only when a person accepted the MCP form with a disposition; a text_fallback decision is supplied by the caller and is not confirmed as a human answer.',
     kind: 'read',
     inputSchema: commonSchema({
       required: ['workspace_root', 'review_handle', 'capsule_digest'],
@@ -424,6 +424,10 @@ function reviewDecisionRecord({ args, decision, channel, status = 'selected', ra
       schemaVersion: 1,
       status,
       channel,
+      // Additive honesty flag: true only when a person accepted the MCP form and a
+      // disposition was selected. Declined/cancelled forms carry no disposition, and a
+      // text_fallback decision is supplied by the tool caller (which may be the agent).
+      elicitationConfirmed: channel === 'mcp_form' && status === 'selected',
       disposition: decision,
       unresolvedFindings: counts,
       riskAcceptance: {
@@ -579,6 +583,7 @@ async function proofVerify(args) {
       integrity: result.integrity,
       signature: result.signature,
       identity: result.identity,
+      principal: result.principal,
       source: result.source,
       manifestSha256: result.manifestSha256,
       receipt: {

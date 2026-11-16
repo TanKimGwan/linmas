@@ -18,6 +18,7 @@ import { ReviewError } from '../src/review/errors.mjs';
 import { createProviderRegistry } from '../src/providers/registry.mjs';
 import { createHostRegistry } from '../src/hosts/registry.mjs';
 import { LINMAS_VERSION } from '../src/core/version.mjs';
+import { terminalSafe } from '../src/proof/terminal-text.mjs';
 import {
   applyScopedInstallPlan,
   applyScopedUninstallPlan,
@@ -373,7 +374,8 @@ export async function run(argv, io = process, dependencies = {}) {
       await runProof(args, { io });
       return 0;
     } catch (error) {
-      io.stderr.write(`Error: ${error.message}\n`);
+      // Proof errors can quote untrusted manifest paths; never print raw control characters.
+      io.stderr.write(`Error: ${terminalSafe(error.message)}\n`);
       return error instanceof ProofError ? error.exitCode : 1;
     }
   }

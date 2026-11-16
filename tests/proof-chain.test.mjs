@@ -149,3 +149,49 @@ test('optional SSH signature verifies as self-asserted and trusted', { skip: !pr
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('T9-08/T9-09 report.md has no stray semicolons and escapes untrusted text', () => {
+  const receipt = buildDecisionReceipt({
+    subject: { kind: 'linmas-review-capsule', sha256: 'b'.repeat(64) },
+    reviewer: { label: 'Eve <img src=x onerror=alert(1)> [click](javascript:alert(1))', principal: null },
+    findings: [{ id: 'F-1', disposition: 'false-positive', rationale: '<script>alert(1)</script> **bold** `code`' }],
+    statement: 'See [docs](javascript:alert(2)) and <b>this</b>.',
+    now: new Date('2026-07-19T00:00:00.000Z')
+  });
+  const { markdown } = renderProofReports({ source: { kind: 'linmas-review-capsule', sourceSha256: 'b'.repeat(64), findings: [{ id: 'F-1', title: '<iframe src=javascript:alert(3)>', severity: 'High' }] }, receipt });
+  assert.match(markdown, /^Source: `linmas-review-capsule`$/m);
+  assert.match(markdown, /^Source SHA-256: `b{64}`$/m);
+  assert.match(markdown, /^### `F-1` — /m);
+  assert.doesNotMatch(markdown, /`;/);
+  assert.doesNotMatch(markdown, /<img|<script|<iframe|<b>/i);
+  assert.doesNotMatch(markdown, /\]\(javascript:/i);
+  assert.match(markdown, /&lt;img src=x onerror=alert\\\(1\\\)&gt;/);
+  assert.match(markdown, /\\\[click\\\]\\\(javascript:alert\\\(1\\\)\\\)/);
+});
+
+test('T11 F-1 every text path into report.md is inert, including finding IDs and statement blocks', () => {
+  const lineBreaks = ['\n', '\r\n', '\r', '\u2028', '\u0085'];
+  for (const lineBreak of lineBreaks) {
+    const receipt = buildDecisionReceipt({
+      subject: { kind: 'linmas-review-capsule', sha256: 'b'.repeat(64) },
+      reviewer: { label: 'Reviewer', principal: null },
+      findings: [{ id: `F1${lineBreak}<img src=x onerror=alert(1)>`, disposition: 'false-positive', rationale: 'r' }],
+      statement: 'Reviewed.',
+      now: new Date('2026-07-19T00:00:00.000Z')
+    });
+    const { markdown } = renderProofReports({ source: { kind: 'linmas-review-capsule', sourceSha256: 'b'.repeat(64), findings: [{ id: receipt.findings[0].id, title: `t${lineBreak}# heading`, severity: 'High' }] }, receipt });
+    assert.doesNotMatch(markdown, /^<img|^# heading/m, JSON.stringify(lineBreak));
+    assert.doesNotMatch(markdown, /[\u2028\u0085\r]/, JSON.stringify(lineBreak));
+    assert.match(markdown, /^### `F1 <img src=x onerror=alert\(1\)>`/m, JSON.stringify(lineBreak));
+  }
+  for (const statement of ['---', '1. listed', '2) listed', '    indented code', '+ plus item', '- dash item', '~~struck~~', '===', '> quote', '\tcode\u001b[31m']) {
+    const receipt = buildDecisionReceipt({
+      subject: { kind: 'linmas-review-capsule', sha256: 'b'.repeat(64) },
+      reviewer: { label: 'Reviewer', principal: null }, findings: [], statement, now: new Date('2026-07-19T00:00:00.000Z')
+    });
+    const { markdown } = renderProofReports({ source: { kind: 'linmas-review-capsule', sourceSha256: 'b'.repeat(64), findings: [] }, receipt });
+    const line = markdown.split('\n')[markdown.split('\n').indexOf('## Human disposition: no-findings-reported') + 2];
+    assert.doesNotMatch(line, /^(?:---|===|[-+]\s|\d+[.)]\s|\s|~~|>)/, `${JSON.stringify(statement)} rendered as ${JSON.stringify(line)}`);
+    assert.doesNotMatch(line, /[\u0000-\u001f]/, JSON.stringify(statement));
+  }
+});

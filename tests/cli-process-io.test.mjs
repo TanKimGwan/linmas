@@ -222,3 +222,15 @@ test('proof create cannot read its source from stdin', { skip: process.platform 
   assert.equal(code, 2);
   assert.match(fake.stderr, /regular non-symlink|could not be/);
 });
+
+test('T11 F-2 the proof wizard prints untrusted finding text without control characters', async (t) => {
+  const dir = tempDir(t);
+  const capsulePath = writeCapsule(dir);
+  const capsule = JSON.parse(fs.readFileSync(capsulePath, 'utf8'));
+  capsule.review.findings[0].evidence = 'Synthetic \u001b[2Jevidence\u0007.';
+  fs.writeFileSync(capsulePath, `${JSON.stringify(capsule, null, 2)}\n`);
+  const fake = fakeProcess({ script: [{ prompt: /Reviewer label: $/, answer: 'Synthetic reviewer' }, { prompt: /Disposition: $/, answer: null }] });
+  await runCli(['proof', 'create', capsulePath, '--bundle', path.join(dir, 'bundle')], fake);
+  assert.match(fake.stdout, /Finding F-1 — Synthetic \\u001b\[2Jevidence\\u0007\./);
+  assert.equal(/[\u0000-\u0009\u000b-\u001f\u007f]/.test(fake.stdout + fake.stderr), false, JSON.stringify(fake.stdout + fake.stderr));
+});

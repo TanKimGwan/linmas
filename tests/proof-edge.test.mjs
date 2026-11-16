@@ -353,3 +353,24 @@ test('wizard accepts the interactive io produced by createProcessIO (isInteracti
   assert.equal(receipt.findings.length, 1);
   await assert.rejects(collectDecisionReceipt(source, { io: { isInteractive: false, stdout: { write() {} }, async readLine() { return 'y'; } }, now: new Date() }), /TTY/);
 });
+
+test('T9-10 a stale bundle lock reports a dedicated message without absolute paths', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'linmas-proof-stale-lock-'));
+  try {
+    const capsulePath = path.join(root, 'capsule.json');
+    await fs.writeFile(capsulePath, `${JSON.stringify(capsule(), null, 2)}\n`);
+    const source = await loadCapsuleEvidence(capsulePath);
+    const receipt = buildDecisionReceipt({
+      subject: { kind: source.kind, sha256: source.sourceSha256 }, reviewer: { label: 'Reviewer', principal: null },
+      findings: [], statement: 'No action is recorded.', now: new Date('2026-09-03T00:00:00.000Z')
+    });
+    await fs.writeFile(path.join(root, '.bundle.lock'), '');
+    const error = await writeProofBundle(path.join(root, 'bundle'), source, receipt).then(() => null, (failure) => failure);
+    assert.ok(error);
+    assert.match(error.message, /could not be written: .*lock .*\.bundle\.lock.*stale/);
+    assert.equal(error.message.includes(root), false, error.message);
+    assert.doesNotMatch(error.message, /EEXIST/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

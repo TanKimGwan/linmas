@@ -207,6 +207,8 @@ linmas proof create review-capsule.json --bundle signed-proof --signing-key ~/.s
 linmas proof verify signed-proof --allowed-signers ~/.ssh/allowed_signers --output json
 ```
 
+When `--allowed-signers` is supplied, verification requires a valid signature from a listed signer: an unsigned bundle, or one whose signature cannot be verified, fails with exit code 4 instead of being reported as `unsigned`. The signing principal must match the reviewer principal recorded in the decision receipt, and the verified principal is shown in the output. Verification also rejects files in the bundle that the manifest does not list (only `manifest.json` and `signature/manifest.sig` are outside the list by design). This includes empty directories and files that tools add on copy, such as macOS Finder's `.DS_Store`; copy bundles with a tool that preserves the exact contents, or remove such files before verifying. Without `--allowed-signers`, an unsigned bundle still verifies and is labelled `unsigned`, and a signature checked against the bundle's own key is labelled `self-asserted`.
+
 Proof bundles are evidence summaries, not approvals, certifications, or proof that software is secure. Human review remains required.
 
 ## Compare before and after
@@ -217,7 +219,7 @@ Compare two capsules locally, without a provider or network call:
 linmas review compare before.json after.json
 ```
 
-The comparison validates both complete capsules, then reports added, resolved, persistent, and changed findings plus the policy transition. It does not claim that an empty delta proves security.
+The comparison validates both complete capsules, then reports added, resolved, persistent, and changed findings plus the policy transition. The policy transition is read from the capsules as recorded and is labelled self-reported (`policyTransition.source: "capsule-self-reported"` in JSON); compare does not re-evaluate it against a policy pack. It does not claim that an empty delta proves security.
 
 ## Deterministic policy, never automatic approval
 
@@ -227,7 +229,7 @@ Apply a built-in declarative policy after normalization:
 linmas review --skill linmas-secure-code-reviewer --input patch.diff --provider codex --policy baseline-appsec
 ```
 
-Built-in packs are `baseline-appsec`, `cloud-change`, and `release-security`. Local policy files are bounded, schema-validated JSON with no commands, code, expressions, templates, plugins, remote imports, or provider hooks.
+Built-in packs are `baseline-appsec`, `cloud-change`, and `release-security`. Local policy files are bounded, schema-validated JSON with no commands, code, expressions, templates, plugins, remote imports, or provider hooks. Rule `severities` and `statuses` must use the exact, case-sensitive ReviewResult values (`Critical`, `High`, `Medium`, `Low`, `Info`; `Confirmed finding`, `Needs validation`, `Recommendation`); a pack with any other value is rejected.
 
 Decisions are `pass`, `needs-review`, or `blocked`. A policy `pass` does not prove the change is secure, compliant, certified, or approved. Safety failures fail closed, and **human review is required** for every result.
 
@@ -494,7 +496,7 @@ When a reviewer has produced findings, `linmas_review_decide` requests an explic
 - **C — Hentikan task untuk review manual**: agent stops without claiming approval or security.
 - **D — Beri tahu agent harus bertindak apa**: custom guidance that cannot bypass transmission, write, or safety gates.
 
-If no findings are actionable, A is omitted. If the host cannot show an MCP form, Linmas returns the same choices as a structured chat fallback and does not choose one automatically. A generic “lanjutkan” is not sufficient disposition. The gate uses the MCP protocol's client-side [form elicitation](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation); host permission modes remain separate controls.
+If no findings are actionable, A is omitted. If the host cannot show an MCP form, Linmas returns the same choices as a structured chat fallback and does not choose one automatically. Every result carries `reviewInteraction.elicitationConfirmed`: `true` only when a person accepted the MCP form and selected a disposition, `false` when the form was declined or cancelled and for the text fallback, where the tool caller (possibly the agent) supplies the decision and Linmas cannot confirm a human entered it. A generic “lanjutkan” is not sufficient disposition. The gate uses the MCP protocol's client-side [form elicitation](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation); host permission modes remain separate controls.
 
 Codex and Claude Code must have the Linmas MCP server registered for the form to appear. A Full Access or `--dangerously-skip-permissions` mode controls command permission prompts; it does not grant a Linmas review disposition. If the active host suppresses or lacks MCP elicitation, the structured chat fallback remains mandatory.
 
