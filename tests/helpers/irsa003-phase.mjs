@@ -49,11 +49,14 @@ export function readPhase(file, { phase, requestId, pidCount }) {
 }
 
 export async function waitForPhase(file, child, expected, {
-  timeoutMs = 15000, now = Date.now, pause = () => delay(20)
+  timeoutMs = 15000, now = Date.now, pause = () => delay(20), diagnostics = null
 } = {}) {
   const deadline = now() + timeoutMs;
   for (;;) {
-    assert(child.exitCode === null && child.signalCode === null, 'process exited before phase');
+    if (child.exitCode !== null || child.signalCode !== null) {
+      const detail = typeof diagnostics === 'function' ? String(diagnostics() ?? '').slice(-2000) : '';
+      assert.fail(`process exited before phase (exit ${child.exitCode}, signal ${child.signalCode})${detail ? `: ${detail}` : ''}`);
+    }
     assert(now() < deadline, 'phase notification timeout');
     const value = readPhase(file, expected);
     if (value !== null) return value;

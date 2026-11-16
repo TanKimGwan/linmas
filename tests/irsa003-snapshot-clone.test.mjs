@@ -116,7 +116,7 @@ test('cancellation during actual Git clone reaps upload helper and leaves no acc
   const completed = once(child, 'exit'); let stderr = '';
   child.stdout.resume(); child.stderr.on('data', bytes => { stderr += bytes; });
   t.after(() => { if (child.exitCode === null) child.kill('SIGTERM'); });
-  const { pids } = await waitForPhase(ready, child, { phase: 'snapshot-clone', requestId: f.policy.request.id, pidCount: 2 });
+  const { pids } = await waitForPhase(ready, child, { phase: 'snapshot-clone', requestId: f.policy.request.id, pidCount: 2 }, { diagnostics: () => stderr });
   child.kill('SIGTERM');
   assert.equal((await completed)[0], 143, stderr);
   for (const pid of pids) assert(!fs.existsSync(`/proc/${pid}`), `clone descendant remains: ${pid}`);
