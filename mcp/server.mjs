@@ -39,6 +39,7 @@ export const TOOL_TIMEOUTS = Object.freeze({
 });
 export const ELICITATION_TIMEOUT_MS = 120_000;
 const MAX_REVIEW_REFERENCES = 64;
+const TRANSMISSION_STATES = Object.freeze(['not-attempted', 'attempted', 'response-received', 'normalized', 'capsule-written']);
 
 const SPECIALIST_SKILL_IDS = Object.freeze(
   PUBLIC_SKILL_IDS.filter((skillId) => skillId !== 'linmas-security-domain-router')
@@ -224,24 +225,29 @@ export function createLinmasDispatcher({
       stage: 'argument-validation',
       reasonCode: 'TOOL_UNSUPPORTED'
     });
-    const args = validateToolArguments(definition, rawArguments);
-    const timeoutMs = args.timeout_ms ?? TOOL_TIMEOUTS[definition.kind].defaultMs;
-    const operation = (signal) => {
-      switch (name) {
-        case 'linmas_review_prepare': return reviewPrepare(args);
-        case 'linmas_review_decide': return reviewDecide(args, context.elicit, reviewReferences);
-        case 'linmas_review_compare': return reviewCompare(args, signal);
-        case 'linmas_policy_evaluate': return policyEvaluate(args, pluginRoot, signal);
-        case 'linmas_proof_verify': return proofVerify(args, signal);
-        case 'linmas_proof_create': return proofCreate(args, signal);
-        case 'linmas_review_execute': return reviewExecute(args, pluginRoot, registry, env, signal, rememberReview);
-        default: throw toolError('unknown_tool', 'unknown tool', undefined, {
-          stage: 'argument-validation',
-          reasonCode: 'TOOL_UNSUPPORTED'
-        });
-      }
-    };
-    return boundedOutput(await withTimeout(operation, timeoutMs));
+    const transmission = name === 'linmas_review_execute' ? { state: 'not-attempted' } : null;
+    try {
+      const args = validateToolArguments(definition, rawArguments);
+      const timeoutMs = args.timeout_ms ?? TOOL_TIMEOUTS[definition.kind].defaultMs;
+      const operation = (signal) => {
+        switch (name) {
+          case 'linmas_review_prepare': return reviewPrepare(args);
+          case 'linmas_review_decide': return reviewDecide(args, context.elicit, reviewReferences);
+          case 'linmas_review_compare': return reviewCompare(args, signal);
+          case 'linmas_policy_evaluate': return policyEvaluate(args, pluginRoot, signal);
+          case 'linmas_proof_verify': return proofVerify(args, signal);
+          case 'linmas_proof_create': return proofCreate(args, signal);
+          case 'linmas_review_execute': return reviewExecute(args, pluginRoot, registry, env, signal, rememberReview, transmission);
+          default: throw toolError('unknown_tool', 'unknown tool', undefined, {
+            stage: 'argument-validation',
+            reasonCode: 'TOOL_UNSUPPORTED'
+          });
+        }
+      };
+      return boundedOutput(await withTimeout(operation, timeoutMs));
+    } catch (error) {
+      throw annotateTransmission(error, transmission, { timeoutFloor: error?.toolCode === 'timeout' });
+    }
   };
 }
 
@@ -633,25 +639,7 @@ async function proofCreate(args, signal) {
   };
 }
 
-async function reviewExecute(args, pluginRoot, registry, env, signal, rememberReview) {
-  const transmission = { state: 'not-attempted' };
-  const states = ['not-attempted', 'attempted', 'response-received', 'normalized', 'capsule-written'];
-  const advanceTransmission = (state) => {
-    if (states.indexOf(state) > states.indexOf(transmission.state)) transmission.state = state;
-  };
-  const annotateFailure = (error) => {
-    if (error && typeof error === 'object') {
-      const errorState = states.includes(error.transmissionState) ? error.transmissionState : 'not-attempted';
-      const finalState = states.indexOf(errorState) > states.indexOf(transmission.state) ? errorState : transmission.state;
-      error.transmissionState = finalState;
-      error.transmissionAttempted = finalState !== 'not-attempted';
-      error.providerResponseReceived = ['response-received', 'normalized', 'capsule-written'].includes(finalState);
-      error.capsuleWritten = finalState === 'capsule-written';
-      error.stage ??= finalState === 'not-attempted' ? 'provider-preflight' : 'provider-execution';
-    }
-    return error;
-  };
-
+async function reviewExecute(args, pluginRoot, registry, env, signal, rememberReview, transmission) {
   try {
     const workspace = await validateWorkspaceRoot(args.workspace_root);
     throwIfAborted(signal);
@@ -692,17 +680,17 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
       : null;
     throwIfAborted(signal);
     const runner = execution.createRunner();
-    advanceTransmission('attempted');
+    advanceTransmission(transmission, 'attempted');
     const runResult = await withDeadlineSignal(signal, (executionSignal) => runner.run({
       system: 'Return only ReviewResult schemaVersion 1 JSON.',
       user: JSON.stringify(request),
       signal: executionSignal
     }));
     throwIfAborted(signal);
-    advanceTransmission('response-received');
+    advanceTransmission(transmission, 'response-received');
     const review = normalizeProviderResponse(runResult, { caseId: 'review/linmas-mcp', specialist: request.specialist });
     throwIfAborted(signal);
-    advanceTransmission('normalized');
+    advanceTransmission(transmission, 'normalized');
     review.modelMetadata.requestId = null;
     let policyResult = null;
     if (policy) {
@@ -728,7 +716,7 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
         if (signal?.aborted) await fs.rm(capsuleTarget.path, { force: true }).catch(() => {});
         throw error;
       }
-      advanceTransmission('capsule-written');
+      advanceTransmission(transmission, 'capsule-written');
       throwIfAborted(signal);
     }
     throwIfAborted(signal);
@@ -756,8 +744,27 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
       policy: policyResult
     };
   } catch (error) {
-    throw annotateFailure(error);
+    throw annotateTransmission(error, transmission, { setStage: true });
   }
+}
+
+function advanceTransmission(transmission, state) {
+  if (transmission && TRANSMISSION_STATES.indexOf(state) > TRANSMISSION_STATES.indexOf(transmission.state)) transmission.state = state;
+}
+
+function annotateTransmission(error, transmission, { setStage = false, timeoutFloor = false } = {}) {
+  if (!transmission || !error || typeof error !== 'object') return error;
+  const errorState = TRANSMISSION_STATES.includes(error.transmissionState) ? error.transmissionState : 'not-attempted';
+  let finalState = TRANSMISSION_STATES.indexOf(errorState) > TRANSMISSION_STATES.indexOf(transmission.state)
+    ? errorState
+    : transmission.state;
+  if (timeoutFloor && TRANSMISSION_STATES.indexOf(finalState) < TRANSMISSION_STATES.indexOf('attempted')) finalState = 'attempted';
+  error.transmissionState = finalState;
+  error.transmissionAttempted = finalState !== 'not-attempted';
+  error.providerResponseReceived = ['response-received', 'normalized', 'capsule-written'].includes(finalState);
+  error.capsuleWritten = finalState === 'capsule-written';
+  if (setStage) error.stage ??= finalState === 'not-attempted' ? 'provider-preflight' : 'provider-execution';
+  return error;
 }
 
 function providerPreview(provider, model, env, registry) {

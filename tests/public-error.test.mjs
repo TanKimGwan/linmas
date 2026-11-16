@@ -37,6 +37,26 @@ test('public timeout errors remain structured and fail closed', () => {
   assert.equal(value.retryable, true);
 });
 
+test('execute errors without transmission state remain not-attempted', () => {
+  const value = toPublicReviewError(Object.assign(new Error('invalid argument'), {
+    toolCode: 'input_field_invalid'
+  }), { transmitting: true });
+  assert.equal(value.transmissionState, 'not-attempted');
+  assert.equal(value.transmissionAttempted, false);
+});
+
+test('explicit post-transmission state is preserved', () => {
+  const value = toPublicReviewError(Object.assign(new Error('late provider failure'), {
+    toolCode: 'provider-transport',
+    transmissionState: 'response-received',
+    transmissionAttempted: true,
+    providerResponseReceived: true
+  }), { transmitting: true });
+  assert.equal(value.transmissionState, 'response-received');
+  assert.equal(value.transmissionAttempted, true);
+  assert.equal(value.providerResponseReceived, true);
+});
+
 test('public upstream diagnostics expose only the granular safe contract', () => {
   const value = toPublicReviewError(new ReviewError('raw upstream body secret', 'provider-upstream', EXIT_CODES.PROVIDER, {
     stage: 'provider-execution', reasonCode: 'EXECUTION_UPSTREAM_FAILED', retryable: true,

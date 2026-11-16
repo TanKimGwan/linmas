@@ -165,6 +165,102 @@ test('provider preflight fails before input execution and exposes safe configura
   }
 });
 
+test('execute argument validation errors report no transmission attempt', async () => {
+  const root = await setup();
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ env: {} }) });
+    const baseArguments = {
+      workspace_root: root,
+      input_text: 'synthetic fixture',
+      skill_name: 'secure-code-reviewer',
+      provider: 'codex',
+      confirm_transmission: true
+    };
+    const outOfRange = await server.handle({
+      jsonrpc: '2.0', id: 42, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: { ...baseArguments, timeout_ms: TOOL_TIMEOUTS.transmit.maxMs + 1 } }
+    });
+    assert.equal(outOfRange.result.structuredContent.error.code, 'INPUT_FIELD_INVALID');
+    assert.equal(outOfRange.result.structuredContent.error.transmissionState, 'not-attempted');
+    assert.equal(outOfRange.result.structuredContent.error.transmissionAttempted, false);
+
+    const unknownField = await server.handle({
+      jsonrpc: '2.0', id: 43, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: { ...baseArguments, unknown_argument: true } }
+    });
+    assert.equal(unknownField.result.structuredContent.error.code, 'INPUT_FIELD_UNSUPPORTED');
+    assert.equal(unknownField.result.structuredContent.error.transmissionState, 'not-attempted');
+    assert.equal(unknownField.result.structuredContent.error.transmissionAttempted, false);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('outer execute timeout keeps conservative attempted transmission state', async () => {
+  const root = await setup();
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: () => new Promise(() => {}) })
+  }]]);
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ providerRegistry }) });
+    const response = await server.handle({
+      jsonrpc: '2.0', id: 44, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: {
+        workspace_root: root,
+        input_text: 'fixture',
+        skill_name: 'secure-code-reviewer',
+        provider: 'codex',
+        confirm_transmission: true,
+        timeout_ms: 100
+      } }
+    });
+    const error = response.result.structuredContent.error;
+    assert.equal(error.code, 'MCP_TIMEOUT');
+    assert.equal(error.transmissionState, 'attempted');
+    assert.equal(error.transmissionAttempted, true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('outer timeout before runner creation also keeps attempted state', async () => {
+  const root = await setup();
+  let created = false;
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    prepareExecution: async (options) => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return options;
+    },
+    create: () => {
+      created = true;
+      return { run: () => new Promise(() => {}) };
+    }
+  }]]);
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ providerRegistry }) });
+    const response = await server.handle({
+      jsonrpc: '2.0', id: 45, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: {
+        workspace_root: root,
+        input_text: 'fixture',
+        skill_name: 'secure-code-reviewer',
+        provider: 'codex',
+        confirm_transmission: true,
+        timeout_ms: 100
+      } }
+    });
+    const error = response.result.structuredContent.error;
+    assert.equal(error.code, 'MCP_TIMEOUT');
+    assert.equal(error.transmissionState, 'attempted');
+    assert.equal(error.transmissionAttempted, true);
+    assert.equal(created, false);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test('all offline tool paths validate strict input and workspace boundaries', async () => {
   const root = await setup();
   try {
@@ -256,6 +352,118 @@ test('MCP arguments and real dispatcher output remain bounded', async () => {
       /output exceeds/,
     );
   } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('output-too-large preserves post-transmission state with and without a capsule', async () => {
+  const root = await setup();
+  const oversizedProvider = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: async () => ({
+      provider: 'codex',
+      model: 'fixture-model',
+      usage: null,
+      requestId: null,
+      rawResponse: JSON.stringify({
+        schemaVersion: 1,
+        scopeAndAssumptions: Array.from({ length: 20 }, () => 'x'.repeat(16 * 1024)),
+        findings: [],
+        deterministicChecks: [],
+        safetyBoundary
+      })
+    }) })
+  }]]);
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ providerRegistry: oversizedProvider }) });
+    const call = (arguments_, id) => server.handle({
+      jsonrpc: '2.0', id, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: arguments_ }
+    });
+    const baseArguments = {
+      workspace_root: root,
+      input_text: 'fixture',
+      skill_name: 'secure-code-reviewer',
+      provider: 'codex',
+      confirm_transmission: true
+    };
+    const withoutCapsule = await call(baseArguments, 46);
+    const withoutCapsuleError = withoutCapsule.result.structuredContent.error;
+    assert.equal(withoutCapsuleError.code, 'OUTPUT_TOO_LARGE');
+    assert.equal(withoutCapsuleError.transmissionState, 'normalized');
+    assert.equal(withoutCapsuleError.transmissionAttempted, true);
+    assert.equal(withoutCapsuleError.providerResponseReceived, true);
+    assert.equal(withoutCapsuleError.capsuleWritten, false);
+
+    const capsulePath = path.join(root, 'oversized-capsule.json');
+    const withCapsule = await call({ ...baseArguments, capsule_path: 'oversized-capsule.json' }, 47);
+    const withCapsuleError = withCapsule.result.structuredContent.error;
+    assert.equal(withCapsuleError.code, 'OUTPUT_TOO_LARGE');
+    assert.equal(withCapsuleError.transmissionState, 'capsule-written');
+    assert.equal(withCapsuleError.transmissionAttempted, true);
+    assert.equal(withCapsuleError.providerResponseReceived, true);
+    assert.equal(withCapsuleError.capsuleWritten, true);
+    await fs.access(capsulePath);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test('outer timeout after provider response preserves the holder state and capsule cleanup', async () => {
+  const root = await setup();
+  const probe = await fs.open(path.join(root, 'sync-probe'), 'w');
+  const fileHandlePrototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  await fs.rm(path.join(root, 'sync-probe'), { force: true });
+  const originalSync = fileHandlePrototype.sync;
+  fileHandlePrototype.sync = async function delayedSync(...arguments_) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return originalSync.apply(this, arguments_);
+  };
+  const providerRegistry = new Map([['codex', {
+    detectConfiguration: () => ({ status: 'configured', defaultModel: 'fixture-model' }),
+    create: () => ({ run: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return {
+        provider: 'codex',
+        model: 'fixture-model',
+        usage: null,
+        requestId: null,
+        rawResponse: JSON.stringify({
+          schemaVersion: 1,
+          scopeAndAssumptions: ['provider responded before capsule sync delayed'],
+          findings: [],
+          deterministicChecks: [],
+          safetyBoundary
+        })
+      };
+    } })
+  }]]);
+  const capsulePath = path.join(root, 'timeout-capsule.json');
+  try {
+    const server = createStdioServer({ dispatcher: createLinmasDispatcher({ providerRegistry }) });
+    const response = await server.handle({
+      jsonrpc: '2.0', id: 48, method: 'tools/call',
+      params: { name: 'linmas_review_execute', arguments: {
+        workspace_root: root,
+        input_text: 'fixture',
+        skill_name: 'secure-code-reviewer',
+        provider: 'codex',
+        confirm_transmission: true,
+        capsule_path: 'timeout-capsule.json',
+        timeout_ms: 100
+      } }
+    });
+    const error = response.result.structuredContent.error;
+    assert.equal(error.code, 'MCP_TIMEOUT');
+    assert.ok(['response-received', 'normalized'].includes(error.transmissionState));
+    assert.equal(error.transmissionAttempted, true);
+    assert.equal(error.providerResponseReceived, true);
+    assert.equal(error.capsuleWritten, false);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await assert.rejects(fs.access(capsulePath));
+  } finally {
+    fileHandlePrototype.sync = originalSync;
     await fs.rm(root, { recursive: true, force: true });
   }
 });

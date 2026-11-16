@@ -54,7 +54,7 @@ export function toPublicReviewError(error, { transmitting = false } = {}) {
   const category = error?.toolCode ?? error?.failureClass ?? error?.category;
   const failureClass = FAILURE_CLASSES.has(category) ? category : null;
   const code = failureClass ? CODE_BY_CLASS[failureClass] : CODE_BY_TOOL[category] ?? 'INPUT_FIELD_INVALID';
-  const transmissionState = safeTransmissionState(error?.transmissionState, transmitting);
+  const transmissionState = safeTransmissionState(error?.transmissionState, transmitting, failureClass);
   const result = {
     schemaVersion: PUBLIC_ERROR_SCHEMA_VERSION,
     code,
@@ -139,9 +139,9 @@ function defaultReasonCode(failureClass, code) {
                     : failureClass === 'normalization' ? 'REVIEW_RESULT_INVALID' : null;
 }
 
-function safeTransmissionState(value, transmitting) {
+function safeTransmissionState(value, transmitting, failureClass) {
   if (TRANSMISSION_STATES.has(value)) return value;
-  return transmitting ? 'attempted' : 'not-attempted';
+  return transmitting && failureClass === 'timeout' ? 'attempted' : 'not-attempted';
 }
 
 function isSafeIdentifier(value) {
