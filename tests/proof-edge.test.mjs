@@ -344,3 +344,12 @@ test('bundle writer rejects preflight, binding, and unexpected filesystem failur
     assert.equal(await fs.stat(path.join(root, 'failure')).then(() => true, () => false), false);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
 });
+
+test('wizard accepts the interactive io produced by createProcessIO (isInteractive, no isTTY)', async () => {
+  const source = { kind: 'linmas-review-capsule', sourceSha256: 'a'.repeat(64), findings: [{ id: 'F-1', title: 'Finding 1', severity: 'High' }] };
+  const answers = ['Reviewer', '1', 'r1', 'Summary', 'y'];
+  const io = { isInteractive: true, stdout: { write() {} }, async readLine() { return answers.shift() ?? null; } };
+  const receipt = await collectDecisionReceipt(source, { io, now: new Date('2026-07-19T00:00:00.000Z') });
+  assert.equal(receipt.findings.length, 1);
+  await assert.rejects(collectDecisionReceipt(source, { io: { isInteractive: false, stdout: { write() {} }, async readLine() { return 'y'; } }, now: new Date() }), /TTY/);
+});

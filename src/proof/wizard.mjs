@@ -10,7 +10,7 @@ const LABELS = new Map([
 ]);
 
 export async function collectDecisionReceipt(source, { io, signing = false, now = new Date() } = {}) {
-  if (!io?.isTTY) throw new ProofError('proof creation requires an interactive TTY', 'input', 2);
+  if (io?.isInteractive !== true && io?.isTTY !== true) throw new ProofError('proof creation requires an interactive TTY', 'input', 2);
   const label = await ask(io, 'Reviewer label: ');
   const principal = signing ? await ask(io, 'SSH signer principal: ') : null;
   const decisions = [];
@@ -25,6 +25,8 @@ export async function collectDecisionReceipt(source, { io, signing = false, now 
   }
   const statement = await ask(io, 'Human summary: ');
   io.stdout.write(`\nOverall disposition: ${buildDecisionReceipt({ subject: { kind: source.kind, sha256: source.sourceSha256 }, reviewer: { label, principal }, findings: decisions, statement, now }).summary.overallDisposition}\n`);
+  // Consent must follow the disclosure above, so drop anything typed before this prompt.
+  await io.discardPendingInput?.();
   const confirmation = await ask(io, 'Create immutable proof bundle? [y/N]: ');
   if (!/^y(?:es)?$/i.test(confirmation)) throw new ProofError('proof creation cancelled', 'input', 2);
   return buildDecisionReceipt({ subject: { kind: source.kind, sha256: source.sourceSha256 }, reviewer: { label, principal }, findings: decisions, statement, now });

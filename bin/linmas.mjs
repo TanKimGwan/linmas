@@ -493,13 +493,26 @@ function isMainModule() {
   }
 }
 
-function createProcessIO(proc) {
+export function createProcessIO(proc) {
   const rl = readline.createInterface({
     input: proc.stdin,
     crlfDelay: Infinity
   });
-  const lines = rl[Symbol.asyncIterator]();
+  // Complete lines are queued as they arrive so that input typed ahead of a
+  // consent prompt can be discarded (see discardPendingInput).
+  const queued = [];
+  const waiting = [];
+  let ended = false;
   let interrupted = false;
+  rl.on('line', (line) => {
+    const waiter = waiting.shift();
+    if (waiter) waiter(line);
+    else queued.push(line);
+  });
+  rl.on('close', () => {
+    ended = true;
+    for (const waiter of waiting.splice(0)) waiter(null);
+  });
   rl.on('SIGINT', () => { interrupted = true; rl.close(); });
 
   return {
@@ -507,9 +520,18 @@ function createProcessIO(proc) {
     isInteractive: Boolean(proc.stdin.isTTY && proc.stdout.isTTY),
     allowPipedPrompts: true,
     async readLine() {
-      const { value, done } = await lines.next();
+      const value = queued.length ? queued.shift() : ended ? null : await new Promise((resolve) => waiting.push(resolve));
       if (interrupted) throw cancelled('Operation cancelled by Ctrl-C.');
-      return done ? null : value;
+      return value;
+    },
+    // Drops complete lines received before a consent prompt. Two setImmediate
+    // turns guarantee a full poll phase, so input already readable on stdin is
+    // delivered and dropped too. Characters still in the terminal's line buffer
+    // (typed without Enter) are not visible to the process yet and will join the
+    // answer typed after the prompt; the kernel buffer cannot be flushed from Node.
+    async discardPendingInput() {
+      for (let turn = 0; turn < 2; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+      queued.length = 0;
     },
     close() {
       rl.close();

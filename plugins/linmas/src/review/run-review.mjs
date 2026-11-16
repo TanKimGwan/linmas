@@ -63,6 +63,8 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   io.stdout.write(summary);
   if (!args.assumeYes) {
     if (io.isInteractive !== true && io.isTTY !== true) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);
+    // Consent must follow the outbound summary, so drop anything typed before this prompt.
+    await io.discardPendingInput?.();
     io.stdout.write('Type yes to transmit: ');
     const confirmation = await io.readLine();
     if (typeof confirmation !== 'string' || confirmation.trim().toLowerCase() !== 'yes') {
