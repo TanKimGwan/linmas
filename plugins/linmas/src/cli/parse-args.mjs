@@ -118,6 +118,11 @@ export function parseArgv(argv) {
     policyFile: null,
     capsulePath: null
   };
+  if (argv[2] === '--version' || argv[2] === '-v') {
+    if (argv.length > 3) throw new Error(`${argv[2]} does not accept other arguments`);
+    result.command = 'version';
+    return result;
+  }
   if (['install', 'uninstall'].includes(argv[2])) {
     Object.assign(result, { skillNames: [], agents: [], scope: null, projectPath: null, method: null, globalScope: false, copyMode: false });
   }

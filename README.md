@@ -502,13 +502,14 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 
 | Command | Purpose |
 |---|---|
+| `linmas --version` (`-v`) | Print the installed Linmas version. |
 | `linmas list` | List canonical Linmas skills. |
 | `linmas detect` | Detect supported installation hosts. |
 | `linmas onboard` | Inspect host and Codex account capabilities. |
 | `linmas doctor` | Diagnose managed installations and duplicates. |
 | `linmas install <skill>` | Install one canonical skill; add `--dry-run` to preflight. |
 | `linmas uninstall <skill>` | Remove a Linmas-managed skill on supported POSIX filesystems; Windows fails closed before mutation. |
-| `linmas review ...` | Prepare locally or execute an explicit provider review. |
+| `linmas review ...` | Prepare locally (no review is run) or execute an explicit provider review with `--provider`. |
 | `linmas review compare before.json after.json` | Compare two capsules offline. |
 | `linmas proof create <source> --bundle <dir>` | Record human decisions and create a portable proof bundle. |
 | `linmas proof verify <dir>` | Verify bundle hashes and optional SSH signature offline. |

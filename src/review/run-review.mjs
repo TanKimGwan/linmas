@@ -33,7 +33,7 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   if (!args.provider) {
     return {
       exitCode: EXIT_CODES.OK,
-      output: `${JSON.stringify(request, null, 2)}\nNo data was transmitted.\n`
+      output: `${JSON.stringify(request, null, 2)}\nNo data was transmitted.\n${notRunNotice(providerRegistry)}`
     };
   }
 
@@ -117,4 +117,10 @@ function assertPolicyAcceptsSpecialist(policy, specialist) {
   if (!policy.specialists.includes(specialist)) {
     throw new ReviewError(`policy does not accept specialist: ${specialist}`, 'input', EXIT_CODES.INPUT);
   }
+}
+
+function notRunNotice(providerRegistry) {
+  const names = providerRegistry instanceof Map ? [...providerRegistry.keys()] : [];
+  const available = names.length ? ` (supported: ${names.join(', ')})` : '';
+  return `Review was not run: no provider was selected. To run it, add --provider <name>${available}; data leaves this machine only after confirmation or --yes.\n`;
 }

@@ -72,3 +72,29 @@ test('review compare runs entirely offline and keeps human review visible', asyn
   assert.match(capture.stdoutText, /Human review remains required/);
   assert.equal(capture.stderrText, '');
 });
+
+test('--version and -v print the Linmas version and run no command', async () => {
+  const { LINMAS_VERSION } = await import('../src/core/version.mjs');
+  for (const flag of ['--version', '-v']) {
+    const capture = io();
+    const code = await run(['node', 'linmas.mjs', flag], capture);
+    assert.equal(code, 0);
+    assert.equal(capture.stdoutText, `${LINMAS_VERSION}\n`);
+    assert.equal(capture.stderrText, '');
+  }
+});
+
+test('review prepare mode states that the review was not run and how to run it', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'linmas-cli-review-'));
+  try {
+    fs.writeFileSync(path.join(root, 'input.txt'), 'safe review input');
+    const capture = io();
+    const code = await run(['node', 'linmas.mjs', 'review', '--skill', 'secure-code-reviewer', '--input', path.join(root, 'input.txt')], capture);
+    assert.equal(code, 0);
+    assert.match(capture.stdoutText, /\nNo data was transmitted\.\n/);
+    assert.match(capture.stdoutText, /Review was not run: no provider was selected\./);
+    assert.match(capture.stdoutText, /--provider <name> \(supported: claude, codex\)/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

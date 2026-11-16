@@ -277,6 +277,10 @@ export async function run(argv, io = process, dependencies = {}) {
     io.stderr.write(`Error: ${error.message}\n`);
     return 2;
   }
+  if (args.command === 'version') {
+    io.stdout.write(`${LINMAS_VERSION}\n`);
+    return 0;
+  }
   let hostRegistry;
   const env = dependencies.env ?? process.env;
   const homedir = path.resolve(dependencies.homedir ?? os.homedir());
