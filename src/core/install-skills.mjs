@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { terminalSafeLines } from './terminal-text.mjs';
 import path from 'node:path';
 import { assertInsideRoot, backupDirectory, copySkillDirectory } from './fs-utils.mjs';
 import { upsertManagedSkill, writeManifest, writeManifestSnapshot, validateManifest } from './manifest.mjs';
@@ -137,7 +138,7 @@ export function formatInstallPreview(plan) {
     lines.push(`  backup: ${item.backupDir ?? 'none'}`);
     lines.push(`  willWrite: ${item.willWrite}`);
   }
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }
 
 export function formatInstallSummary(plan) {
@@ -158,7 +159,7 @@ export function formatInstallSummary(plan) {
       '- run `npx linmas uninstall <skill>` to remove any installed skill'
     );
   }
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }
 
 function resolveManifestPath(host, manifestPathByHost) {

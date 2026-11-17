@@ -162,3 +162,10 @@ test('single-skill legacy commands keep v1 routing unless scoped options are sup
   assert.equal(parseArgv(['node', 'linmas', 'uninstall', '--skill', 'linmas-secure-code-reviewer']).managedUninstall, false);
   assert.equal(parseArgv(['node', 'linmas', 'install', '--skill', 'linmas-secure-code-reviewer', '--agent', 'codex']).managedInstall, true);
 });
+
+test('parses --version and -v as the version command', () => {
+  for (const flag of ['--version', '-v']) {
+    assert.equal(parseArgv(['node', 'linmas', flag]).command, 'version');
+  }
+  assert.throws(() => parseArgv(['node', 'linmas', '--version', 'list']), /--version does not accept/);
+});

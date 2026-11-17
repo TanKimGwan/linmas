@@ -42,6 +42,23 @@ function renderHtmlBody({ source, receipt }) {
   return `<h1>Linmas Proof Chain</h1><dl><dt>Source</dt><dd>${escapeHtml(source.kind)}</dd><dt>Source SHA-256</dt><dd><code>${escapeHtml(source.sourceSha256 ?? receipt.subject.sha256)}</code></dd><dt>Reviewer</dt><dd>${escapeHtml(receipt.reviewer.label)}</dd><dt>Overall disposition</dt><dd>${escapeHtml(receipt.summary.overallDisposition)}</dd></dl><p>${escapeHtml(receipt.summary.statement)}</p><h2>Findings</h2>${rows}<h2>Safety boundary</h2><blockquote>Human review remains required.</blockquote><p>This report is an evidence summary. It is not an approval, certification, or proof that the software is secure.</p>`;
 }
 
-function code(value) { return `\`${String(value).replaceAll('`', "'")}\`;`; }
-function safe(_source, value) { return String(value).replaceAll('\n', ' ').replaceAll('|', '\\|'); }
+// Every value written into report.md first loses line breaks and control
+// characters (including CR, U+2028/2029 and NEL), so no value can start a new
+// Markdown line or inject raw HTML outside its own inline position.
+function inline(value) { return String(value).replaceAll(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, ' '); }
+// Code spans render their content literally; only backticks could close them.
+function code(value) { return `\`${inline(value).replaceAll('`', "'")}\``; }
+// Free text is rendered inert in Markdown: HTML is entity-escaped, inline syntax
+// (links, emphasis, code, strikethrough, tables) is backslash-escaped, and a
+// leading block marker (list, rule, setext, indentation) is neutralized for text
+// that begins its own line, such as the summary statement.
+function safe(_source, value) {
+  return inline(value)
+    .trimStart()
+    .replaceAll('\\', '\\\\')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll(/[`*_[\]()#!|~]/g, (character) => `\\${character}`)
+    .replace(/^[-+=]/, (character) => `\\${character}`)
+    .replace(/^(\d+)\./, '$1\\.');
+}
 function escapeHtml(value) { return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }

@@ -23,24 +23,25 @@
   </p>
 </div>
 
-## Current release: v0.9.2
+## Release 0.9.3
 
-Linmas 0.9.2 adds a native managed skill installer for Claude Code and Codex:
+Linmas 0.9.3 is a correctness and hardening release for the local paths. It adds no provider features and does not change how a live review is sent.
 
-- Choose from eleven skills with an interactive wizard or explicit CLI flags, at project or user-home scope.
-- Use copy or symlink attachments, preview changes with `--dry-run`, and inspect scoped ownership with `doctor`.
-- Remove selected skills and hosts with scoped `uninstall`; preserve unmanaged or locally modified content unless backup and replacement are confirmed.
-- Fall back to copy only for unsupported symlink operations after a clean rollback; retain recovery data when rollback is incomplete.
-- Fail closed for managed install and uninstall apply on Windows, where safe handle-relative filesystem mutation is unavailable. Read-only previews and diagnostics remain available.
+- **Interactive confirmation works.** `linmas review` and `linmas proof create` accept an answer typed in a terminal; earlier releases refused every run without `--yes`.
+- **Policy is checked before anything is sent**, and a pack with an unknown severity or status is rejected.
+- **MCP errors are specific and truthful** about whether transmission was attempted; see the [public codes](mcp/ERRORS.md).
+- **Proof verification is stricter.** With `--allowed-signers`, a bundle needs a valid signature from a listed signer who is the recorded reviewer; unlisted files are rejected.
+- **Terminal output is escaped**, so untrusted text cannot drive the terminal or imitate Linmas output.
+- **New:** `linmas --help` and `linmas --version`.
 
-Install the published CLI with Node.js 24 or newer:
+Some bundles and policy files that 0.9.2 accepted are now rejected; read the upgrade notes in the [0.9.3 release notes](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.3.md) first.
 
 ```bash
-npm install --global linmas@0.9.2
-linmas list
+npm install --global linmas@0.9.3
+linmas --version
 ```
 
-Start with [managed skill installation](#install-managed-skills), read the [0.9.2 release notes](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.2.md), or follow the [0.9.0 plugin upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Legacy unscoped commands remain available; follow the archive-and-verify migration steps below before replacing a legacy installation. Skill installation does not register MCP or configure provider credentials. Human review remains required; publication does not establish live provider or production runtime behavior.
+Node.js 24 or newer is required. Commands that pin `0.9.3` or `v0.9.3` work once that version is published; the badges above show the latest published release. See also [managed skill installation](#install-managed-skills) and the [0.9.0 plugin upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Skill installation does not register MCP or configure provider credentials. Human review remains required; this release was verified offline and does not establish live provider or production runtime behavior.
 
 ## Try it in 60 seconds
 
@@ -107,7 +108,7 @@ GitHub's standard repository navigation exposes fixed tabs; these public usage g
 
 Linmas remains **Codex-first as a native integration** while staying portable across AI coding agents. Codex was also the primary integration used in the historical OpenAI Build Week 2026 project. The [compatibility evidence policy](docs/compatibility/COMPATIBILITY.md) defines the limits of current claims. Installation detection is not runtime conformance; compatibility with other agents depends on the integration level below.
 
-Version 0.9.2 adds scoped managed installation while retaining the existing integration boundaries. The [content identity](compatibility/evidence/v0.9.0-content-identity.json) is revision-bound; release artifact hashes and provenance bind the bytes actually published. A prior accepted SHA does not automatically qualify later source changes. Neither the identity file, offline fixtures, nor publication establishes live host or model behavior.
+Version 0.9.3 keeps the integration boundaries of 0.9.2, which added scoped managed installation. The [content identity](compatibility/evidence/v0.9.0-content-identity.json) is revision-bound; release artifact hashes and provenance bind the bytes actually published. A prior accepted SHA does not automatically qualify later source changes. Neither the identity file, offline fixtures, nor publication establishes live host or model behavior.
 
 | AI agent or surface | Status | Supported integration |
 | --- | --- | --- |
@@ -207,6 +208,14 @@ linmas proof create review-capsule.json --bundle signed-proof --signing-key ~/.s
 linmas proof verify signed-proof --allowed-signers ~/.ssh/allowed_signers --output json
 ```
 
+When `--allowed-signers` is supplied, verification requires a valid signature from a listed signer: an unsigned bundle, or one whose signature cannot be verified, fails with exit code 4 instead of being reported as `unsigned`. The signing principal must match the reviewer principal recorded in the decision receipt, and the verified principal is shown in the output. Verification also rejects files in the bundle that the manifest does not list (only `manifest.json` and `signature/manifest.sig` are outside the list by design). This includes empty directories and files that tools add on copy, such as macOS Finder's `.DS_Store`; copy bundles with a tool that preserves the exact contents, or remove such files before verifying. Without `--allowed-signers`, an unsigned bundle still verifies and is labelled `unsigned`, and a signature checked against the bundle's own key is labelled `self-asserted`.
+
+`proof create` never replaces an existing destination: it builds the bundle in a private staging directory next to the destination, claims the destination exclusively, and moves the complete bundle in with a single rename, so a destination created by anything else, even while the bundle is being written, is rejected as already existing. A failed or cancelled write leaves no partial bundle, staging directory, or lock file. These guarantees have limits when another process with write access to the parent directory races the writer in the short windows between its checks and its renames:
+
+- Such a process can still have an *empty* directory it created at the destination replaced by the bundle or by an entry that cleanup puts back, or removed during cleanup. This includes cleanup when the claim cannot be moved aside (the writer then falls back to an in-place check and `rmdir`) and the case of a reused directory inode. File contents are never deleted.
+- If cleanup finds that the claimed destination was swapped for someone else's entry while the destination is occupied again, it leaves that entry under a hidden `.<name>.<id>.release` name next to the destination instead of deleting it or replacing the new occupant.
+- On Windows the writer skips the claim and relies on rename never replacing an existing directory; this path has not been tested on Windows.
+
 Proof bundles are evidence summaries, not approvals, certifications, or proof that software is secure. Human review remains required.
 
 ## Compare before and after
@@ -217,7 +226,9 @@ Compare two capsules locally, without a provider or network call:
 linmas review compare before.json after.json
 ```
 
-The comparison validates both complete capsules, then reports added, resolved, persistent, and changed findings plus the policy transition. It does not claim that an empty delta proves security.
+The comparison validates both complete capsules, then reports added, resolved, persistent, and changed findings plus the policy transition. The policy transition is read from the capsules as recorded and is labelled self-reported (`policyTransition.source: "capsule-self-reported"` in JSON); compare does not re-evaluate it against a policy pack. It does not claim that an empty delta proves security.
+
+Text output from `review compare`, `review`, policy results, `proof`, and the host commands (`list`, `detect`, `doctor`, `onboard`, `install`, `uninstall`) shows untrusted values (finding IDs, provider text, policy text, manifest paths, principals, skill metadata, host detection results, install and backup paths, and argument errors) with control characters, line and paragraph separators, bidi controls, zero-width and other invisible characters (such as soft hyphens and invisible operators), tag characters, and lone surrogates escaped as visible `\uXXXX` (or `\u{XXXXX}`) text, so a capsule cannot drive the terminal or disguise what it prints. Review evidence, remediation, and verification text keep their line breaks and tabs, but every continuation line is indented with `  | `, so provider text cannot start a line that looks like Linmas output. A zero-width joiner inside an emoji sequence is shown as `\u200d` between the parts. JSON output (`--output json`) is unchanged and uses standard JSON escaping.
 
 ## Deterministic policy, never automatic approval
 
@@ -227,7 +238,7 @@ Apply a built-in declarative policy after normalization:
 linmas review --skill linmas-secure-code-reviewer --input patch.diff --provider codex --policy baseline-appsec
 ```
 
-Built-in packs are `baseline-appsec`, `cloud-change`, and `release-security`. Local policy files are bounded, schema-validated JSON with no commands, code, expressions, templates, plugins, remote imports, or provider hooks.
+Built-in packs are `baseline-appsec`, `cloud-change`, and `release-security`. Local policy files are bounded, schema-validated JSON with no commands, code, expressions, templates, plugins, remote imports, or provider hooks. Rule `severities` and `statuses` must use the exact, case-sensitive ReviewResult values (`Critical`, `High`, `Medium`, `Low`, `Info`; `Confirmed finding`, `Needs validation`, `Recommendation`); a pack with any other value is rejected.
 
 Decisions are `pass`, `needs-review`, or `blocked`. A policy `pass` does not prove the change is secure, compliant, certified, or approved. Safety failures fail closed, and **human review is required** for every result.
 
@@ -253,6 +264,8 @@ linmas review --skill secure-code-reviewer --input patch.diff
 ```
 
 Native MCP tools accept both the namespaced specialist ID and this legacy alias, then normalize both to the same specialist contract. Invalid MCP requests return schema-versioned errors with safe field/reason metadata. Provider failures use granular codes such as `PROVIDER_CONFIGURATION_MISSING`, `PROVIDER_RATE_LIMITED`, and `PROVIDER_TRANSPORT_FAILED`; credentials, review input, raw stderr, and provider responses are never returned.
+
+The [MCP error contract](mcp/ERRORS.md) lists every public code, generic message, and default stage. Internal failures use `INTERNAL_ERROR`; capsule failures after a provider response use `CONTRACT_VIOLATION` at `capsule-write`, and incompatible policy results use `POLICY_RESULT_INCOMPATIBLE` while request policy validation retains `POLICY_UNSUPPORTED`.
 
 Live execution is separately enabled and visibly confirms that data leaves the machine. Linmas constructs the request from the named input and runs Codex in a managed temporary working directory with a read-only sandbox request, approvals disabled, an ephemeral session, and user config and repository rules ignored.
 
@@ -289,7 +302,7 @@ Installation hosts and execution providers are independent:
 | Installation hosts | Claude Code and Codex managed skill directories |
 | Execution providers | Claude and Codex provider-native configuration |
 
-Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.9.2. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
+Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.9.3. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
 
 ```bash
 npx linmas list
@@ -339,10 +352,10 @@ Codex contributed as the provider-native review engine, implementation collabora
 
 ## Install managed skills
 
-Run `npx --yes linmas@0.9.2 install` to start the interactive wizard. To choose a project scope and method explicitly:
+Run `npx --yes linmas@0.9.3 install` to start the interactive wizard. To choose a project scope and method explicitly:
 
 ```bash
-npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
+npx --yes linmas@0.9.3 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
 ```
 
 From this source checkout, the native installer manages Claude Code and Codex skills in a project or your user home. `--project` must name an existing directory; project scope writes under that directory, while global scope writes under your home. This is not an npm global executable install.
@@ -423,14 +436,14 @@ codex plugin list
 This is a public **GitHub repository marketplace**, not yet an entry in the global Codex/ChatGPT Plugins Directory. Therefore, Linmas will not automatically appear in search on another computer just because you are signed in to the same ChatGPT account. Add the marketplace once on each computer:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.9.2
+codex plugin marketplace add TanKimGwan/linmas --ref v0.9.3
 codex plugin add linmas@linmas
 codex plugin list
 ```
 
 After installation, restart Codex completely and create a new task. If `linmas@linmas` is still not listed, verify that the computer has Git, Node.js 24+, and network access to GitHub. The official Plugins Directory is a separate publication channel that requires OpenAI submission, review, and approval; GitHub and npm publication do not automatically add Linmas to that global catalog.
 
-To pin the currently published immutable release instead of following `main`, replace `--ref main` with `--ref v0.9.2`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
+To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.9.3`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
 
 To refresh an existing marketplace installation that follows a moving ref such
 as `main`, run:
@@ -443,10 +456,10 @@ codex plugin list --json
 ```
 
 `marketplace upgrade` refreshes the configured ref; it does not change an
-immutable `v0.8.0` ref, and a second `marketplace add` with `--ref v0.9.2` is
+immutable `v0.8.0` ref, and a second `marketplace add` with `--ref v0.9.3` is
 rejected while the old source is registered. Move a
-pinned installation from `v0.8.0` to `v0.9.2` with these steps: remove the installed plugin and old marketplace,
-re-add with `--ref v0.9.2`, install the plugin again,
+pinned installation from `v0.8.0` or `v0.9.2` to `v0.9.3` with these steps: remove the installed plugin and old marketplace,
+re-add with `--ref v0.9.3`, install the plugin again,
 and verify the configured ref and
 installed version. See the [0.9.0 upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md#upgrade-from-080).
 Always restart Codex and start a fresh task after verification.
@@ -492,7 +505,7 @@ When a reviewer has produced findings, `linmas_review_decide` requests an explic
 - **C — Hentikan task untuk review manual**: agent stops without claiming approval or security.
 - **D — Beri tahu agent harus bertindak apa**: custom guidance that cannot bypass transmission, write, or safety gates.
 
-If no findings are actionable, A is omitted. If the host cannot show an MCP form, Linmas returns the same choices as a structured chat fallback and does not choose one automatically. A generic “lanjutkan” is not sufficient disposition. The gate uses the MCP protocol's client-side [form elicitation](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation); host permission modes remain separate controls.
+If no findings are actionable, A is omitted. If the host cannot show an MCP form, Linmas returns the same choices as a structured chat fallback and does not choose one automatically. Every result carries `reviewInteraction.elicitationConfirmed`: `true` only when a person accepted the MCP form and selected a disposition, `false` when the form was declined or cancelled and for the text fallback, where the tool caller (possibly the agent) supplies the decision and Linmas cannot confirm a human entered it. A generic “lanjutkan” is not sufficient disposition. The gate uses the MCP protocol's client-side [form elicitation](https://modelcontextprotocol.io/specification/2025-11-25/client/elicitation); host permission modes remain separate controls.
 
 Codex and Claude Code must have the Linmas MCP server registered for the form to appear. A Full Access or `--dangerously-skip-permissions` mode controls command permission prompts; it does not grant a Linmas review disposition. If the active host suppresses or lacks MCP elicitation, the structured chat fallback remains mandatory.
 
@@ -500,13 +513,15 @@ Codex and Claude Code must have the Linmas MCP server registered for the form to
 
 | Command | Purpose |
 |---|---|
+| `linmas --help` (`-h`) | Print the command summary and options. |
+| `linmas --version` (`-v`) | Print the installed Linmas version. |
 | `linmas list` | List canonical Linmas skills. |
 | `linmas detect` | Detect supported installation hosts. |
 | `linmas onboard` | Inspect host and Codex account capabilities. |
 | `linmas doctor` | Diagnose managed installations and duplicates. |
 | `linmas install <skill>` | Install one canonical skill; add `--dry-run` to preflight. |
 | `linmas uninstall <skill>` | Remove a Linmas-managed skill on supported POSIX filesystems; Windows fails closed before mutation. |
-| `linmas review ...` | Prepare locally or execute an explicit provider review. |
+| `linmas review ...` | Prepare locally (no review is run) or execute an explicit provider review with `--provider`. |
 | `linmas review compare before.json after.json` | Compare two capsules offline. |
 | `linmas proof create <source> --bundle <dir>` | Record human decisions and create a portable proof bundle. |
 | `linmas proof verify <dir>` | Verify bundle hashes and optional SSH signature offline. |

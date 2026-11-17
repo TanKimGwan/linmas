@@ -94,3 +94,13 @@ test('loads and validates both capsule files before comparison', async () => {
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test('T9-07 the policy transition is labelled as self-reported by the capsules', () => {
+  const before = capsule({ findings: [finding('A')], decision: 'blocked' });
+  const after = capsule({ findings: [], decision: 'pass' });
+  const delta = compareReviewCapsules(before, after);
+  assert.equal(delta.policyTransition.before, 'blocked');
+  assert.equal(delta.policyTransition.after, 'pass');
+  assert.equal(delta.policyTransition.source, 'capsule-self-reported');
+  assert.match(formatSecurityDelta(delta), /Policy transition\s+blocked -> pass \(self-reported by the capsules; not re-evaluated\)/);
+});

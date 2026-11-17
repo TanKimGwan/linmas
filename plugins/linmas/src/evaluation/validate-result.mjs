@@ -1,7 +1,10 @@
 import { EXPECTED_SKILLS } from '../core/list-skills.mjs';
 
-const STATUSES = new Set(['Confirmed finding', 'Needs validation', 'Recommendation']);
-const SEVERITIES = new Set(['Critical', 'High', 'Medium', 'Low', 'Info']);
+// Single source of truth for finding enums; policy packs validate against these.
+export const REVIEW_FINDING_STATUSES = Object.freeze(['Confirmed finding', 'Needs validation', 'Recommendation']);
+export const REVIEW_FINDING_SEVERITIES = Object.freeze(['Critical', 'High', 'Medium', 'Low', 'Info']);
+const STATUSES = new Set(REVIEW_FINDING_STATUSES);
+const SEVERITIES = new Set(REVIEW_FINDING_SEVERITIES);
 const RESULT_FIELDS = new Set(['schemaVersion', 'caseId', 'specialist', 'modelMetadata', 'scopeAndAssumptions', 'findings', 'deterministicChecks', 'safetyBoundary']);
 const MODEL_FIELDS = new Set(['provider', 'model', 'generatedAt', 'usage', 'requestId']);
 const MAX_TEXT = 16 * 1024;

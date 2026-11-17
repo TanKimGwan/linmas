@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { loadProofEvidence } from './load-evidence.mjs';
 import { collectDecisionReceipt } from './wizard.mjs';
+import { terminalSafe } from '../core/terminal-text.mjs';
 import { writeProofBundle } from './write-bundle.mjs';
 import { verifyProofBundle } from './verify-bundle.mjs';
 import { ProofError } from './errors.mjs';
@@ -12,7 +13,7 @@ export async function runProof(args, { io, cwd = process.cwd(), now = () => new 
     const source = await loadProofEvidence(path.resolve(cwd, args.proofSource));
     const receipt = await collectDecisionReceipt(source, { io, signing: Boolean(args.signingKey), now: now() });
     const result = await writeProofBundle(path.resolve(cwd, args.proofBundle), source, receipt, { now: now(), signingKey: args.signingKey ? path.resolve(cwd, args.signingKey) : null });
-    io.stdout.write(`Proof bundle created: ${result.path}\n`);
+    io.stdout.write(`Proof bundle created: ${terminalSafe(result.path)}\n`);
     return { exitCode: 0, output: '' };
   }
   if (args.proofAction === 'verify') {
@@ -21,7 +22,7 @@ export async function runProof(args, { io, cwd = process.cwd(), now = () => new 
     const result = await verifyProofBundle(path.resolve(cwd, args.proofSource), { allowedSignersPath: args.allowedSigners ? path.resolve(cwd, args.allowedSigners) : null });
     const output = args.output === 'json'
       ? `${JSON.stringify(result, null, 2)}\n`
-      : `LINMAS PROOF VERIFICATION\nIntegrity   ${result.integrity}\nSignature   ${result.signature}\nIdentity     ${result.identity}\nSafety       Human review remains required.\n`;
+      : `LINMAS PROOF VERIFICATION\nIntegrity   ${result.integrity}\nSignature   ${result.signature}\nIdentity     ${result.identity}\nPrincipal    ${result.principal === null ? 'none (unsigned)' : terminalSafe(result.principal)}\nSafety       Human review remains required.\n`;
     io.stdout.write(output);
     return { exitCode: 0, output };
   }

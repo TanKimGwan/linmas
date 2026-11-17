@@ -159,18 +159,23 @@ test('formatOnboarding includes required user-facing details', () => {
 });
 
 test('inspectCodexCapability enforces its deadline when a provider ignores cancellation', async () => {
-  const startedAt = Date.now();
+  // Timers fire in expiry order and microtasks drain between timer callbacks, so
+  // an enforced 5 ms deadline always settles before the provider's 100 ms timer,
+  // however late the event loop runs. A wall-clock budget would also measure
+  // scheduler delay on a loaded machine.
+  let providerSettled = false;
   const result = await inspectCodexCapability(new Map([['codex', {
     detectConfiguration() { return { status: 'configured', missingRequirements: [] }; },
     async discoverCapabilities() {
       await new Promise((resolve) => setTimeout(resolve, 100));
+      providerSettled = true;
       return { authMode: 'chatgpt' };
     }
   }]]), { timeoutMs: 5 });
 
   assert.equal(result.status, 'BLOCKED');
   assert.match(result.reason, /timed out/i);
-  assert.ok(Date.now() - startedAt < 80);
+  assert.equal(providerSettled, false, 'the deadline must settle before the provider does');
 });
 
 test('F-015 capability deadline keeps a handle-free child alive until a bounded diagnostic', () => {
@@ -181,21 +186,22 @@ test('F-015 capability deadline keeps a handle-free child alive until a bounded 
       detectConfiguration() { return { status: 'configured', missingRequirements: [] }; },
       discoverCapabilities() { return new Promise(() => {}); }
     }]]), { timeoutMs: 20 });
-    process.stdout.write(JSON.stringify(result));
-  `;
-  const startedAt = Date.now();
+    process.stdout.write(JSON.stringify({ result, elapsedMs: performance.now() - startedAt }));
+  `.replace('const result =', 'const startedAt = performance.now();\n    const result =');
+  // The deadline is measured inside the child: Node startup time under load is
+  // not part of the capability deadline. The spawn timeout only guards a hang.
   const child = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
     encoding: 'utf8',
-    timeout: 1000
+    timeout: 15000
   });
 
   assert.equal(child.error, undefined);
   assert.equal(child.status, 0, child.stderr);
   assert.notEqual(child.status, 13);
-  const result = JSON.parse(child.stdout);
+  const { result, elapsedMs } = JSON.parse(child.stdout);
   assert.equal(result.status, 'BLOCKED');
   assert.match(result.reason, /timed out/i);
-  assert.ok(Date.now() - startedAt < 1000);
+  assert.ok(elapsedMs < 1000, `capability deadline took ${elapsedMs} ms`);
 });
 
 test('F-015 capability deadline still aborts a cooperative provider', async () => {

@@ -7,6 +7,7 @@ import { prepareProviderExecution } from '../providers/registry.mjs';
 import { loadPolicyPack } from '../policy/load-pack.mjs';
 import { evaluatePolicy } from '../policy/evaluate-policy.mjs';
 import { formatPolicyResult } from '../policy/format-policy.mjs';
+import { terminalSafe } from '../core/terminal-text.mjs';
 import { buildReviewCapsule } from './build-capsule.mjs';
 import { preflightCapsuleDestination, writeReviewCapsule } from './write-capsule.mjs';
 
@@ -20,6 +21,9 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   if (args.capsulePath && !args.provider) {
     throw new ReviewError('capsule generation requires --provider', 'input', EXIT_CODES.INPUT);
   }
+  if (args.provider && args.useStdin && !args.assumeYes) {
+    throw new ReviewError('--stdin requires --yes; interactive confirmation cannot share stdin with the review input', 'input', EXIT_CODES.INPUT);
+  }
 
   const input = await loadReviewInput({ inputPath: args.inputPath, useStdin: args.useStdin, stdin: io.stdin, cwd });
   const request = prepareReview({ input, skillName: args.skillName });
@@ -30,7 +34,7 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   if (!args.provider) {
     return {
       exitCode: EXIT_CODES.OK,
-      output: `${JSON.stringify(request, null, 2)}\nNo data was transmitted.\n`
+      output: `${JSON.stringify(request, null, 2)}\nNo data was transmitted.\n${notRunNotice(providerRegistry)}`
     };
   }
 
@@ -42,11 +46,27 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     );
   }
 
+  let policy = null;
+  if (args.policyId || args.policyFile) {
+    try {
+      policy = loadPolicy({ id: args.policyId, filePath: args.policyFile, rootDir, cwd });
+    } catch (error) {
+      throw new ReviewError(error?.message ?? String(error), 'input', EXIT_CODES.INPUT);
+    }
+    assertPolicyAcceptsSpecialist(policy, request.specialist);
+    if (!policy.modes.includes(request.mode)) {
+      throw new ReviewError(`policy does not accept mode: ${request.mode}`, 'input', EXIT_CODES.INPUT);
+    }
+  }
+
   const execution = await prepareProviderExecution(providerRegistry, args.provider, { model: args.model, cwd });
-  const summary = `Outbound review\nsource: ${input.source}\nbytes: ${input.bytes}\nspecialist: ${request.specialist}\nprovider: ${execution.metadata.provider}\nauth: ${execution.metadata.authMode}\nmodel: ${execution.metadata.model}\nmodel verified: ${execution.metadata.modelVerified ? 'yes' : 'no'}\ndata leaves this machine: yes\n`;
+  const summary = `Outbound review\nsource: ${terminalSafe(input.source)}\nbytes: ${input.bytes}\nspecialist: ${terminalSafe(request.specialist)}\nprovider: ${terminalSafe(execution.metadata.provider)}\nauth: ${terminalSafe(execution.metadata.authMode)}\nmodel: ${terminalSafe(execution.metadata.model)}\nmodel verified: ${execution.metadata.modelVerified ? 'yes' : 'no'}\ndata leaves this machine: yes\n`;
   io.stdout.write(summary);
   if (!args.assumeYes) {
-    if (!io.isTTY) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);
+    if (io.isInteractive !== true && io.isTTY !== true) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);
+    // Consent must follow the outbound summary, so drop anything typed before this prompt.
+    await io.discardPendingInput?.();
+    io.stdout.write('Type yes to transmit: ');
     const confirmation = await io.readLine();
     if (typeof confirmation !== 'string' || confirmation.trim().toLowerCase() !== 'yes') {
       throw new ReviewError('outbound transmission not confirmed', 'input', EXIT_CODES.INPUT);
@@ -64,19 +84,9 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   });
 
   let policyResult = null;
-  if (args.policyId || args.policyFile) {
-    const policy = loadPolicy({
-      id: args.policyId,
-      filePath: args.policyFile,
-      rootDir,
-      cwd
-    });
-    if (!policy.specialists.includes(reviewResult.specialist)) {
-      throw new ReviewError(`policy does not accept specialist: ${reviewResult.specialist}`, 'input', EXIT_CODES.INPUT);
-    }
-    if (!policy.modes.includes(request.mode)) {
-      throw new ReviewError(`policy does not accept mode: ${request.mode}`, 'input', EXIT_CODES.INPUT);
-    }
+  if (policy) {
+    // The provider response may carry its own specialist, so re-check it before evaluating.
+    assertPolicyAcceptsSpecialist(policy, reviewResult.specialist);
     policyResult = evaluatePolicy(policy, reviewResult);
   }
 
@@ -104,4 +114,16 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
     exitCode: EXIT_CODES.OK,
     output: `${formatReviewResult(reviewResult)}\n${formatPolicyResult(policyResult)}`
   };
+}
+
+function assertPolicyAcceptsSpecialist(policy, specialist) {
+  if (!policy.specialists.includes(specialist)) {
+    throw new ReviewError(`policy does not accept specialist: ${specialist}`, 'input', EXIT_CODES.INPUT);
+  }
+}
+
+function notRunNotice(providerRegistry) {
+  const names = providerRegistry instanceof Map ? [...providerRegistry.keys()] : [];
+  const available = names.length ? ` (supported: ${names.join(', ')})` : '';
+  return `Review was not run: no provider was selected. To run it, add --provider <name>${available}; data leaves this machine only after confirmation or --yes.\n`;
 }

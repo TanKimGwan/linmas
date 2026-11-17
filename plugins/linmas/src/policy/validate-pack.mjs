@@ -1,3 +1,5 @@
+import { REVIEW_FINDING_SEVERITIES, REVIEW_FINDING_STATUSES } from '../evaluation/validate-result.mjs';
+
 const TOP_FIELDS = new Set([
   'schemaVersion',
   'id',
@@ -47,6 +49,13 @@ function stringList(value, field, source) {
   return value;
 }
 
+function enumList(value, allowed, field, source) {
+  stringList(value, field, source);
+  const unknown = value.find((item) => !allowed.includes(item));
+  if (unknown !== undefined) throw new Error(`${source}: ${field} contains an unsupported value; expected one of ${allowed.join(', ')}`);
+  return value;
+}
+
 export function validatePolicyPack(value, { source = '<policy>' } = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${source}: policy must be an object`);
   if (value.schemaVersion !== 1) throw new Error(`${source}: unsupported schemaVersion ${value.schemaVersion}`);
@@ -71,8 +80,10 @@ export function validatePolicyPack(value, { source = '<policy>' } = {}) {
     for (const field of RULE_REQUIREMENTS[rule.type]) if (rule[field] === undefined) throw new Error(`${source}: rule.${field} is required`);
     if (rule.status !== undefined && !DECISIONS.has(rule.status)) throw new Error(`${source}: rule cannot produce ${rule.status}`);
     if (rule.checks !== undefined) stringList(rule.checks, 'rule.checks', source);
-    if (rule.severities !== undefined) stringList(rule.severities, 'rule.severities', source);
-    if (rule.statuses !== undefined) stringList(rule.statuses, 'rule.statuses', source);
+    // Exact, case-sensitive match against the ReviewResult enums: an unknown value
+    // would never match a finding and silently turn a blocking rule into a pass.
+    if (rule.severities !== undefined) enumList(rule.severities, REVIEW_FINDING_SEVERITIES, 'rule.severities', source);
+    if (rule.statuses !== undefined) enumList(rule.statuses, REVIEW_FINDING_STATUSES, 'rule.statuses', source);
   }
   return structuredClone(value);
 }

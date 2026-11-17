@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validatePolicyPack } from '../src/policy/validate-pack.mjs';
@@ -37,4 +38,29 @@ test('rejects unsupported versions and unknown rule fields', () => {
   assert.throws(() => validatePolicyPack({ ...validPack, specialists: ['unknown-specialist'] }), /unknown specialist/);
   assert.throws(() => validatePolicyPack({ ...validPack, modes: ['execute'] }), /unsupported mode/);
   assert.throws(() => validatePolicyPack({ ...validPack, rules: [{ id: 'threshold', type: 'finding-threshold' }] }), /rule.severities is required/);
+});
+
+test('T9-03 rule severities and statuses must use the exact ReviewResult enums', async () => {
+  const { evaluatePolicy } = await import('../src/policy/evaluate-policy.mjs');
+  const withRule = (rule) => ({ ...validPack, rules: [rule] });
+  for (const severities of [['critical'], ['HIGH'], ['Crtical'], ['Critical', 'critical'], []]) {
+    assert.throws(() => validatePolicyPack(withRule({ id: 'high', type: 'finding-threshold', severities, status: 'blocked' })), /rule\.severities/, JSON.stringify(severities));
+  }
+  for (const statuses of [['confirmed'], ['Confirmed Finding'], ['needs validation'], []]) {
+    assert.throws(() => validatePolicyPack(withRule({ id: 'high', type: 'finding-threshold', severities: ['Critical'], statuses, status: 'blocked' })), /rule\.statuses/, JSON.stringify(statuses));
+  }
+  // The exact enums remain valid and block a matching Critical finding.
+  const pack = validatePolicyPack(withRule({ id: 'high', type: 'finding-threshold', severities: ['Critical', 'High', 'Medium', 'Low', 'Info'], statuses: ['Confirmed finding', 'Needs validation', 'Recommendation'], status: 'blocked' }));
+  const result = evaluatePolicy(pack, {
+    findings: [{ id: 'F-1', severity: 'Critical', status: 'Confirmed finding', evidence: 'e', verification: 'v' }],
+    deterministicChecks: [],
+    safetyBoundary: { satisfied: true, humanReviewRequired: true, statement: 'Human review remains required.' }
+  });
+  assert.equal(result.decision, 'blocked');
+});
+
+test('T9-03 every built-in policy pack remains valid', async () => {
+  const { loadPolicyPack } = await import('../src/policy/load-pack.mjs');
+  const rootDir = fileURLToPath(new URL('..', import.meta.url));
+  for (const id of ['baseline-appsec', 'cloud-change', 'release-security']) assert.equal(loadPolicyPack({ id, rootDir }).id, id);
 });
