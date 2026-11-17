@@ -7,6 +7,7 @@ import { prepareProviderExecution } from '../providers/registry.mjs';
 import { loadPolicyPack } from '../policy/load-pack.mjs';
 import { evaluatePolicy } from '../policy/evaluate-policy.mjs';
 import { formatPolicyResult } from '../policy/format-policy.mjs';
+import { terminalSafe } from '../core/terminal-text.mjs';
 import { buildReviewCapsule } from './build-capsule.mjs';
 import { preflightCapsuleDestination, writeReviewCapsule } from './write-capsule.mjs';
 
@@ -59,7 +60,7 @@ export async function runReview(args, { io, cwd = process.cwd(), rootDir, provid
   }
 
   const execution = await prepareProviderExecution(providerRegistry, args.provider, { model: args.model, cwd });
-  const summary = `Outbound review\nsource: ${input.source}\nbytes: ${input.bytes}\nspecialist: ${request.specialist}\nprovider: ${execution.metadata.provider}\nauth: ${execution.metadata.authMode}\nmodel: ${execution.metadata.model}\nmodel verified: ${execution.metadata.modelVerified ? 'yes' : 'no'}\ndata leaves this machine: yes\n`;
+  const summary = `Outbound review\nsource: ${terminalSafe(input.source)}\nbytes: ${input.bytes}\nspecialist: ${terminalSafe(request.specialist)}\nprovider: ${terminalSafe(execution.metadata.provider)}\nauth: ${terminalSafe(execution.metadata.authMode)}\nmodel: ${terminalSafe(execution.metadata.model)}\nmodel verified: ${execution.metadata.modelVerified ? 'yes' : 'no'}\ndata leaves this machine: yes\n`;
   io.stdout.write(summary);
   if (!args.assumeYes) {
     if (io.isInteractive !== true && io.isTTY !== true) throw new ReviewError('non-interactive execution requires --yes', 'input', EXIT_CODES.INPUT);

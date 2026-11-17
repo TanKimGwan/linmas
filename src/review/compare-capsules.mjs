@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { EXIT_CODES, ReviewError } from './errors.mjs';
 import { validateReviewCapsule } from './validate-capsule.mjs';
+import { terminalSafe } from '../core/terminal-text.mjs';
 
 const MAX_CAPSULE_BYTES = 2 * 1024 * 1024;
 
@@ -64,16 +65,17 @@ export async function loadAndCompareCapsules(beforePath, afterPath, { cwd = proc
 
 export function formatSecurityDelta(delta, { output = 'text' } = {}) {
   if (output === 'json') return `${JSON.stringify(delta, null, 2)}\n`;
+  // Text output quotes capsule values, which are untrusted.
   const lines = [
     'LINMAS REVIEW DELTA',
-    `Specialist          ${delta.specialist}`,
+    `Specialist          ${terminalSafe(delta.specialist)}`,
     `Added               ${list(delta.findings.added)}`,
     `Resolved (absent)   ${list(delta.findings.resolved)}`,
     `Persistent          ${list(delta.findings.persistent)}`,
     `Changed             ${list(delta.findings.changed.map((item) => item.id))}`,
-    `Policy transition   ${delta.policyTransition.before} -> ${delta.policyTransition.after} (self-reported by the capsules; not re-evaluated)`
+    `Policy transition   ${terminalSafe(delta.policyTransition.before)} -> ${terminalSafe(delta.policyTransition.after)} (self-reported by the capsules; not re-evaluated)`
   ];
-  for (const warning of delta.warnings) lines.push(`Warning             ${warning}`);
+  for (const warning of delta.warnings) lines.push(`Warning             ${terminalSafe(warning)}`);
   lines.push('Human review remains required.', delta.disclaimer, '');
   return lines.join('\n');
 }
@@ -97,7 +99,7 @@ function policyDecision(policy) {
 }
 
 function list(values) {
-  return values.length ? values.join(', ') : 'none';
+  return values.length ? values.map((value) => terminalSafe(value)).join(', ') : 'none';
 }
 
 function comparisonError(message, cause) {

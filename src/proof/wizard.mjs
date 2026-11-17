@@ -1,7 +1,7 @@
 import { ProofError } from './errors.mjs';
 import { DISPOSITIONS } from './constants.mjs';
 import { buildDecisionReceipt } from './validate-receipt.mjs';
-import { terminalSafe } from './terminal-text.mjs';
+import { terminalSafe } from '../core/terminal-text.mjs';
 
 const LABELS = new Map([
   ['1', 'remediation-required'],

@@ -209,6 +209,8 @@ linmas proof verify signed-proof --allowed-signers ~/.ssh/allowed_signers --outp
 
 When `--allowed-signers` is supplied, verification requires a valid signature from a listed signer: an unsigned bundle, or one whose signature cannot be verified, fails with exit code 4 instead of being reported as `unsigned`. The signing principal must match the reviewer principal recorded in the decision receipt, and the verified principal is shown in the output. Verification also rejects files in the bundle that the manifest does not list (only `manifest.json` and `signature/manifest.sig` are outside the list by design). This includes empty directories and files that tools add on copy, such as macOS Finder's `.DS_Store`; copy bundles with a tool that preserves the exact contents, or remove such files before verifying. Without `--allowed-signers`, an unsigned bundle still verifies and is labelled `unsigned`, and a signature checked against the bundle's own key is labelled `self-asserted`.
 
+`proof create` never replaces an existing destination: it builds the bundle in a private staging directory next to the destination, claims the destination exclusively, and moves the complete bundle in with a single rename, so a destination created by anything else, even while the bundle is being written, is rejected as already existing. A failed or cancelled write leaves no partial bundle, staging directory, or lock file.
+
 Proof bundles are evidence summaries, not approvals, certifications, or proof that software is secure. Human review remains required.
 
 ## Compare before and after
@@ -220,6 +222,8 @@ linmas review compare before.json after.json
 ```
 
 The comparison validates both complete capsules, then reports added, resolved, persistent, and changed findings plus the policy transition. The policy transition is read from the capsules as recorded and is labelled self-reported (`policyTransition.source: "capsule-self-reported"` in JSON); compare does not re-evaluate it against a policy pack. It does not claim that an empty delta proves security.
+
+Text output from `review compare`, `review`, policy results, and `proof` commands shows untrusted values (finding IDs, provider text, policy text, manifest paths, principals) with control characters, line and paragraph separators, bidi controls, zero-width and other invisible characters (such as soft hyphens and invisible operators), tag characters, and lone surrogates escaped as visible `\uXXXX` (or `\u{XXXXX}`) text, so a capsule cannot drive the terminal or disguise what it prints. Review evidence, remediation, and verification text keep their line breaks and tabs, but every continuation line is indented with `  | `, so provider text cannot start a line that looks like Linmas output. A zero-width joiner inside an emoji sequence is shown as `\u200d` between the parts. JSON output (`--output json`) is unchanged and uses standard JSON escaping.
 
 ## Deterministic policy, never automatic approval
 

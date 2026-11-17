@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { loadProofEvidence } from './load-evidence.mjs';
 import { collectDecisionReceipt } from './wizard.mjs';
-import { terminalSafe } from './terminal-text.mjs';
+import { terminalSafe } from '../core/terminal-text.mjs';
 import { writeProofBundle } from './write-bundle.mjs';
 import { verifyProofBundle } from './verify-bundle.mjs';
 import { ProofError } from './errors.mjs';
