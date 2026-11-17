@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-11-17T03:18:17.698Z",
+  "generatedAt": "2026-11-17T03:52:28.742Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -597,7 +597,7 @@
     {
       "path": "assets/badges/npm.svg",
       "bytes": 538,
-      "sha256": "f84617779128e463bf0d3b96a9406804a4384c4c8495c397d99f970a54dff7a5"
+      "sha256": "5b1de47f8ca0d82ccb4a32c47d5e6e38b4a35c31b6a7706d0a175be502c7af64"
     },
     {
       "path": "assets/badges/openai-build-week.svg",
@@ -607,7 +607,7 @@
     {
       "path": "assets/badges/release.svg",
       "bytes": 551,
-      "sha256": "e65d29eadb1c07c5f308a635a486fec52865257a61f9cfa91c2eee144d8cbb01"
+      "sha256": "5537f21e1f8491df80bb59d8af9191575f6cdc99b8c1c89fe322cf9d79e8673d"
     },
     {
       "path": "assets/badges/security.svg",
@@ -1541,8 +1541,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 41723,
-      "sha256": "a34bfc42160d7747ed3090d6e34c9178e58192b68bd617bf0cd4ab888034a430"
+      "bytes": 41606,
+      "sha256": "e9cf33ee170c60fcc24f4dd414b45bf59857e750d606e68b6599b236dd7da8c9"
     },
     {
       "path": "releases/0.1.1.md",
@@ -2550,5 +2550,5 @@
       "sha256": "4b1e96755ff5e495d6c50959d4e9d86cf58016fa6f3789efb9fc081875bd5d4c"
     }
   ],
-  "contentDigest": "e286bbf6577a660117c4717cc47ea1c0cdb0d5b773d71dc420b304f6dc2fda27"
+  "contentDigest": "16975a631e3512b0cb5e9d458ce34c20f52360791023ded4e20346ee84714e66"
 }
