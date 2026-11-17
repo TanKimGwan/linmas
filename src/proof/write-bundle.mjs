@@ -177,9 +177,28 @@ async function releaseClaim(target, claim, fsApi, privatePath) {
       return;
     }
   } catch {}
-  // Not ours, or no longer empty: put it back. If the destination was filled
-  // again meanwhile, the rename fails and the entry stays under the private name.
-  try { await fsApi.rename(privatePath, target); } catch {}
+  // Not ours, or no longer empty: put it back without replacing anything.
+  await putBack(privatePath, target, fsApi);
+}
+
+// A plain rename back could replace an empty directory that a third party
+// created at the destination meanwhile. A directory is therefore put back the
+// same way the bundle is moved in: claim the destination with an exclusive
+// mkdir, then rename onto that empty claim. A non-directory is put back with
+// link() (which fails if the name exists) and then unlinked from the private
+// name. If the destination is occupied, the entry stays under the private
+// name: moved, never deleted.
+async function putBack(privatePath, target, fsApi) {
+  let stat;
+  try { stat = await fsApi.lstat(privatePath); } catch { return; }
+  if (!stat.isDirectory()) {
+    try { await fsApi.link(privatePath, target); } catch { return; }
+    try { await fsApi.unlink(privatePath); } catch {}
+    return;
+  }
+  try { await fsApi.mkdir(target, { mode: 0o700 }); } catch { return; }
+  try { await fsApi.rename(privatePath, target); }
+  catch { try { await fsApi.rmdir(target); } catch {} }
 }
 
 async function writeArtifact(root, relativePath, bytes, fsApi, signal) {

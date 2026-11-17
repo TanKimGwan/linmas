@@ -276,3 +276,109 @@ test('T12 round 2 A-1 when the claim cannot be moved aside, data written into it
   assert.deepEqual(await fs.readdir(destination), ['theirs.txt']);
   assert.deepEqual(await leftovers(root), []);
 });
+
+test('T13 B a third-party empty directory created before the put-back is not replaced', { skip }, async (t) => {
+  const { root, source, receipt } = await fixture(t);
+  const destination = path.join(root, 'bundle');
+  let foreignIno = null;
+  let thirdPartyIno = null;
+  const fsApi = failingMoveFs(destination, {
+    async rename(from, to) {
+      if (from === destination && foreignIno === null) {
+        // Another process swaps its own directory in for the claim ...
+        await fs.rename(destination, path.join(root, 'moved-aside'));
+        await fs.mkdir(destination);
+        foreignIno = (await fs.lstat(destination)).ino;
+        const result = await fs.rename(from, to);
+        // ... and a third process creates an empty directory at the destination
+        // before the writer can put the swapped-in directory back.
+        await fs.mkdir(destination);
+        thirdPartyIno = (await fs.lstat(destination)).ino;
+        return result;
+      }
+      return fs.rename(from, to);
+    }
+  });
+  await assert.rejects(writeProofBundle(destination, source, receipt, { fsApi }), /could not be written/);
+  assert.notEqual(thirdPartyIno, null);
+  assert.equal((await fs.lstat(destination)).ino, thirdPartyIno, 'the third-party directory was replaced');
+  // The swapped-in directory is kept, moved under the private release name.
+  const kept = await leftovers(root);
+  assert.equal(kept.length, 1);
+  assert.match(kept[0], /^\.bundle\..+\.release$/);
+  assert.equal((await fs.lstat(path.join(root, kept[0]))).ino, foreignIno);
+});
+
+test('T13 B a non-directory swapped in for the claim is put back without replacing anything', { skip }, async (t) => {
+  const { root, source, receipt } = await fixture(t);
+  const destination = path.join(root, 'bundle');
+  let swapped = false;
+  const fsApi = failingMoveFs(destination, {
+    async rename(from, to) {
+      if (from === destination && !swapped) {
+        swapped = true;
+        await fs.rename(destination, path.join(root, 'moved-aside'));
+        await fs.writeFile(destination, 'other data');
+      }
+      return fs.rename(from, to);
+    }
+  });
+  await assert.rejects(writeProofBundle(destination, source, receipt, { fsApi }), /could not be written/);
+  assert.equal(swapped, true);
+  assert.equal(await fs.readFile(destination, 'utf8'), 'other data');
+  assert.deepEqual(await leftovers(root), []);
+});
+
+test('T13 B a failed put-back removes its own empty claim and keeps the entry under the private name', { skip }, async (t) => {
+  const { root, source, receipt } = await fixture(t);
+  const destination = path.join(root, 'bundle');
+  let wrote = false;
+  const fsApi = failingMoveFs(destination, {
+    async rename(from, to) {
+      if (to === destination && from.endsWith('.release')) throw Object.assign(new Error('synthetic put-back failure'), { code: 'EIO' });
+      return fs.rename(from, to);
+    },
+    async rmdir(target) {
+      if (!wrote && target.endsWith('.release')) {
+        wrote = true;
+        await fs.writeFile(path.join(target, 'theirs.txt'), 'other data');
+      }
+      return fs.rmdir(target);
+    }
+  });
+  await assert.rejects(writeProofBundle(destination, source, receipt, { fsApi }), /could not be written/);
+  assert.equal(wrote, true);
+  await assert.rejects(fs.lstat(destination), { code: 'ENOENT' });
+  const kept = await leftovers(root);
+  assert.equal(kept.length, 1);
+  assert.deepEqual(await fs.readdir(path.join(root, kept[0])), ['theirs.txt']);
+});
+
+test('T13 round 2 B a swapped-in file is not put back over a third-party file at the destination', { skip }, async (t) => {
+  const { root, source, receipt } = await fixture(t);
+  const destination = path.join(root, 'bundle');
+  let swapped = false;
+  const fsApi = failingMoveFs(destination, {
+    async rename(from, to) {
+      if (from === destination && !swapped) {
+        swapped = true;
+        // Another process swaps a file in for the claim ...
+        await fs.rename(destination, path.join(root, 'moved-aside'));
+        await fs.writeFile(destination, 'swapped-in file');
+        const result = await fs.rename(from, to);
+        // ... and a third process writes its own file at the destination
+        // before the writer can put the swapped-in file back.
+        await fs.writeFile(destination, 'third-party file');
+        return result;
+      }
+      return fs.rename(from, to);
+    }
+  });
+  await assert.rejects(writeProofBundle(destination, source, receipt, { fsApi }), /could not be written/);
+  assert.equal(swapped, true);
+  assert.equal(await fs.readFile(destination, 'utf8'), 'third-party file', 'the third-party file was overwritten');
+  const kept = await leftovers(root);
+  assert.equal(kept.length, 1);
+  assert.match(kept[0], /^\.bundle\..+\.release$/);
+  assert.equal(await fs.readFile(path.join(root, kept[0]), 'utf8'), 'swapped-in file');
+});
