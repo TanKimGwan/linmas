@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { terminalSafeLines } from './terminal-text.mjs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { assertInsideRoot } from './fs-utils.mjs';
@@ -51,7 +52,7 @@ export function formatUninstallPreview(plan) {
   for (const item of plan) {
     lines.push(`- ${item.host}: remove ${item.skillName} from ${item.skillPath}`);
   }
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }
 
 export async function promptForUninstallTarget(io, plan) {

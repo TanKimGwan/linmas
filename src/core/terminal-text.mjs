@@ -21,6 +21,13 @@ export function terminalSafe(value, { multiline = false } = {}) {
   return String(value).replaceAll(multiline ? UNSAFE_MULTILINE : UNSAFE, escapeCharacter);
 }
 
+// Escape each line of a text report separately, so a value that carries its
+// own line break shows it as \u000a instead of starting a new report line.
+// Linmas's constant text never contains unsafe characters.
+export function terminalSafeLines(lines) {
+  return lines.map((line) => terminalSafe(line)).join('\n');
+}
+
 function escapeCharacter(character) {
   // With the u flag a lone surrogate matches on its own; a pair never does.
   const codePoint = character.codePointAt(0);

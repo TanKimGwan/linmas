@@ -118,6 +118,11 @@ export function parseArgv(argv) {
     policyFile: null,
     capsulePath: null
   };
+  if (argv[2] === '--help' || argv[2] === '-h') {
+    if (argv.length > 3) throw new Error(`${argv[2]} does not accept other arguments`);
+    result.command = 'help';
+    return result;
+  }
   if (argv[2] === '--version' || argv[2] === '-v') {
     if (argv.length > 3) throw new Error(`${argv[2]} does not accept other arguments`);
     result.command = 'version';

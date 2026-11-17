@@ -18,7 +18,8 @@ import { ReviewError } from '../src/review/errors.mjs';
 import { createProviderRegistry } from '../src/providers/registry.mjs';
 import { createHostRegistry } from '../src/hosts/registry.mjs';
 import { LINMAS_VERSION } from '../src/core/version.mjs';
-import { terminalSafe } from '../src/core/terminal-text.mjs';
+import { USAGE_TEXT } from '../src/cli/usage.mjs';
+import { terminalSafe, terminalSafeLines } from '../src/core/terminal-text.mjs';
 import {
   applyScopedInstallPlan,
   applyScopedUninstallPlan,
@@ -82,7 +83,7 @@ function formatScopedFailure(error) {
   for (const recoveryPath of error.recoveryPaths ?? []) {
     if (!reportedPaths.has(recoveryPath)) lines.push(`Recovery data retained at: ${recoveryPath}`);
   }
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }
 
 function quoteShellArgument(value) {
@@ -95,8 +96,8 @@ function writeScopedNextSteps(io, plan) {
   const skillArgs = plan.selectedIds.length === listSkills(rootDir).length
     ? '--all'
     : plan.selectedIds.map((skill) => `--skill ${skill}`).join(' ');
-  io.stdout.write(`Next: linmas doctor ${scopeArgs}\n`);
-  io.stdout.write(`Next: linmas uninstall ${skillArgs} ${agentArgs} ${scopeArgs}\n`);
+  io.stdout.write(`${terminalSafe(`Next: linmas doctor ${scopeArgs}`)}\n`);
+  io.stdout.write(`${terminalSafe(`Next: linmas uninstall ${skillArgs} ${agentArgs} ${scopeArgs}`)}\n`);
   io.stdout.write('Start a new session in the selected harness to refresh skill discovery.\n');
 }
 
@@ -200,8 +201,8 @@ async function runScopedInstall(args, io, dependencies) {
   try {
     const result = applyScopedInstallPlan(plan, { allowReplaceUnmanaged, allowReplaceModified });
     io.stdout.write(result.status === 'NO_OP' ? 'Installation already matches the selected skills and targets.\n' : 'Install completed.\n');
-    for (const backupPath of result.retainedBackups ?? []) io.stdout.write(`Backup retained at: ${backupPath}\n`);
-    for (const warning of result.cleanupWarnings) io.stderr.write(`Warning: cleanup retained at ${warning.path}: ${warning.message}\n`);
+    for (const backupPath of result.retainedBackups ?? []) io.stdout.write(`Backup retained at: ${terminalSafe(backupPath)}\n`);
+    for (const warning of result.cleanupWarnings) io.stderr.write(`Warning: cleanup retained at ${terminalSafe(warning.path)}: ${terminalSafe(warning.message)}\n`);
     writeScopedNextSteps(io, plan);
     return 0;
   } catch (error) {
@@ -215,8 +216,8 @@ async function runScopedInstall(args, io, dependencies) {
       await requireScopedConfirmation(io, 'Install the new copy preview?', 'Copy fallback cancelled; previous installation was restored.');
       const result = applyScopedInstallPlan(plan);
       io.stdout.write('Install completed using copy.\n');
-      for (const backupPath of result.retainedBackups ?? []) io.stdout.write(`Backup retained at: ${backupPath}\n`);
-      for (const warning of result.cleanupWarnings) io.stderr.write(`Warning: cleanup retained at ${warning.path}: ${warning.message}\n`);
+      for (const backupPath of result.retainedBackups ?? []) io.stdout.write(`Backup retained at: ${terminalSafe(backupPath)}\n`);
+      for (const warning of result.cleanupWarnings) io.stderr.write(`Warning: cleanup retained at ${terminalSafe(warning.path)}: ${terminalSafe(warning.message)}\n`);
       writeScopedNextSteps(io, plan);
       return 0;
     }
@@ -252,8 +253,8 @@ async function runScopedUninstall(args, io, dependencies) {
   if (!args.assumeYes) await requireScopedConfirmation(io, 'Remove the previewed managed attachments?', 'Uninstall cancelled; files were preserved.');
   const result = applyScopedUninstallPlan(plan);
   io.stdout.write(result.status === 'NO_OP' ? 'No managed files needed removal.\n' : 'Uninstall completed.\n');
-  for (const backupPath of result.retainedBackups ?? []) io.stdout.write(`Backup retained at: ${backupPath}\n`);
-  for (const warning of result.cleanupWarnings ?? []) io.stderr.write(`Warning: backup retained at ${warning.path}: ${warning.message}\n`);
+  for (const backupPath of result.retainedBackups ?? []) io.stdout.write(`Backup retained at: ${terminalSafe(backupPath)}\n`);
+  for (const warning of result.cleanupWarnings ?? []) io.stderr.write(`Warning: backup retained at ${terminalSafe(warning.path)}: ${terminalSafe(warning.message)}\n`);
   return 0;
 }
 
@@ -275,8 +276,12 @@ export async function run(argv, io = process, dependencies = {}) {
   try {
     args = parseArgv(argv);
   } catch (error) {
-    io.stderr.write(`Error: ${error.message}\n`);
+    io.stderr.write(`Error: ${terminalSafe(error.message)}\n`);
     return 2;
+  }
+  if (args.command === 'help') {
+    io.stdout.write(USAGE_TEXT);
+    return 0;
   }
   if (args.command === 'version') {
     io.stdout.write(`${LINMAS_VERSION}\n`);
@@ -296,7 +301,7 @@ export async function run(argv, io = process, dependencies = {}) {
     const skills = listSkills(rootDir);
     io.stdout.write('Available Linmas skills:\n');
     for (const skill of skills) {
-      io.stdout.write(`- ${skill.name} — ${skill.description}\n`);
+      io.stdout.write(`- ${terminalSafe(skill.name)} — ${terminalSafe(skill.description)}\n`);
     }
     return 0;
   }
@@ -304,10 +309,10 @@ export async function run(argv, io = process, dependencies = {}) {
   if (args.command === 'detect') {
     const detections = getDetections();
     for (const detection of detections) {
-      io.stdout.write(`${detection.host}: ${detection.status}\n`);
-      io.stdout.write(`  reason: ${detection.reason}\n`);
-      io.stdout.write(`  target: ${detection.installRoot}\n`);
-      io.stdout.write(`  writable: ${detection.writable}\n`);
+      io.stdout.write(`${terminalSafe(detection.host)}: ${terminalSafe(detection.status)}\n`);
+      io.stdout.write(`  reason: ${terminalSafe(detection.reason)}\n`);
+      io.stdout.write(`  target: ${terminalSafe(detection.installRoot)}\n`);
+      io.stdout.write(`  writable: ${terminalSafe(detection.writable)}\n`);
     }
     return 0;
   }
@@ -315,7 +320,7 @@ export async function run(argv, io = process, dependencies = {}) {
   if (args.command === 'doctor' && args.scope) {
     try { return runScopedDoctor(args, io, dependencies); }
     catch (error) {
-      io.stderr.write(`Error: ${error.message}\n`);
+      io.stderr.write(`Error: ${terminalSafe(error.message)}\n`);
       return 1;
     }
   }
@@ -441,7 +446,7 @@ export async function run(argv, io = process, dependencies = {}) {
       io.stdout.write(formatInstallSummary(plan));
       return 0;
     } catch (e) {
-      io.stderr.write(args.managedInstall ? formatScopedFailure(e) : `Error: ${e.message}\n`);
+      io.stderr.write(args.managedInstall ? formatScopedFailure(e) : `Error: ${terminalSafe(e.message)}\n`);
       return e.exitCode === 130 ? 130 : 1;
     }
   }
@@ -475,12 +480,12 @@ export async function run(argv, io = process, dependencies = {}) {
       io.stdout.write('Uninstall completed.\n');
       return 0;
     } catch (e) {
-      io.stderr.write(args.managedUninstall ? formatScopedFailure(e) : `Error: ${e.message}\n`);
+      io.stderr.write(args.managedUninstall ? formatScopedFailure(e) : `Error: ${terminalSafe(e.message)}\n`);
       return e.exitCode === 130 ? 130 : 1;
     }
   }
 
-  io.stderr.write(`Unknown command: ${args.command}\n`);
+  io.stderr.write(`Unknown command: ${terminalSafe(args.command)}\n`);
   return 1;
 }
 
