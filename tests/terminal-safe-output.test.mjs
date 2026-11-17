@@ -148,7 +148,8 @@ test('T12 review errors printed by the CLI neutralize control characters from in
   assert.equal(UNSAFE.test(io.err.slice(0, -1)), false, JSON.stringify(io.err));
 });
 
-test('T12 the proof CLI error path escapes a manifest artifact path quoted in the error', async (t) => {
+// Windows cannot create a file whose name contains control characters.
+test('T12 the proof CLI error path escapes a manifest artifact path quoted in the error', { skip: process.platform === 'win32' }, async (t) => {
   const root = await tempRoot(t);
   const capsulePath = path.join(root, 'capsule.json');
   await fs.writeFile(capsulePath, `${JSON.stringify(capsule([finding('F-1')]), null, 2)}\n`);

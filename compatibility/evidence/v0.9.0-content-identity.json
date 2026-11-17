@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "identityKind": "repository-content",
   "identityPath": "compatibility/evidence/v0.9.0-content-identity.json",
-  "generatedAt": "2026-11-17T03:02:16.983Z",
+  "generatedAt": "2026-11-17T03:18:17.698Z",
   "scopeDescription": "Exact regular-file identity for a clean candidate. The identity file is excluded from its own content digest; an external acceptance record binds its full SHA-256 to the final commit.",
   "coveredPaths": [
     ".agents/plugins/marketplace.json",
@@ -2351,8 +2351,8 @@
     },
     {
       "path": "tests/mcp-server.test.mjs",
-      "bytes": 64529,
-      "sha256": "0d24b30011b0f744dbd64fd56dec071e13cf6923e74da764639b3618990c5635"
+      "bytes": 64657,
+      "sha256": "14459eed60f00866b4e99de6032fa450968d2e7e8bd43b22d8ebf236d1e426b2"
     },
     {
       "path": "tests/parse-args.test.mjs",
@@ -2381,8 +2381,8 @@
     },
     {
       "path": "tests/policy-validation.test.mjs",
-      "bytes": 4159,
-      "sha256": "59fcdd73f1679178ce322eeee9ffebe22ca269e32e68ff0c0daba0c9166a5206"
+      "bytes": 4207,
+      "sha256": "96ae686764540db1c5e896360e966d66cbdd68b1590589783e5bfeb9b68f3eb9"
     },
     {
       "path": "tests/proof-chain.test.mjs",
@@ -2511,8 +2511,8 @@
     },
     {
       "path": "tests/terminal-safe-output.test.mjs",
-      "bytes": 12330,
-      "sha256": "ff4e6bece5f615e3b5b1ccabaa55dc01cf1cd3844b0f2869d8c403e3d20e4084"
+      "bytes": 12442,
+      "sha256": "e7ed3bc4555f2cac43ec7d899315f02685d7c8aabe236e58c152e40fbc1db6f7"
     },
     {
       "path": "tests/uninstall.test.mjs",
@@ -2550,5 +2550,5 @@
       "sha256": "4b1e96755ff5e495d6c50959d4e9d86cf58016fa6f3789efb9fc081875bd5d4c"
     }
   ],
-  "contentDigest": "d499379767d259430918d33e8582f772929d8a160f14168784a3b27c1e6fadd8"
+  "contentDigest": "e286bbf6577a660117c4717cc47ea1c0cdb0d5b773d71dc420b304f6dc2fda27"
 }

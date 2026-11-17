@@ -757,7 +757,8 @@ test('invalid review decision form content is classified as input validation', a
 
 test('compare rechecks capsule file type after resolving workspace paths', async (t) => {
   const root = await setup();
-  const beforePath = path.join(root, 'before.json');
+  // The server canonicalizes workspace_root, so match the canonical path (Windows temp dirs use 8.3 names).
+  const beforePath = path.join(await fs.realpath(root), 'before.json');
   const originalLstat = fs.lstat;
   let inspections = 0;
   try {

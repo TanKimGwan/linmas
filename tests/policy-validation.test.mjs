@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validatePolicyPack } from '../src/policy/validate-pack.mjs';
@@ -60,6 +61,6 @@ test('T9-03 rule severities and statuses must use the exact ReviewResult enums',
 
 test('T9-03 every built-in policy pack remains valid', async () => {
   const { loadPolicyPack } = await import('../src/policy/load-pack.mjs');
-  const rootDir = new URL('..', import.meta.url).pathname;
+  const rootDir = fileURLToPath(new URL('..', import.meta.url));
   for (const id of ['baseline-appsec', 'cloud-change', 'release-security']) assert.equal(loadPolicyPack({ id, rootDir }).id, id);
 });
