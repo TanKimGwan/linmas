@@ -7,7 +7,7 @@ import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import { fingerprintReviewInput, buildReviewCapsule } from '../src/review/build-capsule.mjs';
-import { loadAndCompareCapsules } from '../src/review/compare-capsules.mjs';
+import { compareReviewCapsules } from '../src/review/compare-capsules.mjs';
 import { prepareReview } from '../src/review/prepare-review.mjs';
 import { preflightCapsuleDestination, writeReviewCapsule } from '../src/review/write-capsule.mjs';
 import { validateReviewCapsule } from '../src/review/validate-capsule.mjs';
@@ -39,6 +39,7 @@ export const TOOL_TIMEOUTS = Object.freeze({
 });
 export const ELICITATION_TIMEOUT_MS = 120_000;
 const MAX_REVIEW_REFERENCES = 64;
+const TRANSMISSION_STATES = Object.freeze(['not-attempted', 'attempted', 'response-received', 'normalized', 'capsule-written']);
 
 const SPECIALIST_SKILL_IDS = Object.freeze(
   PUBLIC_SKILL_IDS.filter((skillId) => skillId !== 'linmas-security-domain-router')
@@ -53,7 +54,7 @@ const TOOL_DEFINITIONS = Object.freeze([
   {
     name: 'linmas_review_decide',
     title: 'Record Linmas Human Review Decision',
-    description: 'Ask for and record a bounded human disposition after findings are available. This never approves a review or bypasses transmission and write consent.',
+    description: 'Ask for and record a bounded human disposition after findings are available. This never approves a review or bypasses transmission and write consent. reviewInteraction.elicitationConfirmed is true only when a person accepted the MCP form with a disposition; a text_fallback decision is supplied by the caller and is not confirmed as a human answer.',
     kind: 'read',
     inputSchema: commonSchema({
       required: ['workspace_root', 'review_handle', 'capsule_digest'],
@@ -224,24 +225,29 @@ export function createLinmasDispatcher({
       stage: 'argument-validation',
       reasonCode: 'TOOL_UNSUPPORTED'
     });
-    const args = validateToolArguments(definition, rawArguments);
-    const timeoutMs = args.timeout_ms ?? TOOL_TIMEOUTS[definition.kind].defaultMs;
-    const operation = (signal) => {
-      switch (name) {
-        case 'linmas_review_prepare': return reviewPrepare(args);
-        case 'linmas_review_decide': return reviewDecide(args, context.elicit, reviewReferences);
-        case 'linmas_review_compare': return reviewCompare(args, signal);
-        case 'linmas_policy_evaluate': return policyEvaluate(args, pluginRoot, signal);
-        case 'linmas_proof_verify': return proofVerify(args, signal);
-        case 'linmas_proof_create': return proofCreate(args, signal);
-        case 'linmas_review_execute': return reviewExecute(args, pluginRoot, registry, env, signal, rememberReview);
-        default: throw toolError('unknown_tool', 'unknown tool', undefined, {
-          stage: 'argument-validation',
-          reasonCode: 'TOOL_UNSUPPORTED'
-        });
-      }
-    };
-    return boundedOutput(await withTimeout(operation, timeoutMs));
+    const transmission = name === 'linmas_review_execute' ? { state: 'not-attempted' } : null;
+    try {
+      const args = validateToolArguments(definition, rawArguments);
+      const timeoutMs = args.timeout_ms ?? TOOL_TIMEOUTS[definition.kind].defaultMs;
+      const operation = (signal) => {
+        switch (name) {
+          case 'linmas_review_prepare': return reviewPrepare(args);
+          case 'linmas_review_decide': return reviewDecide(args, context.elicit, reviewReferences);
+          case 'linmas_review_compare': return reviewCompare(args, signal);
+          case 'linmas_policy_evaluate': return policyEvaluate(args, pluginRoot, signal);
+          case 'linmas_proof_verify': return proofVerify(args, signal);
+          case 'linmas_proof_create': return proofCreate(args, signal);
+          case 'linmas_review_execute': return reviewExecute(args, pluginRoot, registry, env, signal, rememberReview, transmission);
+          default: throw toolError('unknown_tool', 'unknown tool', undefined, {
+            stage: 'argument-validation',
+            reasonCode: 'TOOL_UNSUPPORTED'
+          });
+        }
+      };
+      return boundedOutput(await withTimeout(operation, timeoutMs));
+    } catch (error) {
+      throw annotateTransmission(error, transmission, { timeoutFloor: error?.toolCode === 'timeout' });
+    }
   };
 }
 
@@ -418,6 +424,10 @@ function reviewDecisionRecord({ args, decision, channel, status = 'selected', ra
       schemaVersion: 1,
       status,
       channel,
+      // Additive honesty flag: true only when a person accepted the MCP form and a
+      // disposition was selected. Declined/cancelled forms carry no disposition, and a
+      // text_fallback decision is supplied by the tool caller (which may be the agent).
+      elicitationConfirmed: channel === 'mcp_form' && status === 'selected',
       disposition: decision,
       unresolvedFindings: counts,
       riskAcceptance: {
@@ -481,6 +491,7 @@ async function reviewDecide(args, elicit, reviewReferences) {
     return reviewDecisionRecord({ args, decision: null, channel: 'mcp_form', status: first?.action === 'cancel' ? 'cancelled' : 'declined' });
   }
   const disposition = first.content.disposition;
+  validateReviewDecisionArguments({ ...args, decision: first.content });
   if (disposition === 'custom_instruction') {
     const custom = await elicit({
       mode: 'form',
@@ -488,6 +499,7 @@ async function reviewDecide(args, elicit, reviewReferences) {
       requestedSchema: { type: 'object', additionalProperties: false, required: ['custom_instruction'], properties: { custom_instruction: boundedStringSchema(4096) } }
     });
     if (custom?.action !== 'accept' || !custom?.content?.custom_instruction) return reviewDecisionRecord({ args, decision: 'custom_instruction', channel: 'mcp_form', status: custom?.action === 'cancel' ? 'cancelled' : 'declined' });
+    boundedString(custom.content.custom_instruction, 'custom_instruction', 4096);
     return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', customInstruction: custom.content.custom_instruction });
   }
   if (disposition === 'continue_with_note' && (counts.Critical > 0 || counts.High > 0)) {
@@ -502,6 +514,7 @@ async function reviewDecide(args, elicit, reviewReferences) {
       }
     });
     if (risk?.action !== 'accept' || risk.content?.risk_acknowledged !== true || !risk.content?.rationale) return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', status: risk?.action === 'cancel' ? 'cancelled' : 'declined' });
+    boundedString(risk.content.rationale, 'rationale', 4096);
     return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form', rationale: risk.content.rationale, riskAcknowledged: true });
   }
   return reviewDecisionRecord({ args, decision: disposition, channel: 'mcp_form' });
@@ -519,7 +532,7 @@ async function reviewCompare(args) {
   const workspace = await validateWorkspaceRoot(args.workspace_root);
   const before = await resolveExisting(workspace, args.before_capsule_path, 'capsule');
   const after = await resolveExisting(workspace, args.after_capsule_path, 'capsule');
-  const delta = await loadAndCompareCapsules(before, after, { cwd: workspace });
+  const delta = compareReviewCapsules(await readValidatedCapsule(before), await readValidatedCapsule(after));
   return {
     status: 'verified',
     operation: 'review_compare',
@@ -535,6 +548,7 @@ async function policyEvaluate(args, pluginRoot) {
   const capsulePath = await resolveExisting(workspace, args.capsule_path, 'capsule');
   const capsule = await readValidatedCapsule(capsulePath);
   const policy = await loadPolicyForArguments(args, workspace, pluginRoot);
+  assertPolicyAcceptsRequest(policy, capsule.review.specialist);
   const result = evaluatePolicy(policy, capsule.review);
   return {
     status: 'verified',
@@ -553,7 +567,12 @@ async function proofVerify(args) {
   const allowedSigners = args.allowed_signers_path
     ? await resolveExisting(workspace, args.allowed_signers_path, 'allowed signers')
     : null;
-  const result = await verifyProofBundle(bundle, { allowedSignersPath: allowedSigners });
+  let result;
+  try { result = await verifyProofBundle(bundle, { allowedSignersPath: allowedSigners }); }
+  catch (cause) {
+    if (cause?.failureClass || cause?.toolCode || cause?.name === 'AbortError' || cause?.code === 'ABORT_ERR') throw cause;
+    throw toolError('contract_violation', 'proof bundle failed Linmas validation', cause);
+  }
   return {
     status: 'verified',
     operation: 'proof_verify',
@@ -564,6 +583,7 @@ async function proofVerify(args) {
       integrity: result.integrity,
       signature: result.signature,
       identity: result.identity,
+      principal: result.principal,
       source: result.source,
       manifestSha256: result.manifestSha256,
       receipt: {
@@ -596,12 +616,15 @@ async function proofCreate(args, signal) {
   throwIfAborted(signal);
   const source = await awaitWithAbort(signal, () => loadProofEvidence(sourcePath));
   throwIfAborted(signal);
-  const receipt = buildDecisionReceipt({
-    subject: { kind: source.kind, sha256: source.sourceSha256 },
-    reviewer: args.reviewer,
-    findings: args.findings,
-    statement: args.statement
-  });
+  let receipt;
+  try {
+    receipt = buildDecisionReceipt({
+      subject: { kind: source.kind, sha256: source.sourceSha256 },
+      reviewer: args.reviewer,
+      findings: args.findings,
+      statement: args.statement
+    });
+  } catch (cause) { throw toolError('invalid_input', 'proof decision receipt is invalid', cause); }
   throwIfAborted(signal);
   let created;
   try {
@@ -632,25 +655,7 @@ async function proofCreate(args, signal) {
   };
 }
 
-async function reviewExecute(args, pluginRoot, registry, env, signal, rememberReview) {
-  const transmission = { state: 'not-attempted' };
-  const states = ['not-attempted', 'attempted', 'response-received', 'normalized', 'capsule-written'];
-  const advanceTransmission = (state) => {
-    if (states.indexOf(state) > states.indexOf(transmission.state)) transmission.state = state;
-  };
-  const annotateFailure = (error) => {
-    if (error && typeof error === 'object') {
-      const errorState = states.includes(error.transmissionState) ? error.transmissionState : 'not-attempted';
-      const finalState = states.indexOf(errorState) > states.indexOf(transmission.state) ? errorState : transmission.state;
-      error.transmissionState = finalState;
-      error.transmissionAttempted = finalState !== 'not-attempted';
-      error.providerResponseReceived = ['response-received', 'normalized', 'capsule-written'].includes(finalState);
-      error.capsuleWritten = finalState === 'capsule-written';
-      error.stage ??= finalState === 'not-attempted' ? 'provider-preflight' : 'provider-execution';
-    }
-    return error;
-  };
-
+async function reviewExecute(args, pluginRoot, registry, env, signal, rememberReview, transmission) {
   try {
     const workspace = await validateWorkspaceRoot(args.workspace_root);
     throwIfAborted(signal);
@@ -671,6 +676,13 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
       };
     }
 
+    const input = await awaitWithAbort(signal, () => readReviewInput(args, workspace));
+    throwIfAborted(signal);
+    const request = prepareReview({ input, skillName: args.skill_name });
+    throwIfAborted(signal);
+    const policy = args.policy_id || args.policy_path ? await awaitWithAbort(signal, () => loadPolicyForArguments(args, workspace, pluginRoot)) : null;
+    if (policy) assertPolicyAcceptsRequest(policy, request.specialist, request.mode);
+    throwIfAborted(signal);
     const execution = await withDeadlineSignal(signal, async (executionSignal) => prepareProviderExecution(registry, args.provider, {
       model: args.model,
       cwd: workspace,
@@ -679,53 +691,57 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
     }));
     const executionMetadata = { ...execution.metadata };
     throwIfAborted(signal);
-    const input = await awaitWithAbort(signal, () => readReviewInput(args, workspace));
-    throwIfAborted(signal);
-    const request = prepareReview({ input, skillName: args.skill_name });
-    throwIfAborted(signal);
     const capsuleTarget = args.capsule_path
       ? await awaitWithAbort(signal, async () => preflightCapsuleDestination(await prepareNewFile(workspace, args.capsule_path, 'capsule'), { cwd: workspace }))
       : null;
     throwIfAborted(signal);
-    const policy = args.policy_id || args.policy_path ? await awaitWithAbort(signal, () => loadPolicyForArguments(args, workspace, pluginRoot)) : null;
-    throwIfAborted(signal);
     const runner = execution.createRunner();
-    advanceTransmission('attempted');
+    advanceTransmission(transmission, 'attempted');
     const runResult = await withDeadlineSignal(signal, (executionSignal) => runner.run({
       system: 'Return only ReviewResult schemaVersion 1 JSON.',
       user: JSON.stringify(request),
       signal: executionSignal
     }));
     throwIfAborted(signal);
-    advanceTransmission('response-received');
+    advanceTransmission(transmission, 'response-received');
     const review = normalizeProviderResponse(runResult, { caseId: 'review/linmas-mcp', specialist: request.specialist });
     throwIfAborted(signal);
-    advanceTransmission('normalized');
+    advanceTransmission(transmission, 'normalized');
     review.modelMetadata.requestId = null;
     let policyResult = null;
     if (policy) {
       throwIfAborted(signal);
+      // The provider response may carry its own specialist, so re-check it before evaluating.
+      assertPolicyAcceptsRequest(policy, review.specialist, request.mode, 'normalization');
       policyResult = evaluatePolicy(policy, review);
       throwIfAborted(signal);
     }
-    const capsule = buildReviewCapsule({
-      input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
-      execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
-      review,
-      policyResult
-    });
-    if (capsuleTarget) {
-      throwIfAborted(signal);
-      try {
+    let capsule;
+    try {
+      capsule = buildReviewCapsule({
+        input: { source: input.source, bytes: input.bytes, sha256: input.sha256 },
+        execution: { mode: 'live', provider: review.modelMetadata.provider, authMode: executionMetadata.authMode, model: review.modelMetadata.model, modelVerified: executionMetadata.modelVerified === true && executionMetadata.model === review.modelMetadata.model },
+        review,
+        policyResult
+      });
+      if (capsuleTarget) {
         throwIfAborted(signal);
-        await writeReviewCapsule(capsuleTarget, capsule, { signal });
+        try {
+          await writeReviewCapsule(capsuleTarget, capsule, { signal });
+          throwIfAborted(signal);
+        } catch (error) {
+          if (signal?.aborted) await fs.rm(capsuleTarget.path, { force: true }).catch(() => {});
+          throw error;
+        }
+        advanceTransmission(transmission, 'capsule-written');
         throwIfAborted(signal);
-      } catch (error) {
-        if (signal?.aborted) await fs.rm(capsuleTarget.path, { force: true }).catch(() => {});
-        throw error;
       }
-      advanceTransmission('capsule-written');
-      throwIfAborted(signal);
+    } catch (cause) {
+      if (signal?.aborted || cause?.name === 'AbortError' || cause?.code === 'ABORT_ERR'
+        || ['timeout', 'provider-timeout', 'provider-cancelled'].includes(cause?.toolCode ?? cause?.failureClass)) throw cause;
+      throw toolError('contract_violation', 'review capsule failed Linmas contract', cause, {
+        stage: 'capsule-write', reasonCode: 'CAPSULE_CONTRACT_VIOLATION'
+      });
     }
     throwIfAborted(signal);
     const reviewReference = rememberReview(capsule);
@@ -752,8 +768,27 @@ async function reviewExecute(args, pluginRoot, registry, env, signal, rememberRe
       policy: policyResult
     };
   } catch (error) {
-    throw annotateFailure(error);
+    throw annotateTransmission(error, transmission, { setStage: true });
   }
+}
+
+function advanceTransmission(transmission, state) {
+  if (transmission && TRANSMISSION_STATES.indexOf(state) > TRANSMISSION_STATES.indexOf(transmission.state)) transmission.state = state;
+}
+
+function annotateTransmission(error, transmission, { setStage = false, timeoutFloor = false } = {}) {
+  if (!transmission || !error || typeof error !== 'object') return error;
+  const errorState = TRANSMISSION_STATES.includes(error.transmissionState) ? error.transmissionState : 'not-attempted';
+  let finalState = TRANSMISSION_STATES.indexOf(errorState) > TRANSMISSION_STATES.indexOf(transmission.state)
+    ? errorState
+    : transmission.state;
+  if (timeoutFloor && TRANSMISSION_STATES.indexOf(finalState) < TRANSMISSION_STATES.indexOf('attempted')) finalState = 'attempted';
+  error.transmissionState = finalState;
+  error.transmissionAttempted = finalState !== 'not-attempted';
+  error.providerResponseReceived = ['response-received', 'normalized', 'capsule-written'].includes(finalState);
+  error.capsuleWritten = finalState === 'capsule-written';
+  if (setStage) error.stage ??= finalState === 'not-attempted' ? 'provider-preflight' : 'provider-execution';
+  return error;
 }
 
 function providerPreview(provider, model, env, registry) {
@@ -762,7 +797,7 @@ function providerPreview(provider, model, env, registry) {
   return {
     provider,
     model: model ?? configuration.defaultModel ?? 'provider default',
-    authMode: configuration.status === 'configured' ? 'configured' : 'unavailable',
+    authMode: configuration.status === 'configured' ? 'unverified' : 'unavailable',
     modelVerified: false,
     configurationStatus: configuration.status,
     missingRequirements: Array.isArray(configuration.missingRequirements) ? configuration.missingRequirements : []
@@ -793,10 +828,26 @@ async function readReviewInput(args, workspace) {
 async function readValidatedCapsule(capsulePath) {
   let stat;
   try { stat = await fs.lstat(capsulePath); } catch { throw toolError('invalid_path', 'capsule does not exist'); }
+  if (stat.isSymbolicLink() || !stat.isFile()) throw toolError('invalid_path', 'capsule must be a regular non-symlink file');
   if (stat.size > MAX_CAPSULE_BYTES) throw toolError('input_too_large', 'capsule exceeds the bounded 2 MiB limit');
-  const text = await fs.readFile(capsulePath, 'utf8');
+  let text;
+  try { text = await fs.readFile(capsulePath, 'utf8'); } catch { throw toolError('invalid_path', 'capsule could not be read'); }
   try { return validateReviewCapsule(JSON.parse(text)); }
   catch (cause) { throw toolError('contract_violation', 'review capsule failed Linmas validation', cause); }
+}
+
+function assertPolicyAcceptsRequest(policy, specialist, mode = undefined, stage = 'argument-validation') {
+  if (!policy.specialists.includes(specialist)) {
+    throw toolError(stage === 'normalization' ? 'policy_result_incompatible' : 'policy_unsupported', 'policy does not accept the review specialist', undefined, {
+      stage, reasonCode: stage === 'normalization' ? 'POLICY_RESPONSE_SPECIALIST_UNSUPPORTED' : 'POLICY_SPECIALIST_UNSUPPORTED',
+      ...(stage === 'normalization' ? {} : { field: 'skill_name', allowedValues: policy.specialists })
+    });
+  }
+  if (mode !== undefined && !policy.modes.includes(mode)) {
+    throw toolError('policy_unsupported', 'policy does not accept the review mode', undefined, {
+      stage, reasonCode: 'POLICY_MODE_UNSUPPORTED', allowedValues: policy.modes
+    });
+  }
 }
 
 async function loadPolicyForArguments(args, workspace, pluginRoot) {

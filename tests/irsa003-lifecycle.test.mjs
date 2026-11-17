@@ -19,11 +19,16 @@ function start(f) {
   const completed=once(child,'exit');
   return {child,completed,output:()=>({stdout,stderr})};
 }
+const TIMEOUT_CHILD_SLEEP_S=60;
 function assertGone(pid) { assert(!fs.existsSync(`/proc/${pid}`),`descendant ${pid} remains`); }
 
-test('cancellation at Git, archive, verifier and pre-acceptance gate reaps benign descendants', {timeout:90000}, async(t)=>{
+// Each of the 12 subtests builds its own fixture and child process, so each gets
+// its own budget; a single aggregate budget cancelled the last subtests on a
+// loaded machine even though every cancellation stayed within its 8 s bound.
+const CANCELLATION_SUBTEST_TIMEOUT_MS=30000;
+test('cancellation at Git, archive, verifier and pre-acceptance gate reaps benign descendants', {timeout:12*CANCELLATION_SUBTEST_TIMEOUT_MS}, async(t)=>{
   for(const phase of ['trusted Git HEAD','trusted snapshot archive','isolated trusted verifier','final-acceptance']) {
-    for(const signal of ['SIGTERM','SIGINT','SIGHUP']) await t.test(`${phase} ${signal}`,async(childTest)=>{
+    for(const signal of ['SIGTERM','SIGINT','SIGHUP']) await t.test(`${phase} ${signal}`,{timeout:CANCELLATION_SUBTEST_TIMEOUT_MS},async(childTest)=>{
       const f=createFixture('clean');childTest.after(()=>cleanup(f));
       const ready=path.join(f.root,'phase.json');
       const requestId=f.policy.request.id;
@@ -34,7 +39,7 @@ test('cancellation at Git, archive, verifier and pre-acceptance gate reaps benig
         return s.replace('    process = subprocess.Popen(args,',`    if label == ${JSON.stringify(phase)}:\n        args = [sys.executable, '-I', '-E', '-c', ${JSON.stringify(benign)}]\n    process = subprocess.Popen(args,`);
       });
       const run=start(f);childTest.after(()=>{if(run.child.exitCode===null)run.child.kill('SIGTERM');});
-      const {pids}=await waitForPhase(ready,run.child,{phase,requestId,pidCount:phase==='final-acceptance'?0:2});
+      const {pids}=await waitForPhase(ready,run.child,{phase,requestId,pidCount:phase==='final-acceptance'?0:2},{diagnostics:()=>run.output().stderr});
       run.child.kill(signal);
       const status=await Promise.race([run.completed,delay(8000).then(()=>{throw Error('cancellation unbounded');})]);
       const number={SIGHUP:1,SIGINT:2,SIGTERM:15}[signal];assert.equal(status[0],128+number,run.output().stderr);
@@ -81,7 +86,7 @@ test('streaming bounds, partial archive, child signal and namespace failure neve
       if(kind==='archive-limit')script="import os\nfor i in range(1100):os.write(1,b'x'*65536)";
       if(kind==='verifier-limit')script="import os\nfor i in range(160):os.write(1,b'x'*65536)";
       if(kind==='stderr-limit')script="import os\nfor i in range(160):os.write(2,b'x'*65536)";
-      if(kind==='timeout')script="import time;time.sleep(60)";
+      if(kind==='timeout')script=`import time;time.sleep(${TIMEOUT_CHILD_SLEEP_S})`;
       if(kind==='invalid-archive')script="import os;os.write(1,b'bad tar bytes')";
       if(kind==='partial-archive')script="import os;os.write(1,b'partial');os._exit(1)";
       if(kind==='archive-link')script="import tarfile,sys;t=tarfile.open(fileobj=sys.stdout.buffer,mode='w|');m=tarfile.TarInfo('link');m.type=tarfile.SYMTYPE;m.linkname='/outside';t.addfile(m);t.close()";
@@ -91,7 +96,10 @@ test('streaming bounds, partial archive, child signal and namespace failure neve
     const started=Date.now();
     const result=runBoundary(f);assert.notEqual(result.status,0,kind);
     if(['archive-limit','verifier-limit','stderr-limit'].includes(kind)) assert.match(result.stderr,/output exceeded the bounded limit/,kind);
-    if(kind==='timeout') {assert.match(result.stderr,/bounded timeout/);assert(Date.now()-started<5000);}
+    // The whole boundary run (Git, archive, namespaces) is timed, so the bound is
+    // set against the child's sleep: finishing well before it proves the 0.2 s
+    // timeout cut the child short, independent of machine load.
+    if(kind==='timeout') {assert.match(result.stderr,/bounded timeout/);assert(Date.now()-started<TIMEOUT_CHILD_SLEEP_S*1000/2,`timeout run took ${Date.now()-started} ms`);}
     if(kind==='archive-link') assert.match(result.stderr,/unsupported entry/);
     if(kind==='partial-archive') assert.match(result.stderr,/trusted snapshot archive failed/);
     if(kind==='namespace-failure') assert.match(result.stderr,/bwrap/);

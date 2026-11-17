@@ -7,7 +7,7 @@ import { sha256 } from './load-evidence.mjs';
 import { ProofError } from './errors.mjs';
 import { derivePublicKey, signManifest } from './ssh-signature.mjs';
 
-export async function writeProofBundle(destination, source, receipt, { fsApi = fs, now = new Date(), randomId = randomUUID, signingKey = null, signal } = {}) {
+export async function writeProofBundle(destination, source, receipt, { fsApi = fs, now = new Date(), randomId = randomUUID, signingKey = null, signal, platform = process.platform } = {}) {
   throwIfAborted(signal);
   const validatedReceipt = validateDecisionReceipt(receipt);
   throwIfAborted(signal);
@@ -31,10 +31,16 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
   const lockPath = path.join(parent, `.${path.basename(resolved)}.lock`);
   const stage = path.join(parent, `.${path.basename(resolved)}.${randomId()}.staging`);
   let lock;
+  let claim = null;
   let committed = false;
   try {
     throwIfAborted(signal);
-    lock = await fsApi.open(lockPath, 'wx', 0o600);
+    try { lock = await fsApi.open(lockPath, 'wx', 0o600); }
+    catch (cause) {
+      if (cause?.code !== 'EEXIST') throw cause;
+      // Name only the lock file, never the absolute path from the cause.
+      throw new ProofError(`proof bundle could not be written: a lock file (${path.basename(lockPath)}) already exists next to the destination; if no other proof create is running, the lock is stale and can be removed`, 'write', 2);
+    }
     throwIfAborted(signal);
     await fsApi.mkdir(stage, { mode: 0o700 });
     throwIfAborted(signal);
@@ -80,7 +86,24 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
       throwIfAborted(signal);
     }
     throwIfAborted(signal);
-    await fsApi.rename(stage, resolved);
+    // The early lstat above is only a fast failure. On POSIX, rename() replaces
+    // an existing EMPTY directory, so anything created at the destination since
+    // then would be silently overwritten. Claim the destination exclusively
+    // (mkdir fails if any entry exists) right before the move, so the claimed
+    // empty directory is visible only for this short window, then confirm the
+    // claim is still ours and let rename() atomically replace it with the
+    // complete bundle. Windows rename() never replaces a directory, so it needs
+    // no claim there.
+    if (platform !== 'win32') {
+      claim = await claimDestination(resolved, fsApi);
+      throwIfAborted(signal);
+      if (!await stillClaimed(resolved, claim, fsApi)) { claim = null; throw inputError('proof bundle destination already exists'); }
+    }
+    try { await fsApi.rename(stage, resolved); }
+    catch (cause) {
+      if (cause?.code === 'ENOTEMPTY' || cause?.code === 'EEXIST') throw inputError('proof bundle destination already exists', cause);
+      throw cause;
+    }
     committed = true;
     throwIfAborted(signal);
     return { path: resolved, manifest };
@@ -96,8 +119,86 @@ export async function writeProofBundle(destination, source, receipt, { fsApi = f
     if (committed && signal?.aborted) {
       try { await fsApi.rm(resolved, { recursive: true, force: true }); } catch {}
     }
+    if (claim && !committed) await releaseClaim(resolved, claim, fsApi, path.join(parent, `.${path.basename(resolved)}.${randomId()}.release`));
     try { await fsApi.rm(stage, { recursive: true, force: true }); } catch {}
   }
+}
+
+async function claimDestination(target, fsApi) {
+  try { await fsApi.mkdir(target, { mode: 0o700 }); }
+  catch (cause) {
+    if (cause?.code === 'EEXIST') throw inputError('proof bundle destination already exists', cause);
+    throw cause;
+  }
+  try {
+    return identity(await fsApi.lstat(target, { bigint: true }));
+  } catch (cause) {
+    // The claim vanished at once; nothing of ours is left to release.
+    throw inputError('proof bundle destination already exists', cause);
+  }
+}
+
+// dev+ino identify the directory; ctimeNs also catches a replacement that
+// reused the inode number where the filesystem has fine-grained timestamps.
+function identity(stat) { return { dev: stat.dev, ino: stat.ino, ctimeNs: stat.ctimeNs }; }
+
+async function stillClaimed(target, claim, fsApi) {
+  try {
+    const stat = await fsApi.lstat(target, { bigint: true });
+    if (!stat.isDirectory() || stat.isSymbolicLink()) return false;
+    const current = identity(stat);
+    return current.dev === claim.dev && current.ino === claim.ino && current.ctimeNs === claim.ctimeNs;
+  } catch { return false; }
+}
+
+// Remove only the empty directory this process created. Removing it in place
+// would be check-then-act: another process could swap its own directory in
+// between the identity check and rmdir. So the claim is first moved to a
+// private random name in the same parent; whatever was moved is then checked
+// there and removed with a non-recursive rmdir only if it is ours and still
+// empty. Anything else (a directory put in our place, or our claim after
+// another process wrote into it) is moved back to the destination.
+// The full identity (with ctimeNs) is checked before the move; after it only
+// dev+ino are compared, because rename may update the directory's ctime.
+async function releaseClaim(target, claim, fsApi, privatePath) {
+  try {
+    if (!await stillClaimed(target, claim, fsApi)) return;
+    await fsApi.rename(target, privatePath);
+  } catch (cause) {
+    // If the claim cannot be moved aside, fall back to the in-place check and
+    // rmdir (a short check-then-act window) rather than leave the claim behind.
+    if (cause?.code !== 'ENOENT') { try { if (await stillClaimed(target, claim, fsApi)) await fsApi.rmdir(target); } catch {} }
+    return;
+  }
+  try {
+    const stat = await fsApi.lstat(privatePath, { bigint: true });
+    if (stat.isDirectory() && !stat.isSymbolicLink() && stat.dev === claim.dev && stat.ino === claim.ino) {
+      await fsApi.rmdir(privatePath);
+      return;
+    }
+  } catch {}
+  // Not ours, or no longer empty: put it back without replacing anything.
+  await putBack(privatePath, target, fsApi);
+}
+
+// A plain rename back could replace an empty directory that a third party
+// created at the destination meanwhile. A directory is therefore put back the
+// same way the bundle is moved in: claim the destination with an exclusive
+// mkdir, then rename onto that empty claim. A non-directory is put back with
+// link() (which fails if the name exists) and then unlinked from the private
+// name. If the destination is occupied, the entry stays under the private
+// name: moved, never deleted.
+async function putBack(privatePath, target, fsApi) {
+  let stat;
+  try { stat = await fsApi.lstat(privatePath); } catch { return; }
+  if (!stat.isDirectory()) {
+    try { await fsApi.link(privatePath, target); } catch { return; }
+    try { await fsApi.unlink(privatePath); } catch {}
+    return;
+  }
+  try { await fsApi.mkdir(target, { mode: 0o700 }); } catch { return; }
+  try { await fsApi.rename(privatePath, target); }
+  catch { try { await fsApi.rmdir(target); } catch {} }
 }
 
 async function writeArtifact(root, relativePath, bytes, fsApi, signal) {

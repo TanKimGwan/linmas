@@ -157,3 +157,83 @@ test('capability failure occurs before confirmation and provider runner creation
   assert.equal(created, false);
   assert.equal(io.written(), '');
 });
+
+function processShapedIo(lines = [], { isInteractive }) {
+  const io = fakeIo(lines);
+  delete io.isTTY;
+  io.isInteractive = isInteractive;
+  io.allowPipedPrompts = true;
+  return io;
+}
+
+test('interactive process-shaped io (isInteractive, no isTTY) confirms with yes', async () => {
+  let called = false;
+  const io = processShapedIo(['yes'], { isInteractive: true });
+  assert.equal('isTTY' in io, false);
+  const providerRegistry = new Map([['fake', { create() { return { async run() { called = true; return { provider: 'fake', model: 'fake-model', rawResponse: validResult }; } }; } }]]);
+  const result = await runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json' }, { cwd: fixtureDir, io, providerRegistry });
+  assert.equal(result.exitCode, EXIT_CODES.OK);
+  assert.equal(called, true);
+});
+
+test('non-interactive process-shaped io without --yes is rejected before running', async () => {
+  let called = false;
+  const io = processShapedIo(['yes'], { isInteractive: false });
+  const providerRegistry = new Map([['fake', { create() { return { async run() { called = true; return { provider: 'fake', model: 'fake-model', rawResponse: validResult }; } }; } }]]);
+  await assert.rejects(
+    runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json' }, { cwd: fixtureDir, io, providerRegistry }),
+    (error) => error instanceof ReviewError && error.exitCode === EXIT_CODES.INPUT && error.message === 'non-interactive execution requires --yes'
+  );
+  assert.equal(called, false);
+});
+
+test('interactive process-shaped io rejects answers other than yes', async () => {
+  let called = false;
+  const io = processShapedIo(['no'], { isInteractive: true });
+  const providerRegistry = new Map([['fake', { create() { return { async run() { called = true; return { provider: 'fake', model: 'fake-model', rawResponse: validResult }; } }; } }]]);
+  await assert.rejects(
+    runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json' }, { cwd: fixtureDir, io, providerRegistry }),
+    (error) => error instanceof ReviewError && error.exitCode === EXIT_CODES.INPUT && error.message === 'outbound transmission not confirmed'
+  );
+  assert.equal(called, false);
+});
+
+test('--stdin without --yes is rejected before confirmation, even on an interactive terminal', async () => {
+  let called = false;
+  let created = false;
+  let prompted = false;
+  const io = processShapedIo([], { isInteractive: true });
+  io.stdin = Readable.from(['yes\nreview this stdin input']);
+  io.readLine = async () => { prompted = true; return 'yes'; };
+  const providerRegistry = new Map([['fake', { create() { created = true; return { async run() { called = true; return { provider: 'fake', model: 'fake-model', rawResponse: validResult }; } }; } }]]);
+  await assert.rejects(
+    runReview({ inputPath: null, useStdin: true, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json' }, { cwd: fixtureDir, io, providerRegistry }),
+    (error) => error instanceof ReviewError && error.category === 'input' && error.exitCode === EXIT_CODES.INPUT && /--stdin requires --yes/.test(error.message)
+  );
+  assert.equal(prompted, false);
+  assert.equal(created, false);
+  assert.equal(called, false);
+});
+
+test('--stdin with --yes transmits without prompting', async () => {
+  let called = false;
+  let prompted = false;
+  const io = processShapedIo([], { isInteractive: true });
+  io.stdin = Readable.from(['review this stdin input']);
+  io.readLine = async () => { prompted = true; return 'no'; };
+  const providerRegistry = new Map([['fake', { create() { return { async run() { called = true; return { provider: 'fake', model: 'fake-model', rawResponse: validResult }; } }; } }]]);
+  const result = await runReview({ inputPath: null, useStdin: true, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json', assumeYes: true }, { cwd: fixtureDir, io, providerRegistry });
+  assert.equal(result.exitCode, EXIT_CODES.OK);
+  assert.equal(called, true);
+  assert.equal(prompted, false);
+});
+
+test('interactive --input confirmation writes an explicit prompt before reading', async () => {
+  const io = processShapedIo([], { isInteractive: true });
+  let outputAtPrompt = null;
+  io.readLine = async () => { outputAtPrompt = io.written(); return 'yes'; };
+  const providerRegistry = new Map([['fake', { create() { return { async run() { return { provider: 'fake', model: 'fake-model', rawResponse: validResult }; } }; } }]]);
+  const result = await runReview({ inputPath: 'input.txt', useStdin: false, skillName: 'secure-code-reviewer', provider: 'fake', output: 'json' }, { cwd: fixtureDir, io, providerRegistry });
+  assert.equal(result.exitCode, EXIT_CODES.OK);
+  assert.match(outputAtPrompt, /data leaves this machine: yes\nType yes to transmit: $/);
+});

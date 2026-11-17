@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { terminalSafe, terminalSafeLines } from './terminal-text.mjs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { assertInsideRoot } from './fs-utils.mjs';
@@ -227,8 +228,8 @@ export function selectScopedSkills(skills, { skillNames = [], installAll = false
 export async function promptForScopedSelection(io, title, options, { allowAll = false, multiple = false } = {}) {
   if (!io || typeof io.readLine !== 'function') return null;
   while (true) {
-    io.stdout.write(`${title}\n`);
-    options.forEach((option, index) => io.stdout.write(`[${index + 1}] ${option.label}\n`));
+    io.stdout.write(`${terminalSafe(title)}\n`);
+    options.forEach((option, index) => io.stdout.write(`[${index + 1}] ${terminalSafe(option.label)}\n`));
     if (allowAll) io.stdout.write('[all] Choose every skill\n');
     io.stdout.write(`${multiple ? 'Enter comma-separated numbers' : 'Enter one number'}, or blank to cancel: `);
     const line = await io.readLine();
@@ -249,7 +250,7 @@ export async function promptForScopedSelection(io, title, options, { allowAll = 
 
 export async function promptForScopedConfirmation(io, prompt) {
   if (!io || typeof io.readLine !== 'function') return false;
-  io.stdout.write(`${prompt} [yes/no]\n`);
+  io.stdout.write(`${terminalSafe(prompt)} [yes/no]\n`);
   const line = await io.readLine();
   if (line === null) return null;
   return line !== null && ['yes', 'y'].includes(line.trim().toLowerCase());
@@ -467,7 +468,7 @@ export function formatScopedInstallPreview(plan) {
   for (const item of plan.retained) lines.push(`  retained canonical for ${item.skill}; reference ${item.unknown ? 'could not be checked' : 'found'} at ${item.reference}`);
   if (plan.conflicts.length) lines.push(`Conflicts requiring separate approval: ${plan.conflicts.length}`);
   if (plan.dryRun) lines.push('Dry run: no files or lock state will be written.');
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }
 
 function copyTree(source, destination) {
@@ -995,7 +996,7 @@ export function formatScopedUninstallPreview(plan) {
   const lines = [`Linmas ${plan.scope} uninstall preview:`];
   for (const operation of plan.operations) lines.push(`- remove ${operation.host}: ${operation.absolutePath}`);
   for (const item of plan.skipped) lines.push(`- keep ${item.skill} (${item.reason}): ${item.path}`);
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }
 
 export function applyScopedUninstallPlan(plan, { writeManifest = writeSnapshotAt } = {}) {
@@ -1113,5 +1114,5 @@ export function formatScopedDoctorReport({ manifest, targets, scope, scopeRoot, 
     }
   }
   if (manifest.skills.length === 0) lines.push('- no scoped skills are managed');
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }

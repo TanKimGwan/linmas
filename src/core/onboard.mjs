@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { terminalSafeLines } from './terminal-text.mjs';
 import { toPublicReviewError } from '../review/public-error.mjs';
 
 const CAPABILITY_TIMEOUT_MS = 3000;
@@ -98,5 +99,5 @@ export function formatOnboarding(detections, skills, manifests, capability = nul
   }
 
   lines.push('', 'Next steps:', '- open your host and confirm the installed local skills are available', '- run `npx linmas doctor` if something looks wrong', '- run `npx linmas uninstall <skill>` to remove a managed install', '- find more docs: README.md');
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }

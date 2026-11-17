@@ -223,7 +223,10 @@ def observe_launcher(operation):
         child["pidExistsAfterReturn"] = Path("/proc", str(process.pid)).exists()
         child["processGroupPidsObserved"] = sorted(child.pop("observedProcessGroupPids"))
         child["processGroupPidsRemainingAfterReturn"] = final_group_pids
-        assert child["returnCode"] is not None
+        # A None return code means terminate_process could not reap the child
+        # within its bounded wait (TimeoutExpired then replaces the original
+        # error). Name that cause instead of a bare assertion.
+        assert child["returnCode"] is not None, {"reason": "child not reaped within the launcher's bounded wait", "outerError": outer_error, "pid": process.pid}
         assert all(child["pipesClosedAfterReturn"].values())
         assert all(child["pipeFdsClosedAfterReturn"].values())
         assert not child["pidExistsAfterReturn"]

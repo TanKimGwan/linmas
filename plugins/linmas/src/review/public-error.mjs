@@ -32,6 +32,13 @@ const CODE_BY_CLASS = Object.freeze({
 
 const CODE_BY_TOOL = Object.freeze({
   unknown_tool: 'TOOL_UNSUPPORTED',
+  invalid_input: 'INPUT_FIELD_INVALID',
+  input: 'INPUT_FIELD_INVALID',
+  decision_input_required: 'DECISION_INPUT_REQUIRED',
+  risk_acknowledgement_required: 'RISK_ACKNOWLEDGEMENT_REQUIRED',
+  write: 'ARTIFACT_WRITE_FAILED',
+  signature: 'SIGNATURE_VERIFICATION_FAILED',
+  proof: 'CONTRACT_VIOLATION',
   invalid_path: 'INVALID_PATH',
   input_too_large: 'INPUT_TOO_LARGE',
   output_too_large: 'OUTPUT_TOO_LARGE',
@@ -44,7 +51,8 @@ const CODE_BY_TOOL = Object.freeze({
   input_source_invalid: 'INPUT_SOURCE_INVALID',
   specialist_unsupported: 'SPECIALIST_UNSUPPORTED',
   provider_unsupported: 'PROVIDER_UNSUPPORTED',
-  policy_unsupported: 'POLICY_UNSUPPORTED'
+  policy_unsupported: 'POLICY_UNSUPPORTED',
+  policy_result_incompatible: 'POLICY_RESULT_INCOMPATIBLE'
 });
 
 export const PUBLIC_ERROR_SCHEMA_VERSION = 1;
@@ -53,13 +61,14 @@ export const PUBLIC_TRANSMISSION_STATES = Object.freeze([...TRANSMISSION_STATES]
 export function toPublicReviewError(error, { transmitting = false } = {}) {
   const category = error?.toolCode ?? error?.failureClass ?? error?.category;
   const failureClass = FAILURE_CLASSES.has(category) ? category : null;
-  const code = failureClass ? CODE_BY_CLASS[failureClass] : CODE_BY_TOOL[category] ?? 'INPUT_FIELD_INVALID';
-  const transmissionState = safeTransmissionState(error?.transmissionState, transmitting);
+  const code = failureClass ? CODE_BY_CLASS[failureClass] : Object.hasOwn(CODE_BY_TOOL, category) ? CODE_BY_TOOL[category] : 'INTERNAL_ERROR';
+  const transmissionState = safeTransmissionState(error?.transmissionState, transmitting, failureClass);
+  const stage = safeStage(error?.stage, failureClass, code);
   const result = {
     schemaVersion: PUBLIC_ERROR_SCHEMA_VERSION,
     code,
-    message: publicMessage(code),
-    stage: safeStage(error?.stage, failureClass, category),
+    message: publicMessage(code, stage),
+    stage,
     retryable: typeof error?.retryable === 'boolean' ? error.retryable : defaultRetryable(failureClass, code),
     transmissionState,
     transmissionAttempted: error?.transmissionAttempted ?? transmissionState !== 'not-attempted',
@@ -80,9 +89,15 @@ export function toPublicReviewError(error, { transmitting = false } = {}) {
   return result;
 }
 
-function publicMessage(code) {
+function publicMessage(code, stage) {
+  if (code === 'CONTRACT_VIOLATION' && stage === 'capsule-write') return 'The review capsule could not be built, validated, or written.';
   return Object.freeze({
     TOOL_UNSUPPORTED: 'The requested Linmas tool is not supported.',
+    DECISION_INPUT_REQUIRED: 'A required review decision input is missing.',
+    RISK_ACKNOWLEDGEMENT_REQUIRED: 'Explicit risk acknowledgement is required to continue.',
+    ARTIFACT_WRITE_FAILED: 'The local artifact could not be written.',
+    SIGNATURE_VERIFICATION_FAILED: 'The artifact signature could not be verified.',
+    INTERNAL_ERROR: 'The Linmas tool failed unexpectedly.',
     INPUT_FIELD_UNSUPPORTED: 'The request contains an unsupported field.',
     INPUT_FIELD_REQUIRED: 'A required request field is missing.',
     INPUT_FIELD_INVALID: 'A request field is invalid.',
@@ -90,6 +105,7 @@ function publicMessage(code) {
     SPECIALIST_UNSUPPORTED: 'The requested specialist is not supported.',
     PROVIDER_UNSUPPORTED: 'The requested provider is not supported.',
     POLICY_UNSUPPORTED: 'The requested policy is not supported.',
+    POLICY_RESULT_INCOMPATIBLE: 'The provider response is incompatible with the requested policy.',
     INVALID_PATH: 'The requested path is invalid or outside the workspace.',
     INPUT_TOO_LARGE: 'The request exceeds the bounded input limit.',
     OUTPUT_TOO_LARGE: 'The tool output exceeds the bounded output limit.',
@@ -99,7 +115,7 @@ function publicMessage(code) {
     PROVIDER_AUTHENTICATION_FAILED: 'Provider authentication failed.',
     PROVIDER_RATE_LIMITED: 'The provider rate-limited the request.',
     PROVIDER_TIMEOUT: 'The provider request timed out.',
-    PROVIDER_TRANSPORT_FAILED: 'The provider transport failed before a response was received.',
+    PROVIDER_TRANSPORT_FAILED: 'The provider transport failed.',
     PROVIDER_UPSTREAM_FAILED: 'The provider returned an upstream failure.',
     PROVIDER_REQUEST_REJECTED: 'The provider rejected the request.',
     PROVIDER_EXECUTION_CANCELLED: 'Provider execution was cancelled.',
@@ -109,9 +125,11 @@ function publicMessage(code) {
   }[code] ?? 'The Linmas tool request failed.');
 }
 
-function safeStage(value, failureClass, category) {
+function safeStage(value, failureClass, code) {
+  if (code === 'INTERNAL_ERROR' || code === 'OUTPUT_TOO_LARGE') return 'mcp-execution';
   if (STAGES.has(value)) return value;
-  if (category?.startsWith?.('input_') || category === 'unknown_tool') return 'argument-validation';
+  if (code === 'POLICY_RESULT_INCOMPATIBLE') return 'normalization';
+  if (['ARTIFACT_WRITE_FAILED', 'SIGNATURE_VERIFICATION_FAILED'].includes(code)) return 'mcp-execution';
   if (failureClass === 'timeout') return 'mcp-execution';
   if (failureClass === 'normalization' || failureClass === 'provider-response-invalid') return 'normalization';
   return failureClass ? 'provider-execution' : 'argument-validation';
@@ -127,6 +145,7 @@ function defaultRetryable(failureClass, code) {
 }
 
 function defaultReasonCode(failureClass, code) {
+  if (code === 'INTERNAL_ERROR') return 'INTERNAL_ERROR';
   return failureClass === 'provider-configuration' ? 'CONFIGURATION_MISSING'
     : failureClass === 'provider-authentication' ? 'AUTHENTICATION_FAILED'
       : failureClass === 'provider-rate-limit' ? 'RATE_LIMITED'
@@ -139,9 +158,9 @@ function defaultReasonCode(failureClass, code) {
                     : failureClass === 'normalization' ? 'REVIEW_RESULT_INVALID' : null;
 }
 
-function safeTransmissionState(value, transmitting) {
+function safeTransmissionState(value, transmitting, failureClass) {
   if (TRANSMISSION_STATES.has(value)) return value;
-  return transmitting ? 'attempted' : 'not-attempted';
+  return transmitting && failureClass === 'timeout' ? 'attempted' : 'not-attempted';
 }
 
 function isSafeIdentifier(value) {

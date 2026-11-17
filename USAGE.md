@@ -180,10 +180,10 @@ This is a Codex plugin marketplace installation. It does not make Linmas appear 
 
 ## Install managed skills with Linmas
 
-Run `npx --yes linmas@0.9.2 install` to start the interactive wizard. To select a project scope and method explicitly:
+Run `npx --yes linmas@0.9.3 install` to start the interactive wizard. To select a project scope and method explicitly:
 
 ```bash
-npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
+npx --yes linmas@0.9.3 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
 ```
 
 From this source checkout, the native installer manages Claude Code and Codex skills in a project or your user home. `--project` must name an existing directory. Project scope writes inside that directory; global scope writes under your home and is separate from an npm global executable install.

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { terminalSafeLines } from './terminal-text.mjs';
 import path from 'node:path';
 import { resolveSkill } from './skill-catalog.mjs';
 
@@ -44,5 +45,5 @@ export function formatDoctorReport(detections, manifests, existingPaths = new Se
     lines.push(`- manifest ${error.host}: invalid (${error.reason})`);
   }
 
-  return `${lines.join('\n')}\n`;
+  return `${terminalSafeLines(lines)}\n`;
 }
