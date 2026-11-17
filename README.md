@@ -23,24 +23,25 @@
   </p>
 </div>
 
-## Current release: v0.9.2
+## Release 0.9.3
 
-Linmas 0.9.2 adds a native managed skill installer for Claude Code and Codex:
+Linmas 0.9.3 is a correctness and hardening release for the local paths. It adds no provider features and does not change how a live review is sent.
 
-- Choose from eleven skills with an interactive wizard or explicit CLI flags, at project or user-home scope.
-- Use copy or symlink attachments, preview changes with `--dry-run`, and inspect scoped ownership with `doctor`.
-- Remove selected skills and hosts with scoped `uninstall`; preserve unmanaged or locally modified content unless backup and replacement are confirmed.
-- Fall back to copy only for unsupported symlink operations after a clean rollback; retain recovery data when rollback is incomplete.
-- Fail closed for managed install and uninstall apply on Windows, where safe handle-relative filesystem mutation is unavailable. Read-only previews and diagnostics remain available.
+- **Interactive confirmation works.** `linmas review` and `linmas proof create` accept an answer typed in a terminal; earlier releases refused every run without `--yes`.
+- **Policy is checked before anything is sent**, and a pack with an unknown severity or status is rejected.
+- **MCP errors are specific and truthful** about whether transmission was attempted; see the [public codes](mcp/ERRORS.md).
+- **Proof verification is stricter.** With `--allowed-signers`, a bundle needs a valid signature from a listed signer who is the recorded reviewer; unlisted files are rejected.
+- **Terminal output is escaped**, so untrusted text cannot drive the terminal or imitate Linmas output.
+- **New:** `linmas --help` and `linmas --version`.
 
-Install the published CLI with Node.js 24 or newer:
+Some bundles and policy files that 0.9.2 accepted are now rejected; read the upgrade notes in the [0.9.3 release notes](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.3.md) first.
 
 ```bash
-npm install --global linmas@0.9.2
-linmas list
+npm install --global linmas@0.9.3
+linmas --version
 ```
 
-Start with [managed skill installation](#install-managed-skills), read the [0.9.2 release notes](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.2.md), or follow the [0.9.0 plugin upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Legacy unscoped commands remain available; follow the archive-and-verify migration steps below before replacing a legacy installation. Skill installation does not register MCP or configure provider credentials. Human review remains required; publication does not establish live provider or production runtime behavior.
+Node.js 24 or newer is required. Commands that pin `0.9.3` or `v0.9.3` work once that version is published; the badges above show the latest published release. See also [managed skill installation](#install-managed-skills) and the [0.9.0 plugin upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Skill installation does not register MCP or configure provider credentials. Human review remains required; this release was verified offline and does not establish live provider or production runtime behavior.
 
 ## Try it in 60 seconds
 
@@ -107,7 +108,7 @@ GitHub's standard repository navigation exposes fixed tabs; these public usage g
 
 Linmas remains **Codex-first as a native integration** while staying portable across AI coding agents. Codex was also the primary integration used in the historical OpenAI Build Week 2026 project. The [compatibility evidence policy](docs/compatibility/COMPATIBILITY.md) defines the limits of current claims. Installation detection is not runtime conformance; compatibility with other agents depends on the integration level below.
 
-Version 0.9.2 adds scoped managed installation while retaining the existing integration boundaries. The [content identity](compatibility/evidence/v0.9.0-content-identity.json) is revision-bound; release artifact hashes and provenance bind the bytes actually published. A prior accepted SHA does not automatically qualify later source changes. Neither the identity file, offline fixtures, nor publication establishes live host or model behavior.
+Version 0.9.3 keeps the integration boundaries of 0.9.2, which added scoped managed installation. The [content identity](compatibility/evidence/v0.9.0-content-identity.json) is revision-bound; release artifact hashes and provenance bind the bytes actually published. A prior accepted SHA does not automatically qualify later source changes. Neither the identity file, offline fixtures, nor publication establishes live host or model behavior.
 
 | AI agent or surface | Status | Supported integration |
 | --- | --- | --- |
@@ -301,7 +302,7 @@ Installation hosts and execution providers are independent:
 | Installation hosts | Claude Code and Codex managed skill directories |
 | Execution providers | Claude and Codex provider-native configuration |
 
-Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.9.2. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
+Credentials are never stored in an installation manifest. Live execution is opt-in. Gemini and other agents are not registered installation hosts or execution providers in version 0.9.3. Additional installation hosts remain demand-driven and require testable install/uninstall behavior, safety-boundary parity, and a maintenance owner.
 
 ```bash
 npx linmas list
@@ -351,10 +352,10 @@ Codex contributed as the provider-native review engine, implementation collabora
 
 ## Install managed skills
 
-Run `npx --yes linmas@0.9.2 install` to start the interactive wizard. To choose a project scope and method explicitly:
+Run `npx --yes linmas@0.9.3 install` to start the interactive wizard. To choose a project scope and method explicitly:
 
 ```bash
-npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
+npx --yes linmas@0.9.3 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
 ```
 
 From this source checkout, the native installer manages Claude Code and Codex skills in a project or your user home. `--project` must name an existing directory; project scope writes under that directory, while global scope writes under your home. This is not an npm global executable install.
@@ -435,14 +436,14 @@ codex plugin list
 This is a public **GitHub repository marketplace**, not yet an entry in the global Codex/ChatGPT Plugins Directory. Therefore, Linmas will not automatically appear in search on another computer just because you are signed in to the same ChatGPT account. Add the marketplace once on each computer:
 
 ```bash
-codex plugin marketplace add TanKimGwan/linmas --ref v0.9.2
+codex plugin marketplace add TanKimGwan/linmas --ref v0.9.3
 codex plugin add linmas@linmas
 codex plugin list
 ```
 
 After installation, restart Codex completely and create a new task. If `linmas@linmas` is still not listed, verify that the computer has Git, Node.js 24+, and network access to GitHub. The official Plugins Directory is a separate publication channel that requires OpenAI submission, review, and approval; GitHub and npm publication do not automatically add Linmas to that global catalog.
 
-To pin the currently published immutable release instead of following `main`, replace `--ref main` with `--ref v0.9.2`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
+To pin an immutable release instead of following `main`, replace `--ref main` with `--ref v0.9.3`. After installation or upgrade, restart the Codex desktop/app-server and start a fresh task. A stale app-server can retain an MCP child process from an older or deleted plugin cache.
 
 To refresh an existing marketplace installation that follows a moving ref such
 as `main`, run:
@@ -455,10 +456,10 @@ codex plugin list --json
 ```
 
 `marketplace upgrade` refreshes the configured ref; it does not change an
-immutable `v0.8.0` ref, and a second `marketplace add` with `--ref v0.9.2` is
+immutable `v0.8.0` ref, and a second `marketplace add` with `--ref v0.9.3` is
 rejected while the old source is registered. Move a
-pinned installation from `v0.8.0` to `v0.9.2` with these steps: remove the installed plugin and old marketplace,
-re-add with `--ref v0.9.2`, install the plugin again,
+pinned installation from `v0.8.0` or `v0.9.2` to `v0.9.3` with these steps: remove the installed plugin and old marketplace,
+re-add with `--ref v0.9.3`, install the plugin again,
 and verify the configured ref and
 installed version. See the [0.9.0 upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md#upgrade-from-080).
 Always restart Codex and start a fresh task after verification.

@@ -180,10 +180,10 @@ Ini adalah instalasi plugin marketplace Codex. Linmas tidak otomatis muncul di k
 
 ## Instalasi managed skill dengan Linmas
 
-Jalankan `npx --yes linmas@0.9.2 install` untuk membuka wizard interaktif. Untuk memilih scope project dan metode secara eksplisit:
+Jalankan `npx --yes linmas@0.9.3 install` untuk membuka wizard interaktif. Untuk memilih scope project dan metode secara eksplisit:
 
 ```bash
-npx --yes linmas@0.9.2 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
+npx --yes linmas@0.9.3 install --skill linmas-secure-code-reviewer --agent claude --scope project --project "$PWD" --method symlink --yes
 ```
 
 Dari source checkout ini, installer native mengelola skill untuk Claude Code dan Codex pada scope project atau home pengguna. `--project` harus menunjuk direktori yang sudah ada. Scope project menulis di direktori itu; scope global menulis di home dan berbeda dari pemasangan executable npm global.
