@@ -9,10 +9,10 @@
 
   <p>
     <a href="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/TanKimGwan/linmas/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.9.2" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
+    <a href="https://www.npmjs.com/package/linmas"><img alt="npm version 0.9.3" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/npm.svg"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm total downloads" src="https://badgen.net/npm/dt/linmas?label=total%20downloads"></a>
     <a href="https://www.npmjs.com/package/linmas"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/linmas?label=weekly%20downloads"></a>
-    <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.9.2"><img alt="release v0.9.2" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
+    <a href="https://github.com/TanKimGwan/linmas/releases/tag/v0.9.3"><img alt="release v0.9.3" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/release.svg"></a>
     <a href="LICENSE"><img alt="License: Apache-2.0" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/license.svg"></a>
     <img alt="Node.js 24+" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/node.svg">
     <a href="https://github.com/TanKimGwan/linmas/blob/main/.agents/plugins/marketplace.json"><img alt="Codex primary" src="https://raw.githubusercontent.com/TanKimGwan/linmas/main/assets/badges/codex.svg"></a>
@@ -23,7 +23,7 @@
   </p>
 </div>
 
-## Release 0.9.3
+## Current release: v0.9.3
 
 Linmas 0.9.3 is a correctness and hardening release for the local paths. It adds no provider features and does not change how a live review is sent.
 
@@ -41,7 +41,7 @@ npm install --global linmas@0.9.3
 linmas --version
 ```
 
-Node.js 24 or newer is required. Commands that pin `0.9.3` or `v0.9.3` work once that version is published; the badges above show the latest published release. See also [managed skill installation](#install-managed-skills) and the [0.9.0 plugin upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Skill installation does not register MCP or configure provider credentials. Human review remains required; this release was verified offline and does not establish live provider or production runtime behavior.
+Node.js 24 or newer is required. See also [managed skill installation](#install-managed-skills) and the [0.9.0 plugin upgrade guidance](https://github.com/TanKimGwan/linmas/blob/main/releases/0.9.0.md). Skill installation does not register MCP or configure provider credentials. Human review remains required; this release was verified offline and does not establish live provider or production runtime behavior.
 
 ## Try it in 60 seconds
 
